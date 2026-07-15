@@ -6,6 +6,8 @@ use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\Auth\AccountResource;
+use App\Http\Resources\Auth\PublicProfileResource;
+use App\Http\Resources\Auth\SocialAuthUserResource;
 use App\Http\Resources\Auth\UserResource;
 use App\Models\User;
 use App\Services\Auth\AuthService;
@@ -374,6 +376,7 @@ class AuthController extends Controller
 
         $email = strtolower(trim($data['email']));
         $user = User::query()->where('email', $email)->first();
+        $isNewUser = false;
 
         if ($user && ! $user->is_social_login) {
             return ApiResponse::error('Social auth failed.', 'فشل الدخول الاجتماعي.', 400, [
@@ -385,6 +388,7 @@ class AuthController extends Controller
         }
 
         if (! $user) {
+            $isNewUser = true;
             $userType = UserType::from($data['user_type'] ?? UserType::VOLUNTEER->value);
             if ($userType === UserType::VOLUNTEER && empty($data['civil_id'])) {
                 return ApiResponse::error('Social auth failed.', 'فشل الدخول الاجتماعي.', 400, [
@@ -416,7 +420,9 @@ class AuthController extends Controller
         }
 
         $token = $this->authService->issueSocialToken($user);
-        $payload = (new UserResource($user->fresh(['volunteerProfile', 'organizationProfile'])))->resolve();
+        $user = $user->fresh(['volunteerProfile', 'organizationProfile', 'emergencyContactRelationship.choiceType']);
+        $user->_is_new_user = $isNewUser;
+        $payload = (new SocialAuthUserResource($user))->resolve();
         $payload['auth_token'] = $token->key;
 
         return ApiResponse::success($payload, 'Login successful. Welcome!', 'تم تسجيل الدخول بنجاح. مرحبًا!');
@@ -466,42 +472,21 @@ class AuthController extends Controller
     public function publicProfile(int $userId): JsonResponse
     {
         $user = User::query()
-            ->with(['volunteerProfile.currentBadge', 'organizationProfile', 'badge'])
+            ->with([
+                'volunteerProfile.currentBadge',
+                'volunteerProfile.gender.choiceType',
+                'organizationProfile.organizerType',
+                'organizationProfile.sector.choiceType',
+                'organizationProfile.documents',
+                'badge',
+                'masterInterests.choiceType',
+            ])
             ->find($userId);
 
         if (! $user) {
             return ApiResponse::error('User not found.', 'المستخدم غير موجود.', 404);
         }
 
-        $isVolunteerTeam = false;
-        $isPublic = true;
-        $profileData = [];
-
-        if ($user->isVolunteer() && $user->volunteerProfile) {
-            $isPublic = (bool) $user->volunteerProfile->is_public;
-            $profileData = [
-                'nickname' => $user->volunteerProfile->nickname,
-                'total_volunteer_hours' => $user->volunteerProfile->total_volunteer_hours,
-                'is_verified' => $user->volunteerProfile->is_verified,
-            ];
-        } elseif ($user->isOrganization() && $user->organizationProfile) {
-            $profileData = [
-                'nickname' => $user->organizationProfile->nickname,
-                'company_name' => $user->organizationProfile->company_name,
-                'organization_status' => $user->organizationProfile->organization_status?->value,
-            ];
-        }
-
-        return ApiResponse::success([
-            'id' => $user->id,
-            'profile_data' => $profileData,
-            'user_type' => $user->user_type?->value,
-            'is_volunteer_team' => $isVolunteerTeam,
-            'is_public' => $isPublic,
-            'badge_info' => $user->badge ? [
-                'id' => $user->badge->id,
-                'name' => $user->badge->name,
-            ] : null,
-        ]);
+        return ApiResponse::success(new PublicProfileResource($user));
     }
 }

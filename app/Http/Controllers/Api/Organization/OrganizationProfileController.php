@@ -4,25 +4,35 @@ namespace App\Http\Controllers\Api\Organization;
 
 use App\Enums\ApprovalStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Organization\OrganizationDocumentResource;
+use App\Http\Resources\Organization\OrganizationListResource;
+use App\Http\Resources\Organization\OrganizationProfileResource;
 use App\Models\OrganizationDocument;
 use App\Models\OrganizationProfile;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class OrganizationProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        $profile = $request->user()->organizationProfile()->with(['organizerType', 'sector', 'documents', 'user'])->first();
+        $profile = $request->user()->organizationProfile()->with([
+            'organizerType.choiceType',
+            'sector.choiceType',
+            'documents',
+            'user.interests',
+            'user.masterInterests.choiceType',
+            'user.badge',
+        ])->first();
+
         if (! $profile) {
             return ApiResponse::error('Organization profile not found.', 'ملف الجهة غير موجود.', 404);
         }
 
         return ApiResponse::success(
-            $this->transform($profile),
+            new OrganizationProfileResource($profile),
             'Organizer profile retrieved successfully.',
             'تم استرجاع ملف الجهة بنجاح.'
         );
@@ -81,8 +91,17 @@ class OrganizationProfileController extends Controller
         ]);
         $user->save();
 
+        $profile = $profile->fresh([
+            'organizerType.choiceType',
+            'sector.choiceType',
+            'documents',
+            'user.interests',
+            'user.masterInterests.choiceType',
+            'user.badge',
+        ]);
+
         return ApiResponse::success(
-            $this->transform($profile->fresh(['organizerType', 'sector', 'documents', 'user'])),
+            new OrganizationProfileResource($profile),
             'Organizer profile updated successfully.',
             'تم تحديث ملف الجهة بنجاح.'
         );
@@ -117,8 +136,14 @@ class OrganizationProfileController extends Controller
             }
         }
 
+        $documents = $profile->documents()
+            ->where(function ($q) {
+                $q->where('is_deleted', false)->orWhereNull('is_deleted');
+            })
+            ->get();
+
         return ApiResponse::success(
-            $this->transform($profile->fresh(['organizerType', 'sector', 'documents', 'user'])),
+            OrganizationDocumentResource::collection($documents)->resolve(),
             'Documents updated successfully.',
             'تم تحديث المستندات بنجاح.'
         );
@@ -130,8 +155,7 @@ class OrganizationProfileController extends Controller
         $query = OrganizationProfile::query()
             ->notDeleted()
             ->where('organization_status', ApprovalStatus::APPROVED)
-            ->whereHas('user', fn ($q) => $q->where('is_banned', false)->where('is_deleted', false)->where('id', '!=', $request->user()->id))
-            ->with(['user', 'organizerType']);
+            ->whereHas('user', fn ($q) => $q->where('is_banned', false)->where('is_deleted', false)->where('id', '!=', $request->user()->id));
 
         if ($name) {
             $query->where(function ($q) use ($name) {
@@ -146,45 +170,9 @@ class OrganizationProfileController extends Controller
 
         return ApiResponse::paginated(
             $paginator,
-            $paginator->getCollection()->map(fn (OrganizationProfile $p) => $this->transform($p))->values(),
+            OrganizationListResource::collection($paginator->getCollection())->resolve(),
             'Organizations retrieved successfully.',
             'تم استرجاع الجهات بنجاح.'
         );
-    }
-
-    protected function transform(OrganizationProfile $profile): array
-    {
-        return [
-            'id' => $profile->id,
-            'user_id' => $profile->user_id,
-            'nickname' => $profile->nickname,
-            'company_name' => $profile->company_name,
-            'registration_number' => $profile->registration_number,
-            'license_number' => $profile->license_number,
-            'organization_status' => $profile->organization_status?->value,
-            'latitude' => $profile->latitude,
-            'longitude' => $profile->longitude,
-            'organizer_type' => $profile->organizerType ? [
-                'id' => $profile->organizerType->id,
-                'value_en' => $profile->organizerType->value_en,
-                'value_ar' => $profile->organizerType->value_ar,
-            ] : null,
-            'sector' => $profile->sector ? [
-                'id' => $profile->sector->id,
-                'value_en' => $profile->sector->value_en,
-                'value_ar' => $profile->sector->value_ar,
-            ] : null,
-            'documents' => $profile->documents?->where('is_deleted', false)->values()->map(fn ($d) => [
-                'id' => $d->id,
-                'document' => Storage::disk('public')->url($d->document),
-                'uploaded_at' => optional($d->uploaded_at)?->toIso8601String(),
-            ]) ?? [],
-            'user' => $profile->user ? [
-                'id' => $profile->user->id,
-                'email' => $profile->user->email,
-                'first_name' => $profile->user->first_name,
-                'last_name' => $profile->user->last_name,
-            ] : null,
-        ];
     }
 }

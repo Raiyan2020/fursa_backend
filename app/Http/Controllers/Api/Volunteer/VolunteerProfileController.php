@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api\Volunteer;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Volunteer\VolunteerProfileResource;
+use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
+use App\Http\Resources\Volunteer\VolunteerVerificationResource;
 use App\Models\VolunteerProfile;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -14,14 +17,20 @@ class VolunteerProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        $profile = $request->user()->volunteerProfile()->with(['gender', 'organization', 'currentBadge', 'user'])->first();
+        $profile = $request->user()->volunteerProfile()->with([
+            'gender.choiceType',
+            'currentBadge',
+            'user.interests',
+            'user.masterInterests.choiceType',
+            'user.badge',
+        ])->first();
 
         if (! $profile) {
             return ApiResponse::error('Volunteer profile not found.', 'ملف المتطوع غير موجود.', 404);
         }
 
         return ApiResponse::success(
-            $this->transform($profile),
+            new VolunteerProfileResource($profile),
             'Volunteer profile retrieved successfully.',
             'تم استرجاع ملف المتطوع بنجاح.'
         );
@@ -97,8 +106,16 @@ class VolunteerProfileController extends Controller
             $user->interests()->sync($data['interest_ids']);
         }
 
+        $profile = $profile->fresh([
+            'gender.choiceType',
+            'currentBadge',
+            'user.interests',
+            'user.masterInterests.choiceType',
+            'user.badge',
+        ]);
+
         return ApiResponse::success(
-            $this->transform($profile->fresh(['gender', 'organization', 'currentBadge', 'user'])),
+            new VolunteerProfileResource($profile),
             'Volunteer profile updated successfully.',
             'تم تحديث ملف المتطوع بنجاح.'
         );
@@ -112,7 +129,15 @@ class VolunteerProfileController extends Controller
             ->notDeleted()
             ->where('is_verified', true)
             ->whereHas('user', fn ($q) => $q->where('is_banned', false)->where('is_deleted', false))
-            ->with(['user', 'currentBadge']);
+            ->with([
+                'gender.choiceType',
+                'currentBadge',
+                'user.interests',
+                'user.masterInterests.choiceType',
+                'user.badge',
+                'user.volunteerProfile.gender.choiceType',
+                'user.emergencyContactRelationship.choiceType',
+            ]);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -131,7 +156,7 @@ class VolunteerProfileController extends Controller
 
         return ApiResponse::paginated(
             $paginator,
-            $paginator->getCollection()->map(fn (VolunteerProfile $p) => $this->transform($p))->values(),
+            VolunteerProfileWithUserResource::collection($paginator->getCollection())->resolve(),
             'Volunteers retrieved successfully.',
             'تم استرجاع المتطوعين بنجاح.'
         );
@@ -139,18 +164,20 @@ class VolunteerProfileController extends Controller
 
     public function qrCode(Request $request): JsonResponse
     {
-        $profile = $request->user()->volunteerProfile;
+        $profile = $request->user()->volunteerProfile()->with('user')->first();
         if (! $profile) {
             return ApiResponse::error('Volunteer profile not found.', 'ملف المتطوع غير موجود.', 404);
         }
 
         $url = $profile->qr_code ? Storage::disk('public')->url($profile->qr_code) : null;
+        $user = $profile->user;
+        $name = trim(($user?->first_name ?? '').' '.($user?->last_name ?? ''));
 
         return ApiResponse::success([
-            'display_url' => $url,
-            'download_url' => $url,
-            'uuid' => $profile->uuid,
-            'verify_url' => rtrim(config('fursa.frontend_host'), '/').'/verify/'.$profile->uuid,
+            'volunteer_id' => $profile->id,
+            'qr_code_url' => $url,
+            'name' => $name,
+            'manual_id' => $user?->manual_id,
         ], 'QR code details fetched successfully.', 'تم جلب تفاصيل رمز QR بنجاح.');
     }
 
@@ -160,52 +187,15 @@ class VolunteerProfileController extends Controller
         if (! $profile) {
             return response()->json([
                 'success' => false,
-                'message' => 'Volunteer not found',
+                'message' => 'Verification failed. Volunteer not found.',
                 'volunteer' => null,
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Volunteer verified',
-            'volunteer' => $this->transform($profile),
+            'message' => 'Verification successful.',
+            'volunteer' => (new VolunteerVerificationResource($profile))->resolve(),
         ]);
-    }
-
-    protected function transform(VolunteerProfile $profile): array
-    {
-        return [
-            'id' => $profile->id,
-            'user_id' => $profile->user_id,
-            'nickname' => $profile->nickname,
-            'occupation' => $profile->occupation,
-            'experience' => $profile->experience,
-            'health_concerns' => $profile->health_concerns,
-            'is_public' => $profile->is_public,
-            'is_verified' => $profile->is_verified,
-            'uuid' => $profile->uuid,
-            'qr_code' => $profile->qr_code ? Storage::disk('public')->url($profile->qr_code) : null,
-            'total_volunteer_hours' => $profile->total_volunteer_hours,
-            'total_opportunities' => $profile->total_opportunities,
-            'total_certificates' => $profile->total_certificates,
-            'current_year_hours' => $profile->current_year_hours,
-            'gender' => $profile->gender ? [
-                'id' => $profile->gender->id,
-                'value_en' => $profile->gender->value_en,
-                'value_ar' => $profile->gender->value_ar,
-            ] : null,
-            'badge' => $profile->currentBadge ? [
-                'id' => $profile->currentBadge->id,
-                'name' => $profile->currentBadge->name,
-            ] : null,
-            'user' => $profile->user ? [
-                'id' => $profile->user->id,
-                'first_name' => $profile->user->first_name,
-                'last_name' => $profile->user->last_name,
-                'email' => $profile->user->email,
-                'civil_id' => $profile->user->civil_id,
-                'nationality' => $profile->user->nationality?->value ?? $profile->user->nationality,
-            ] : null,
-        ];
     }
 }

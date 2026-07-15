@@ -6,8 +6,8 @@ use App\Http\Resources\Concerns\ResolvesApiPayloads;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** Matches Django UserSerializer output (write_only fields excluded). */
-class UserResource extends JsonResource
+/** Matches Django SocialAuthSerializer + to_representation extras. */
+class SocialAuthUserResource extends JsonResource
 {
     use ResolvesApiPayloads;
 
@@ -29,27 +29,33 @@ class UserResource extends JsonResource
             $isVerified = $organization?->isApproved() ?? false;
         }
 
-        return [
+        $data = [
             'id' => $this->id,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
+            'email' => $this->email,
+            'social_profile_pic_url' => $this->social_profile_pic_url,
+            'social_media_id' => $this->social_media_id,
+            'social_media_provider' => $this->social_media_provider?->value ?? $this->social_media_provider,
+            'user_type' => $this->user_type?->value ?? $this->user_type,
+            'manual_id' => $this->manual_id,
+            'is_new_user' => (bool) ($this->resource->_is_new_user ?? false),
+            'nickname' => $volunteer?->nickname ?? $organization?->nickname,
+            'gender_display' => $this->masterChoicePayload($volunteer?->gender),
             'dob' => optional($this->dob)?->format('Y-m-d'),
             'birth_year' => $this->birth_year,
-            'email' => $this->email,
             'phone_number' => $this->phone_number,
             'country_code' => $this->country_code,
-            'profile_pic' => $this->profilePicUrl($this->resource),
-            'is_social_login' => (bool) $this->is_social_login,
-            'is_verified' => $isVerified,
-            'user_type' => $this->user_type?->value ?? $this->user_type,
-            'gender_display' => $this->masterChoicePayload($volunteer?->gender),
             'organizer_type_display' => $this->masterChoicePayload($organization?->organizerType),
+            'registration_number' => $organization?->registration_number,
+            'license_number' => $organization?->license_number,
+            'is_verified' => $isVerified,
+            'is_banned' => (bool) $this->is_banned,
             'latitude' => $organization?->latitude,
             'longitude' => $organization?->longitude,
             'nationality' => $this->nationality?->value ?? $this->nationality,
-            'manual_id' => $this->manual_id,
-            'is_banned' => (bool) $this->is_banned,
             'preferred_language' => $this->preferred_language?->value ?? $this->preferred_language,
+            'company_name' => $organization?->company_name,
             'civil_id' => $this->civil_id,
             'emergency_contact_name' => $this->emergency_contact_name,
             'emergency_contact_phone' => $this->emergency_contact_phone,
@@ -57,6 +63,23 @@ class UserResource extends JsonResource
             'emergency_contact_civil_id' => $this->emergency_contact_civil_id,
             'emergency_contact_relationship' => $this->emergency_contact_relationship_id,
             'emergency_contact_relationship_display' => $this->masterChoicePayload($this->emergencyContactRelationship),
+            'profile_pic' => $this->profilePicUrl($this->resource),
         ];
+
+        if ($this->isVolunteer() && $volunteer) {
+            $data['volunteer'] = [
+                'id' => $volunteer->id,
+                'organization_id' => $volunteer->organization_id,
+                'is_verified' => (bool) $volunteer->is_verified,
+                'is_public' => (bool) $volunteer->is_public,
+            ];
+        } elseif ($this->isOrganization() && $organization) {
+            $data['organization'] = [
+                'id' => $organization->id,
+                'organization_status' => $organization->organization_status?->value ?? $organization->organization_status,
+            ];
+        }
+
+        return $data;
     }
 }
