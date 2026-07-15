@@ -14,6 +14,14 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! class_exists(PermissionRegistrar::class)) {
+            $this->command?->error(
+                'spatie/laravel-permission is missing. Run: composer require spatie/laravel-permission && composer dump-autoload'
+            );
+
+            return;
+        }
+
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         $guard = AdminPermissions::GUARD;
