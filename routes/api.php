@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Base\BaseController;
 use App\Http\Controllers\Api\Faq\FaqController;
+use App\Http\Controllers\Api\Organization\OrganizationProfileController;
+use App\Http\Controllers\Api\Volunteer\VolunteerProfileController;
 use Illuminate\Support\Facades\Route;
 
 // Auth — public
@@ -24,21 +26,21 @@ Route::get('proxy-image/', [BaseController::class, 'proxyImage']);
 Route::options('proxy-image/', [BaseController::class, 'proxyImage']);
 Route::get('faqs/', [FaqController::class, 'index']);
 
-// Auth — protected (Authorization: Token <key>)
+// Auth — protected (Authorization: Bearer <token> or Token <key>)
 Route::middleware('auth:api')->group(function () {
     Route::get('account/', [AuthController::class, 'account']);
     Route::match(['put', 'patch'], 'account/', [AuthController::class, 'updateAccount']);
     Route::get('check-license-requirement/', [BaseController::class, 'checkLicenseRequirement']);
 
-    Route::get('volunteer-profile/', [\App\Http\Controllers\Api\Volunteer\VolunteerProfileController::class, 'show']);
-    Route::match(['put', 'patch'], 'volunteer-profile/', [\App\Http\Controllers\Api\Volunteer\VolunteerProfileController::class, 'update']);
-    Route::get('all-volunteers/', [\App\Http\Controllers\Api\Volunteer\VolunteerProfileController::class, 'allVolunteers']);
-    Route::get('volunteer-profile/qr-code/', [\App\Http\Controllers\Api\Volunteer\VolunteerProfileController::class, 'qrCode']);
+    Route::get('volunteer-profile/', [VolunteerProfileController::class, 'show']);
+    Route::match(['put', 'patch'], 'volunteer-profile/', [VolunteerProfileController::class, 'update']);
+    Route::get('all-volunteers/', [VolunteerProfileController::class, 'allVolunteers']);
+    Route::get('volunteer-profile/qr-code/', [VolunteerProfileController::class, 'qrCode']);
 
-    Route::get('organization-profile/', [\App\Http\Controllers\Api\Organization\OrganizationProfileController::class, 'show']);
-    Route::match(['put', 'patch'], 'organization-profile/', [\App\Http\Controllers\Api\Organization\OrganizationProfileController::class, 'update']);
-    Route::put('organization-profile/documents/', [\App\Http\Controllers\Api\Organization\OrganizationProfileController::class, 'updateDocuments']);
-    Route::get('list-organizations/', [\App\Http\Controllers\Api\Organization\OrganizationProfileController::class, 'listOrganizations']);
+    Route::get('organization-profile/', [OrganizationProfileController::class, 'show']);
+    Route::match(['put', 'patch'], 'organization-profile/', [OrganizationProfileController::class, 'update']);
+    Route::put('organization-profile/documents/', [OrganizationProfileController::class, 'updateDocuments']);
+    Route::get('list-organizations/', [OrganizationProfileController::class, 'listOrganizations']);
 });
 
-Route::get('verify/{uuid}/', [\App\Http\Controllers\Api\Volunteer\VolunteerProfileController::class, 'verifyByUuid']);
+Route::get('verify/{uuid}/', [VolunteerProfileController::class, 'verifyByUuid']);

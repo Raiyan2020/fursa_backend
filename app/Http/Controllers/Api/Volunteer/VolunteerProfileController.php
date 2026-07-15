@@ -36,6 +36,12 @@ class VolunteerProfileController extends Controller
             return ApiResponse::error('Volunteer profile not found.', 'ملف المتطوع غير موجود.', 404);
         }
 
+        if ($request->filled('nationality')) {
+            $request->merge([
+                'nationality' => \App\Enums\Nationality::normalize($request->input('nationality')),
+            ]);
+        }
+
         $data = $request->validate([
             'nickname' => ['nullable', 'string', 'max:50'],
             'occupation' => ['nullable', 'string', 'max:100'],
@@ -46,7 +52,7 @@ class VolunteerProfileController extends Controller
             'gender' => ['nullable', 'integer', 'exists:master_choices,id'],
             'civil_id' => ['required', 'string', 'max:12', Rule::unique('users', 'civil_id')->ignore($user->id)],
             'email' => ['nullable', 'email', Rule::unique('users', 'email')->ignore($user->id)],
-            'nationality' => ['nullable', 'string'],
+            'nationality' => ['nullable', 'string', Rule::in(\App\Enums\Nationality::values())],
             'dob' => ['nullable', 'date'],
             'birth_year' => ['nullable', 'integer'],
             'instagram_link' => ['nullable', 'url'],
@@ -57,6 +63,10 @@ class VolunteerProfileController extends Controller
             'interest_ids' => ['nullable', 'array'],
             'interest_ids.*' => ['integer', 'exists:interests,id'],
         ]);
+
+        if (array_key_exists('nationality', $data)) {
+            $data['nationality'] = \App\Enums\Nationality::normalize($data['nationality']);
+        }
 
         $profile->fill([
             'nickname' => $data['nickname'] ?? $profile->nickname,

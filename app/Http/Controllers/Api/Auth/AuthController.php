@@ -310,6 +310,11 @@ class AuthController extends Controller
     public function updateAccount(Request $request): JsonResponse
     {
         $user = $request->user();
+        if ($request->filled('nationality')) {
+            $request->merge([
+                'nationality' => \App\Enums\Nationality::normalize($request->input('nationality')),
+            ]);
+        }
         $data = $request->validate([
             'profile_pic' => ['nullable', 'image'],
             'first_name' => ['nullable', 'string', 'max:150'],
@@ -318,7 +323,7 @@ class AuthController extends Controller
             'phone_number' => ['nullable', 'string', 'max:15'],
             'country_code' => ['nullable', 'string', 'max:5'],
             'birth_year' => ['nullable', 'integer'],
-            'nationality' => ['nullable', 'string'],
+            'nationality' => ['nullable', 'string', Rule::in(\App\Enums\Nationality::values())],
             'preferred_language' => ['nullable', 'in:en,ar'],
             'civil_id' => ['nullable', 'string', 'max:12', Rule::unique('users', 'civil_id')->ignore($user->id)],
             'emergency_contact_name' => ['nullable', 'string', 'max:100'],
@@ -327,6 +332,10 @@ class AuthController extends Controller
             'emergency_contact_civil_id' => ['nullable', 'string', 'max:12'],
             'emergency_contact_relationship' => ['nullable', 'integer', 'exists:master_choices,id'],
         ]);
+
+        if (array_key_exists('nationality', $data)) {
+            $data['nationality'] = \App\Enums\Nationality::normalize($data['nationality']);
+        }
 
         if (! empty($data['profile_pic'])) {
             $user->profile_pic = $data['profile_pic']->store(config('fursa.storage_path').'/profile_pics', 'public');

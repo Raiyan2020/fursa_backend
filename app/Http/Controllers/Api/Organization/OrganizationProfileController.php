@@ -10,6 +10,7 @@ use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class OrganizationProfileController extends Controller
 {
@@ -35,6 +36,12 @@ class OrganizationProfileController extends Controller
             return ApiResponse::error('Organization profile not found.', 'ملف الجهة غير موجود.', 404);
         }
 
+        if ($request->filled('nationality')) {
+            $request->merge([
+                'nationality' => \App\Enums\Nationality::normalize($request->input('nationality')),
+            ]);
+        }
+
         $data = $request->validate([
             'nickname' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string', 'max:255'],
@@ -44,7 +51,7 @@ class OrganizationProfileController extends Controller
             'license_number' => ['nullable', 'string', 'max:100'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
-            'nationality' => ['nullable', 'string'],
+            'nationality' => ['nullable', 'string', Rule::in(\App\Enums\Nationality::values())],
             'instagram_link' => ['nullable', 'url'],
             'whatsapp_link' => ['nullable', 'url'],
             'linkedin_link' => ['nullable', 'url'],

@@ -27,7 +27,9 @@ class DatabaseSeeder extends Seeder
 
             // Demo accounts last (depends on choices/badges)
             AdminUserSeeder::class,
-            AdminSeeder::class,
+            MigrateAdminsFromUsersSeeder::class, // Django users (admin) → admins table
+            AdminSeeder::class,                  // local fallback only if admins empty
+            RolePermissionSeeder::class,         // roles + assign super-admin to all admins
         ]);
     }
 }

@@ -22,6 +22,17 @@
             <label class="custom-control-label" for="is_active">{{ __('active') }}</label>
         </div>
     </div>
+    <div class="col-md-12 mb-1">
+        <label>{{ __('roles') }}</label>
+        @php $selected = collect($selectedRoles ?? old('roles', [])); @endphp
+        <select name="roles[]" class="form-control select2" multiple>
+            @foreach ($roles as $role)
+                <option value="{{ $role->id }}" {{ $selected->contains($role->id) ? 'selected' : '' }}>
+                    {{ $role->name }}
+                </option>
+            @endforeach
+        </select>
+    </div>
 </div>
 <div class="mt-1">
     <button type="submit" class="btn btn-primary">{{ __('save') }}</button>

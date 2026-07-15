@@ -20,6 +20,7 @@
                                         <th>{{ __('name') }}</th>
                                         <th>{{ __('email') }}</th>
                                         <th>{{ __('phone') }}</th>
+                                        <th>{{ __('roles') }}</th>
                                         <th>{{ __('status') }}</th>
                                         <th>{{ __('actions') }}</th>
                                     </tr>
@@ -31,6 +32,13 @@
                                             <td>{{ $admin->name }}</td>
                                             <td>{{ $admin->email }}</td>
                                             <td>{{ $admin->phone }}</td>
+                                            <td>
+                                                @forelse ($admin->roles as $role)
+                                                    <span class="badge badge-light-primary">{{ $role->name }}</span>
+                                                @empty
+                                                    <span class="text-muted">—</span>
+                                                @endforelse
+                                            </td>
                                             <td>
                                                 <span class="badge badge-light-{{ $admin->is_active ? 'success' : 'danger' }}">
                                                     {{ $admin->is_active ? __('active') : __('inactive') }}

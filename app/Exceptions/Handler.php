@@ -7,6 +7,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use ValueError;
 
 class Handler extends ExceptionHandler
 {
@@ -24,10 +25,9 @@ class Handler extends ExceptionHandler
     {
         $this->renderable(function (ValidationException $e, $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                return ApiResponse::error(
-                    'Validation failed.',
-                    'فشل التحقق.',
-                    400,
+                return ApiResponse::fail(
+                    __('apis.validation_error'),
+                    422,
                     $e->errors()
                 );
             }
@@ -35,10 +35,16 @@ class Handler extends ExceptionHandler
 
         $this->renderable(function (AuthenticationException $e, $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                return ApiResponse::error(
-                    'Authentication credentials were not provided.',
-                    'لم يتم تقديم بيانات الاعتماد.',
-                    401
+                return ApiResponse::fail(__('apis.unauthenticated'), 401);
+            }
+        });
+
+        $this->renderable(function (ValueError $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return ApiResponse::fail(
+                    __('apis.validation_error'),
+                    422,
+                    ['error' => [$e->getMessage()]]
                 );
             }
         });

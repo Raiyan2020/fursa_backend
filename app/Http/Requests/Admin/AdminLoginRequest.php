@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Admin;
+use App\Support\PasswordCompat;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -36,7 +38,13 @@ class AdminLoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::guard('admin')->attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $email = (string) $this->input('email');
+        $password = (string) $this->input('password');
+
+        /** @var Admin|null $admin */
+        $admin = Admin::query()->where('email', $email)->first();
+
+        if (! $admin || ! PasswordCompat::check($password, $admin->getAuthPassword())) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -44,13 +52,15 @@ class AdminLoginRequest extends FormRequest
             ]);
         }
 
-        $admin = Auth::guard('admin')->user();
         if (! $admin->is_active) {
-            Auth::guard('admin')->logout();
             throw ValidationException::withMessages([
                 'email' => __('admin.messages.inactive'),
             ]);
         }
+
+        PasswordCompat::upgradeIfNeeded($admin, $password);
+
+        Auth::guard('admin')->login($admin, $this->boolean('remember'));
 
         RateLimiter::clear($this->throttleKey());
     }

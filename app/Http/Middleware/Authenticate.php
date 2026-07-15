@@ -25,9 +25,8 @@ class Authenticate extends Middleware
     protected function unauthenticated($request, array $guards)
     {
         if ($request->is('api/*') || $request->expectsJson()) {
-            throw new HttpResponseException(ApiResponse::error(
-                'Authentication credentials were not provided.',
-                'لم يتم تقديم بيانات الاعتماد.',
+            throw new HttpResponseException(ApiResponse::fail(
+                __('apis.unauthenticated'),
                 401
             ));
         }

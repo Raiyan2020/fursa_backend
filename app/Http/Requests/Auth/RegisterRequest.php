@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Enums\Nationality;
 use App\Enums\UserType;
+use App\Http\Requests\BaseRequest;
 use App\Models\User;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class RegisterRequest extends FormRequest
+class RegisterRequest extends BaseRequest
 {
     public function authorize(): bool
     {
@@ -36,7 +37,7 @@ class RegisterRequest extends FormRequest
             'documents.*' => ['file'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
-            'nationality' => ['nullable', 'string'],
+            'nationality' => ['nullable', 'string', Rule::in(Nationality::values())],
             'birth_year' => ['nullable', 'integer'],
             'dob' => ['nullable', 'date'],
             'preferred_language' => ['nullable', 'in:en,ar'],
@@ -59,9 +60,9 @@ class RegisterRequest extends FormRequest
 
             if ($userType === UserType::VOLUNTEER->value) {
                 if ($civilId === '') {
-                    $validator->errors()->add('civil_id', 'Civil ID is required / الرقم المدني مطلوب');
+                    $validator->errors()->add('civil_id', __('validation.required', ['attribute' => 'civil_id']));
                 } elseif (User::query()->where('civil_id', $civilId)->exists()) {
-                    $validator->errors()->add('civil_id', 'This Civil ID is already registered. / هذا الرقم المدني مسجل بالفعل.');
+                    $validator->errors()->add('civil_id', __('validation.unique', ['attribute' => 'civil_id']));
                 }
 
                 $age = null;
@@ -80,7 +81,7 @@ class RegisterRequest extends FormRequest
                         'emergency_contact_relationship',
                     ] as $field) {
                         if (! $this->filled($field)) {
-                            $validator->errors()->add($field, 'Emergency contact is required for volunteers under 18');
+                            $validator->errors()->add($field, __('validation.required', ['attribute' => $field]));
                         }
                     }
                 }
@@ -92,6 +93,12 @@ class RegisterRequest extends FormRequest
     {
         if ($this->has('email')) {
             $this->merge(['email' => strtolower(trim((string) $this->input('email')))]);
+        }
+
+        if ($this->filled('nationality')) {
+            $this->merge([
+                'nationality' => Nationality::normalize($this->input('nationality')),
+            ]);
         }
     }
 }

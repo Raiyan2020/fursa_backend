@@ -1,9 +1,12 @@
 <?php
 
 return [
-  'sidebar' => [
+    'sidebar' => [
     'main_page' => 'الصفحة الرئيسية',
+    'access_control' => 'الصلاحيات',
     'admins' => 'المشرفون',
+    'roles' => 'الأدوار',
+    'permissions' => 'الصلاحيات التفصيلية',
     'users' => 'المستخدمون',
     'all_users' => 'كل المستخدمين',
     'volunteers' => 'المتطوعون',
@@ -124,5 +127,28 @@ return [
     'loading' => 'جارٍ التحميل...',
     'no_data' => 'لا توجد بيانات',
     'search' => 'بحث',
+  ],
+  'permission_modules' => [
+    'roles' => 'الأدوار',
+    'permissions' => 'الصلاحيات',
+    'admins' => 'المشرفون',
+    'users' => 'المستخدمون',
+    'volunteers' => 'المتطوعون',
+    'entities' => 'الجهات',
+    'volunteer-opportunities' => 'فرص التطوع',
+    'learn-serve-opportunities' => 'فرص التعلم والمشاركة',
+    'events' => 'الفعاليات',
+    'sponsors' => 'الرعاة',
+    'fursa-friends' => 'أصدقاء فرصة',
+    'tags' => 'الوسوم',
+    'badges' => 'الشارات',
+    'banners' => 'البانرات',
+    'forbidden-words' => 'الكلمات الممنوعة',
+    'faqs' => 'الأسئلة الشائعة',
+    'email-templates' => 'قوالب البريد',
+    'notifications' => 'الإشعارات',
+    'settings' => 'الإعدادات',
+    'license-requirements' => 'متطلبات الترخيص',
+    'user-type-approvals' => 'موافقات أنواع المستخدمين',
   ],
 ];

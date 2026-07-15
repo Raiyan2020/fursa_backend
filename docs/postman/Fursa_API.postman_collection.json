@@ -1,0 +1,1725 @@
+{
+    "info": {
+        "_postman_id": "fursa-api-collection-2026",
+        "name": "Fursa API",
+        "description": "# Fursa (فرصة) REST API\n\nProfessional Postman collection for the Laravel Fursa mobile/API backend.\n\n## Setup\n1. Import this collection.\n2. `base_url` is already set to `http://fursa.test/api/`.\n3. Run **Auth → Login** with seeded credentials (`volunteer@fursa.local` / `Password1`).\n4. The test script stores `token` automatically for protected routes.\n\n## Authentication\nProtected endpoints use **Bearer Token** via collection variable `{{token}}`.\nHeader sent: `Authorization: Bearer {{token}}`\n\n> The API also accepts legacy `Authorization: Token <key>`.\n\n## Body convention\nAll write requests use **form-data** (not raw JSON), matching Laravel multipart/form handling.\n\n## Seeded demo accounts\n| Email | Password | Type |\n|-------|----------|------|\n| volunteer@fursa.local | Password1 | Volunteer |\n| organization@fursa.local | Password1 | Organization |\n",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://fursa.test/api/"
+        },
+        {
+            "key": "token",
+            "value": ""
+        },
+        {
+            "key": "reset_token",
+            "value": ""
+        },
+        {
+            "key": "email",
+            "value": "volunteer@fursa.local"
+        },
+        {
+            "key": "password",
+            "value": "Password1"
+        },
+        {
+            "key": "org_email",
+            "value": "organization@fursa.local"
+        },
+        {
+            "key": "user_id",
+            "value": "1"
+        },
+        {
+            "key": "choice_type",
+            "value": "gender"
+        },
+        {
+            "key": "volunteer_uuid",
+            "value": "00000000-0000-0000-0000-000000000001"
+        },
+        {
+            "key": "otp",
+            "value": "123456"
+        }
+    ],
+    "item": [
+        {
+            "name": "Auth",
+            "description": "Registration, login, OTP verification, password reset, social auth, and public profiles.",
+            "item": [
+                {
+                    "name": "Registration",
+                    "description": "Create volunteer or organization accounts.",
+                    "item": [
+                        {
+                            "name": "Register Volunteer",
+                            "request": {
+                                "auth": {
+                                    "type": "noauth"
+                                },
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}register/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "register"
+                                    ]
+                                },
+                                "description": "## Register Volunteer\nCreates a new volunteer account and triggers activation (OTP/email) based on `AUTHENTICATION_METHOD`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Unique account email |\n| password | Yes* | Min 8 chars, at least 1 uppercase + 1 digit (e.g. `Password1`) |\n| user_type | No | Must be `volunteer` (default) |\n| first_name | No | First name |\n| last_name | No | Last name |\n| phone_number | No | Mobile number (max 15) |\n| country_code | No | Dial code e.g. `+965` |\n| civil_id | Yes (volunteer) | Kuwait civil ID (max 12, unique) |\n| nickname | No | Display nickname |\n| gender | No | `master_choices.id` for gender |\n| nationality | No | e.g. `KW` |\n| birth_year | No | Integer birth year |\n| dob | No | `YYYY-MM-DD` — if age < 18, emergency fields become required |\n| preferred_language | No | `en` or `ar` |\n| profile_pic | No | Image file |\n| organization_id | No | Optional linked entity profile id |\n| emergency_contact_* | Conditional | Required when volunteer age < 18 |\n\n*Password strongly recommended for normal signup.",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "email",
+                                            "type": "text",
+                                            "description": "Unique email for the new volunteer account.",
+                                            "value": "new.volunteer@example.com"
+                                        },
+                                        {
+                                            "key": "password",
+                                            "type": "text",
+                                            "description": "Password: min 8 chars, include uppercase letter and a digit.",
+                                            "value": "Password1"
+                                        },
+                                        {
+                                            "key": "user_type",
+                                            "type": "text",
+                                            "description": "Account type. Use `volunteer` for this request.",
+                                            "value": "volunteer"
+                                        },
+                                        {
+                                            "key": "first_name",
+                                            "type": "text",
+                                            "description": "Volunteer first name.",
+                                            "value": "Ahmed"
+                                        },
+                                        {
+                                            "key": "last_name",
+                                            "type": "text",
+                                            "description": "Volunteer last name.",
+                                            "value": "Ali"
+                                        },
+                                        {
+                                            "key": "phone_number",
+                                            "type": "text",
+                                            "description": "Mobile phone number without country code (max 15).",
+                                            "value": "50000001"
+                                        },
+                                        {
+                                            "key": "country_code",
+                                            "type": "text",
+                                            "description": "International dialing code.",
+                                            "value": "+965"
+                                        },
+                                        {
+                                            "key": "civil_id",
+                                            "type": "text",
+                                            "description": "Kuwait Civil ID (required & unique for volunteers, max 12).",
+                                            "value": "290010100001"
+                                        },
+                                        {
+                                            "key": "nickname",
+                                            "type": "text",
+                                            "description": "Public nickname on volunteer profile.",
+                                            "value": "ahmed_vol"
+                                        },
+                                        {
+                                            "key": "gender",
+                                            "type": "text",
+                                            "description": "Gender master choice ID (`master_choices.id`). Get IDs from Base → Get Choices.",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "nationality",
+                                            "type": "text",
+                                            "description": "Nationality code/value.",
+                                            "value": "KW"
+                                        },
+                                        {
+                                            "key": "birth_year",
+                                            "type": "text",
+                                            "description": "Birth year (integer). Used with/without dob for age checks.",
+                                            "value": "1995"
+                                        },
+                                        {
+                                            "key": "dob",
+                                            "type": "text",
+                                            "description": "Date of birth `YYYY-MM-DD`. If under 18, emergency contact fields are required.",
+                                            "value": "1995-05-15"
+                                        },
+                                        {
+                                            "key": "preferred_language",
+                                            "type": "text",
+                                            "description": "Preferred UI language: `en` or `ar`.",
+                                            "value": "ar"
+                                        },
+                                        {
+                                            "key": "profile_pic",
+                                            "type": "file",
+                                            "description": "Optional profile image upload.",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "organization_id",
+                                            "type": "text",
+                                            "description": "Optional organization_profiles.id to affiliate with.",
+                                            "value": "",
+                                            "disabled": true
+                                        },
+                                        {
+                                            "key": "emergency_contact_name",
+                                            "type": "text",
+                                            "description": "Guardian name (required if age < 18).",
+                                            "value": "",
+                                            "disabled": true
+                                        },
+                                        {
+                                            "key": "emergency_contact_phone",
+                                            "type": "text",
+                                            "description": "Guardian phone (required if age < 18).",
+                                            "value": "",
+                                            "disabled": true
+                                        },
+                                        {
+                                            "key": "emergency_contact_country_code",
+                                            "type": "text",
+                                            "description": "Guardian country code (required if age < 18).",
+                                            "value": "+965",
+                                            "disabled": true
+                                        },
+                                        {
+                                            "key": "emergency_contact_civil_id",
+                                            "type": "text",
+                                            "description": "Guardian civil ID matching `/^[23]\\d{11}$/` (required if age < 18).",
+                                            "value": "",
+                                            "disabled": true
+                                        },
+                                        {
+                                            "key": "emergency_contact_relationship",
+                                            "type": "text",
+                                            "description": "Relationship master_choices.id (required if age < 18).",
+                                            "value": "",
+                                            "disabled": true
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Register Organization",
+                            "request": {
+                                "auth": {
+                                    "type": "noauth"
+                                },
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}register/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "register"
+                                    ]
+                                },
+                                "description": "## Register Organization (Entity)\nCreates a new organization/entity account. Profile usually stays pending until admin approval.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Unique account email |\n| password | Yes* | Strong password rule |\n| user_type | Yes | Must be `organization` |\n| company_name | Recommended | Entity display name |\n| nickname | No | Entity nickname |\n| organizer_type | No | `master_choices.id` |\n| registration_number | No | Official registration number |\n| license_number | No | License number |\n| documents[] | No | Supporting document files |\n| latitude / longitude | No | Map coordinates |\n| profile_pic | No | Logo/avatar image |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "email",
+                                            "type": "text",
+                                            "description": "Unique email for the organization account.",
+                                            "value": "new.org@example.com"
+                                        },
+                                        {
+                                            "key": "password",
+                                            "type": "text",
+                                            "description": "Password: min 8 chars, uppercase + digit.",
+                                            "value": "Password1"
+                                        },
+                                        {
+                                            "key": "user_type",
+                                            "type": "text",
+                                            "description": "Must be `organization` for entity signup.",
+                                            "value": "organization"
+                                        },
+                                        {
+                                            "key": "first_name",
+                                            "type": "text",
+                                            "description": "Contact first name on the user record.",
+                                            "value": "Org"
+                                        },
+                                        {
+                                            "key": "last_name",
+                                            "type": "text",
+                                            "description": "Contact last name on the user record.",
+                                            "value": "Manager"
+                                        },
+                                        {
+                                            "key": "phone_number",
+                                            "type": "text",
+                                            "description": "Organization contact phone.",
+                                            "value": "50000002"
+                                        },
+                                        {
+                                            "key": "country_code",
+                                            "type": "text",
+                                            "description": "Dialing code.",
+                                            "value": "+965"
+                                        },
+                                        {
+                                            "key": "company_name",
+                                            "type": "text",
+                                            "description": "Official / display company name.",
+                                            "value": "Fursa Demo Entity"
+                                        },
+                                        {
+                                            "key": "nickname",
+                                            "type": "text",
+                                            "description": "Short nickname for the entity profile.",
+                                            "value": "fursa_entity"
+                                        },
+                                        {
+                                            "key": "organizer_type",
+                                            "type": "text",
+                                            "description": "Organizer type master_choices.id.",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "registration_number",
+                                            "type": "text",
+                                            "description": "Commercial/registration number.",
+                                            "value": "REG-1001"
+                                        },
+                                        {
+                                            "key": "license_number",
+                                            "type": "text",
+                                            "description": "License number if applicable.",
+                                            "value": "LIC-2002"
+                                        },
+                                        {
+                                            "key": "latitude",
+                                            "type": "text",
+                                            "description": "Entity latitude.",
+                                            "value": "29.3759"
+                                        },
+                                        {
+                                            "key": "longitude",
+                                            "type": "text",
+                                            "description": "Entity longitude.",
+                                            "value": "47.9774"
+                                        },
+                                        {
+                                            "key": "preferred_language",
+                                            "type": "text",
+                                            "description": "`en` or `ar`.",
+                                            "value": "ar"
+                                        },
+                                        {
+                                            "key": "nationality",
+                                            "type": "text",
+                                            "description": "Nationality / country value.",
+                                            "value": "KW"
+                                        },
+                                        {
+                                            "key": "profile_pic",
+                                            "type": "file",
+                                            "description": "Optional logo/profile image.",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "documents[]",
+                                            "type": "file",
+                                            "description": "Organization supporting document file (repeat key for multiple).",
+                                            "src": []
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        }
+                    ]
+                },
+                {
+                    "name": "Login",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}login/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "login"
+                            ]
+                        },
+                        "description": "## Login\nAuthenticates with email/password and returns `auth_token`.\n\n**Token path in response:** `data.data.auth_token`\n\nA test script saves it into collection variable `{{token}}` automatically.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Registered account email |\n| password | Yes | Account password |\n| rememberMe | No | `true`/`1` extends token lifetime (~30d vs ~1d) |\n| is_opportunity | No | When true, restricts login to volunteer accounts |",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "email",
+                                    "type": "text",
+                                    "description": "Account email. Default seeded volunteer: volunteer@fursa.local",
+                                    "value": "{{email}}"
+                                },
+                                {
+                                    "key": "password",
+                                    "type": "text",
+                                    "description": "Account password. Seeded demo password: Password1",
+                                    "value": "{{password}}"
+                                },
+                                {
+                                    "key": "rememberMe",
+                                    "type": "text",
+                                    "description": "Pass 1/true for longer-lived auth token.",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "is_opportunity",
+                                    "type": "text",
+                                    "description": "Pass 1/true to allow only volunteer users.",
+                                    "value": "0"
+                                }
+                            ]
+                        }
+                    },
+                    "response": [],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "try {",
+                                    "  const json = pm.response.json();",
+                                    "  const token =",
+                                    "    (json.data && json.data.data && json.data.data.auth_token) ||",
+                                    "    (json.data && json.data.auth_token) ||",
+                                    "    (json.data && json.data.token) ||",
+                                    "    json.auth_token ||",
+                                    "    json.token;",
+                                    "  if (token) {",
+                                    "    pm.collectionVariables.set('token', token);",
+                                    "    console.log('Saved {{token}} from login/verify response');",
+                                    "  }",
+                                    "  if (json.data && json.data.data && json.data.data.id) {",
+                                    "    pm.collectionVariables.set('user_id', String(json.data.data.id));",
+                                    "  } else if (json.data && json.data.user_id) {",
+                                    "    pm.collectionVariables.set('user_id', String(json.data.user_id));",
+                                    "  } else if (json.data && json.data.id) {",
+                                    "    pm.collectionVariables.set('user_id', String(json.data.id));",
+                                    "  }",
+                                    "} catch (e) { console.log('No JSON body to parse for token'); }"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Forgot Password",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}forgot-password/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "forgot-password"
+                            ]
+                        },
+                        "description": "## Forgot Password\nStarts password reset flow (sends OTP or reset link depending on configuration).\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Account email that will receive the reset OTP/link |",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "email",
+                                    "type": "text",
+                                    "description": "Registered user email to receive password reset OTP/link.",
+                                    "value": "{{email}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Verify OTP Or Token",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}verify_otp_or_token/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "verify_otp_or_token"
+                            ]
+                        },
+                        "description": "## Verify OTP Or Token\nVerifies OTP for `register` or `password` flows when `AUTHENTICATION_METHOD=OTP`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Account email |\n| type | Yes | `register` or `password` |\n| otp | Yes | OTP code from email |\n\n### Response tokens\n- `type=register` → `data.token` is API auth key (saved to `{{token}}`)\n- `type=password` → `data.token` is reset token (saved to `{{reset_token}}`)",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "email",
+                                    "type": "text",
+                                    "description": "Email that received the OTP.",
+                                    "value": "{{email}}"
+                                },
+                                {
+                                    "key": "type",
+                                    "type": "text",
+                                    "description": "OTP purpose: `register` (activation) or `password` (reset).",
+                                    "value": "register"
+                                },
+                                {
+                                    "key": "otp",
+                                    "type": "text",
+                                    "description": "One-time password from email (example placeholder 123456).",
+                                    "value": "{{otp}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": [],
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "try {",
+                                    "  const json = pm.response.json();",
+                                    "  if (json.data && json.data.token) {",
+                                    "    if (pm.request.body && pm.request.body.urlencoded) { /* noop */ }",
+                                    "    const typeField = (pm.request.body.formdata || []).find(f => f.key === 'type');",
+                                    "    const type = typeField ? typeField.value : '';",
+                                    "    if (type === 'register') {",
+                                    "      pm.collectionVariables.set('token', json.data.token);",
+                                    "      console.log('Saved auth {{token}} from register OTP verify');",
+                                    "    } else if (type === 'password') {",
+                                    "      pm.collectionVariables.set('reset_token', json.data.token);",
+                                    "      console.log('Saved {{reset_token}} for change-password');",
+                                    "    }",
+                                    "  }",
+                                    "  if (json.data && json.data.user_id) {",
+                                    "    pm.collectionVariables.set('user_id', String(json.data.user_id));",
+                                    "  }",
+                                    "} catch (e) {}"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Resend OTP Or Token",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}resend_otp_or_token/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "resend_otp_or_token"
+                            ]
+                        },
+                        "description": "## Resend OTP Or Token\nResends activation or password-reset OTP/link.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Target account email |\n| type | Yes | `register` or `password` |",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "email",
+                                    "type": "text",
+                                    "description": "Account email to resend OTP/link to.",
+                                    "value": "{{email}}"
+                                },
+                                {
+                                    "key": "type",
+                                    "type": "text",
+                                    "description": "`register` for activation, `password` for reset.",
+                                    "value": "register"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Change Password",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}change-password/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "change-password"
+                            ]
+                        },
+                        "description": "## Change Password\nSets a new password using either a reset `token` (from forgot-password OTP verify) **or** `old_password`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Account email |\n| password | Yes | New password (min 8, uppercase + digit) |\n| token | Conditional | Reset token from verify OTP (`type=password`) |\n| old_password | Conditional | Current password if changing without reset token |",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "email",
+                                    "type": "text",
+                                    "description": "Account email.",
+                                    "value": "{{email}}"
+                                },
+                                {
+                                    "key": "password",
+                                    "type": "text",
+                                    "description": "New password (min 8, must include uppercase + digit).",
+                                    "value": "Password1"
+                                },
+                                {
+                                    "key": "token",
+                                    "type": "text",
+                                    "description": "Password-reset token from Verify OTP (type=password).",
+                                    "value": "{{reset_token}}"
+                                },
+                                {
+                                    "key": "old_password",
+                                    "type": "text",
+                                    "description": "Current password if not using reset token.",
+                                    "value": "",
+                                    "disabled": true
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Check User",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}check-user/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "check-user"
+                            ]
+                        },
+                        "description": "## Check User\nChecks whether an email and/or nickname is already taken.\nProvide at least one of `email` or `nickname`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | One of | Email availability check |\n| nickname | One of | Nickname availability on volunteer/org profiles |",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "email",
+                                    "type": "text",
+                                    "description": "Email to check for existing registration.",
+                                    "value": "volunteer@fursa.local"
+                                },
+                                {
+                                    "key": "nickname",
+                                    "type": "text",
+                                    "description": "Nickname to check across volunteer/organization profiles.",
+                                    "value": "ahmed_vol"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Social Auth",
+                    "description": "Google/LinkedIn social login and LinkedIn OAuth exchange.",
+                    "item": [
+                        {
+                            "name": "Social Auth",
+                            "request": {
+                                "auth": {
+                                    "type": "noauth"
+                                },
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}social-auth/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "social-auth"
+                                    ]
+                                },
+                                "description": "## Social Auth\nLogin/register via social provider payload (Google/LinkedIn).\nReturns `auth_token` at `data.auth_token` (test script still stores `{{token}}` if present).\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| email | Yes | Social account email |\n| social_media_provider | Yes | `google` or `linkedin` |\n| social_media_id | No | Provider user id |\n| first_name / last_name | No | Name from provider |\n| social_profile_pic_url | No | Avatar URL |\n| user_type | No | Defaults to `volunteer` for new users |\n| civil_id | Yes for new volunteer | Civil ID |\n| nickname / company_name | No | Profile fields |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "email",
+                                            "type": "text",
+                                            "description": "Email returned by the social provider.",
+                                            "value": "social.user@gmail.com"
+                                        },
+                                        {
+                                            "key": "social_media_provider",
+                                            "type": "text",
+                                            "description": "Provider name: `google` or `linkedin`.",
+                                            "value": "google"
+                                        },
+                                        {
+                                            "key": "social_media_id",
+                                            "type": "text",
+                                            "description": "Unique user id from the social provider.",
+                                            "value": "google-uid-12345"
+                                        },
+                                        {
+                                            "key": "first_name",
+                                            "type": "text",
+                                            "description": "First name from provider profile.",
+                                            "value": "Social"
+                                        },
+                                        {
+                                            "key": "last_name",
+                                            "type": "text",
+                                            "description": "Last name from provider profile.",
+                                            "value": "User"
+                                        },
+                                        {
+                                            "key": "social_profile_pic_url",
+                                            "type": "text",
+                                            "description": "Profile picture URL from provider.",
+                                            "value": "https://lh3.googleusercontent.com/a/default-user"
+                                        },
+                                        {
+                                            "key": "user_type",
+                                            "type": "text",
+                                            "description": "Used when creating a new user.",
+                                            "value": "volunteer"
+                                        },
+                                        {
+                                            "key": "civil_id",
+                                            "type": "text",
+                                            "description": "Required when creating a new volunteer via social auth.",
+                                            "value": "290010100099"
+                                        },
+                                        {
+                                            "key": "nickname",
+                                            "type": "text",
+                                            "description": "Optional nickname for new profile.",
+                                            "value": "social_vol"
+                                        },
+                                        {
+                                            "key": "company_name",
+                                            "type": "text",
+                                            "description": "Optional company name for organization social signup.",
+                                            "value": "",
+                                            "disabled": true
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": [],
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "type": "text/javascript",
+                                        "exec": [
+                                            "try {",
+                                            "  const json = pm.response.json();",
+                                            "  const token =",
+                                            "    (json.data && json.data.data && json.data.data.auth_token) ||",
+                                            "    (json.data && json.data.auth_token) ||",
+                                            "    (json.data && json.data.token) ||",
+                                            "    json.auth_token ||",
+                                            "    json.token;",
+                                            "  if (token) {",
+                                            "    pm.collectionVariables.set('token', token);",
+                                            "    console.log('Saved {{token}} from login/verify response');",
+                                            "  }",
+                                            "  if (json.data && json.data.data && json.data.data.id) {",
+                                            "    pm.collectionVariables.set('user_id', String(json.data.data.id));",
+                                            "  } else if (json.data && json.data.user_id) {",
+                                            "    pm.collectionVariables.set('user_id', String(json.data.user_id));",
+                                            "  } else if (json.data && json.data.id) {",
+                                            "    pm.collectionVariables.set('user_id', String(json.data.id));",
+                                            "  }",
+                                            "} catch (e) { console.log('No JSON body to parse for token'); }"
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "LinkedIn Callback",
+                            "request": {
+                                "auth": {
+                                    "type": "noauth"
+                                },
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}linkedin/callback/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "linkedin",
+                                        "callback"
+                                    ]
+                                },
+                                "description": "## LinkedIn Callback\nExchanges LinkedIn OAuth `code` for LinkedIn profile + LinkedIn `access_token` (not the Fursa API token).\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| code | Yes | LinkedIn OAuth authorization code |\n| redirect_uri | Yes | Exact redirect URI used in the authorize step |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "code",
+                                            "type": "text",
+                                            "description": "Authorization code returned by LinkedIn OAuth redirect.",
+                                            "value": "AQT_LINKEDIN_AUTH_CODE"
+                                        },
+                                        {
+                                            "key": "redirect_uri",
+                                            "type": "text",
+                                            "description": "Must match the redirect_uri configured in LinkedIn app + authorize URL.",
+                                            "value": "https://your-frontend.example/linkedin/callback"
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        }
+                    ]
+                },
+                {
+                    "name": "Public Profile",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}public-profile/{{user_id}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "public-profile",
+                                "{{user_id}}"
+                            ]
+                        },
+                        "description": "## Public Profile\nReturns a public user profile by numeric user id.\n\n### Path params\n| Param | Description |\n|-------|-------------|\n| userId | Target `users.id` (collection var `{{user_id}}`) |"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Account",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}account/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "account"
+                            ]
+                        },
+                        "description": "## Get Account\nReturns the authenticated user's account payload.\n\n**Auth required:** Bearer `{{token}}`"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Account",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PUT",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}account/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "account"
+                            ]
+                        },
+                        "description": "## Update Account\nUpdates account fields for the authenticated user. Supports profile image upload via form-data.\n\n**Auth required:** Bearer `{{token}}`\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| profile_pic | No | New avatar image file |\n| first_name / last_name | No | Name fields |\n| email | No | New unique email |\n| phone_number / country_code | No | Phone |\n| birth_year / nationality / preferred_language | No | Profile meta |\n| civil_id | No | Unique civil ID |\n| emergency_contact_* | No | Emergency contact block |",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "first_name",
+                                    "type": "text",
+                                    "description": "Updated first name.",
+                                    "value": "Ahmed"
+                                },
+                                {
+                                    "key": "last_name",
+                                    "type": "text",
+                                    "description": "Updated last name.",
+                                    "value": "Ali"
+                                },
+                                {
+                                    "key": "email",
+                                    "type": "text",
+                                    "description": "Updated email (must remain unique).",
+                                    "value": "{{email}}"
+                                },
+                                {
+                                    "key": "phone_number",
+                                    "type": "text",
+                                    "description": "Updated phone number.",
+                                    "value": "50000001"
+                                },
+                                {
+                                    "key": "country_code",
+                                    "type": "text",
+                                    "description": "Updated dialing code.",
+                                    "value": "+965"
+                                },
+                                {
+                                    "key": "birth_year",
+                                    "type": "text",
+                                    "description": "Updated birth year.",
+                                    "value": "1995"
+                                },
+                                {
+                                    "key": "nationality",
+                                    "type": "text",
+                                    "description": "Updated nationality.",
+                                    "value": "KW"
+                                },
+                                {
+                                    "key": "preferred_language",
+                                    "type": "text",
+                                    "description": "`en` or `ar`.",
+                                    "value": "ar"
+                                },
+                                {
+                                    "key": "civil_id",
+                                    "type": "text",
+                                    "description": "Updated civil ID (unique).",
+                                    "value": "290010100001"
+                                },
+                                {
+                                    "key": "profile_pic",
+                                    "type": "file",
+                                    "description": "Optional new profile image.",
+                                    "src": []
+                                },
+                                {
+                                    "key": "emergency_contact_name",
+                                    "type": "text",
+                                    "description": "Emergency contact full name.",
+                                    "value": "Parent Name"
+                                },
+                                {
+                                    "key": "emergency_contact_phone",
+                                    "type": "text",
+                                    "description": "Emergency contact phone.",
+                                    "value": "50001111"
+                                },
+                                {
+                                    "key": "emergency_contact_country_code",
+                                    "type": "text",
+                                    "description": "Emergency contact dialing code.",
+                                    "value": "+965"
+                                },
+                                {
+                                    "key": "emergency_contact_civil_id",
+                                    "type": "text",
+                                    "description": "Emergency contact civil ID.",
+                                    "value": "290010100002"
+                                },
+                                {
+                                    "key": "emergency_contact_relationship",
+                                    "type": "text",
+                                    "description": "Relationship master_choices.id.",
+                                    "value": "1"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Base",
+            "description": "Shared lookups, banners, image proxy, and license checks.",
+            "item": [
+                {
+                    "name": "Get Choices",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}choices/{{choice_type}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "choices",
+                                "{{choice_type}}"
+                            ]
+                        },
+                        "description": "## Get Choices\nReturns master choice options for a choice type slug/name.\n\n### Path params\n| Param | Description |\n|-------|-------------|\n| choiceType | Choice type key (collection var `{{choice_type}}`, e.g. `gender`, `org_type`) |"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Banner Images",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}banner-images/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "banner-images"
+                            ]
+                        },
+                        "description": "## Banner Images\nPublic list of banner images plus platform stats (no auth)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Proxy Image",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}proxy-image/?url=https%3A%2F%2Fvia.placeholder.com%2F150",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "proxy-image"
+                            ],
+                            "query": [
+                                {
+                                    "key": "url",
+                                    "value": "https://via.placeholder.com/150",
+                                    "description": "Remote image URL to proxy."
+                                },
+                                {
+                                    "key": "key",
+                                    "value": "",
+                                    "description": "Alternative: relative public-disk path.",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "path",
+                                    "value": "",
+                                    "description": "Alias of `key`.",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "## Proxy Image\nProxies a remote image URL or a storage path for CORS-friendly delivery. Returns image bytes.\n\n### Query params\n| Param | Required | Description |\n|-------|----------|-------------|\n| url | One of | Absolute remote image URL |\n| key | One of | Public disk relative path |\n| path | Alias | Same as `key` |"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Proxy Image Options",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "OPTIONS",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}proxy-image/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "proxy-image"
+                            ]
+                        },
+                        "description": "## Proxy Image (CORS Preflight)\nOPTIONS preflight for the image proxy endpoint."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Check License Requirement",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}check-license-requirement/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "check-license-requirement"
+                            ]
+                        },
+                        "description": "## Check License Requirement\nReturns whether the authenticated user's role requires a license upload.\n\n**Auth required:** Bearer `{{token}}`"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "FAQ",
+            "description": "Frequently asked questions.",
+            "item": [
+                {
+                    "name": "List FAQs",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}faqs/?limit=10&page=1",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "faqs"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "10",
+                                    "description": "Number of FAQs per page (1–100)."
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number."
+                                }
+                            ]
+                        },
+                        "description": "## List FAQs\nPaginated public FAQ list.\n\n### Query params\n| Param | Required | Description |\n|-------|----------|-------------|\n| limit | No | Page size 1–100 (default 10) |\n| page | No | Page number |"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Volunteer",
+            "description": "Volunteer profile, discovery, QR, and public verification.",
+            "item": [
+                {
+                    "name": "Profile",
+                    "item": [
+                        {
+                            "name": "Get Volunteer Profile",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}volunteer-profile/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "volunteer-profile"
+                                    ]
+                                },
+                                "description": "## Get Volunteer Profile\nReturns the authenticated volunteer's profile.\n\n**Auth required:** Bearer `{{token}}`"
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Update Volunteer Profile",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PUT",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}volunteer-profile/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "volunteer-profile"
+                                    ]
+                                },
+                                "description": "## Update Volunteer Profile\nUpdates volunteer profile fields and optionally syncs interests.\n\n**Auth required:** Bearer `{{token}}`\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| civil_id | Yes | Civil ID |\n| nickname / occupation / experience | No | Profile text |\n| health_concerns | No | `yes`/`no` style flag |\n| is_public / is_verified | No | Booleans as `1`/`0` |\n| gender | No | master_choices.id |\n| email / nationality / dob / birth_year | No | User fields |\n| *_link | No | Social URLs |\n| interest_ids[0..] | No | Interest IDs to sync |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "civil_id",
+                                            "type": "text",
+                                            "description": "Required civil ID for volunteer profile update.",
+                                            "value": "290010100001"
+                                        },
+                                        {
+                                            "key": "nickname",
+                                            "type": "text",
+                                            "description": "Volunteer nickname.",
+                                            "value": "ahmed_vol"
+                                        },
+                                        {
+                                            "key": "occupation",
+                                            "type": "text",
+                                            "description": "Current occupation.",
+                                            "value": "Software Engineer"
+                                        },
+                                        {
+                                            "key": "experience",
+                                            "type": "text",
+                                            "description": "Experience summary text.",
+                                            "value": "2 years volunteering in community events"
+                                        },
+                                        {
+                                            "key": "health_concerns",
+                                            "type": "text",
+                                            "description": "Health concerns flag (`yes`/`no` or free text as accepted by API).",
+                                            "value": "no"
+                                        },
+                                        {
+                                            "key": "is_public",
+                                            "type": "text",
+                                            "description": "Make profile public (`1`/`0`).",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "is_verified",
+                                            "type": "text",
+                                            "description": "Verified flag (`1`/`0`) — usually managed by system/admin.",
+                                            "value": "0"
+                                        },
+                                        {
+                                            "key": "gender",
+                                            "type": "text",
+                                            "description": "Gender master_choices.id.",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "email",
+                                            "type": "text",
+                                            "description": "Optional email update (unique).",
+                                            "value": "{{email}}"
+                                        },
+                                        {
+                                            "key": "nationality",
+                                            "type": "text",
+                                            "description": "Nationality value.",
+                                            "value": "KW"
+                                        },
+                                        {
+                                            "key": "dob",
+                                            "type": "text",
+                                            "description": "Date of birth `YYYY-MM-DD`.",
+                                            "value": "1995-05-15"
+                                        },
+                                        {
+                                            "key": "birth_year",
+                                            "type": "text",
+                                            "description": "Birth year integer.",
+                                            "value": "1995"
+                                        },
+                                        {
+                                            "key": "instagram_link",
+                                            "type": "text",
+                                            "description": "Instagram profile URL.",
+                                            "value": "https://instagram.com/example"
+                                        },
+                                        {
+                                            "key": "whatsapp_link",
+                                            "type": "text",
+                                            "description": "WhatsApp link.",
+                                            "value": "https://wa.me/96550000001"
+                                        },
+                                        {
+                                            "key": "linkedin_link",
+                                            "type": "text",
+                                            "description": "LinkedIn profile URL.",
+                                            "value": "https://linkedin.com/in/example"
+                                        },
+                                        {
+                                            "key": "facebook_link",
+                                            "type": "text",
+                                            "description": "Facebook profile URL.",
+                                            "value": "https://facebook.com/example"
+                                        },
+                                        {
+                                            "key": "twitter_link",
+                                            "type": "text",
+                                            "description": "X/Twitter profile URL.",
+                                            "value": "https://x.com/example"
+                                        },
+                                        {
+                                            "key": "interest_ids[0]",
+                                            "type": "text",
+                                            "description": "First interest id to sync (from interests table).",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "interest_ids[1]",
+                                            "type": "text",
+                                            "description": "Second interest id (optional).",
+                                            "value": "2"
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Get Volunteer QR Code",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}volunteer-profile/qr-code/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "volunteer-profile",
+                                        "qr-code"
+                                    ]
+                                },
+                                "description": "## Get Volunteer QR Code\nReturns QR code URLs / verification link for the authenticated volunteer.\n\n**Auth required:** Bearer `{{token}}`"
+                            },
+                            "response": []
+                        }
+                    ]
+                },
+                {
+                    "name": "List All Volunteers",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}all-volunteers/?search=&page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "all-volunteers"
+                            ],
+                            "query": [
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "description": "Optional search term (nickname, name, email)."
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number."
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Results per page (1–100)."
+                                }
+                            ]
+                        },
+                        "description": "## List All Volunteers\nSearchable/paginated list of volunteers.\n\n**Auth required:** Bearer `{{token}}`\n\n### Query params\n| Param | Required | Description |\n|-------|----------|-------------|\n| search | No | Search nickname/name/email |\n| page | No | Page number |\n| limit | No | Page size 1–100 (default 20) |"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Verify Volunteer By UUID",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}verify/{{volunteer_uuid}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "verify",
+                                "{{volunteer_uuid}}"
+                            ]
+                        },
+                        "description": "## Verify Volunteer By UUID\nPublic verification endpoint using volunteer profile UUID.\n\n### Path params\n| Param | Description |\n|-------|-------------|\n| uuid | Volunteer profile UUID (`{{volunteer_uuid}}`) |\n\nReplace `{{volunteer_uuid}}` with a real UUID from a volunteer profile / QR payload."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Organization",
+            "description": "Entity/organization profile and documents.",
+            "item": [
+                {
+                    "name": "Profile",
+                    "item": [
+                        {
+                            "name": "Get Organization Profile",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}organization-profile/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "organization-profile"
+                                    ]
+                                },
+                                "description": "## Get Organization Profile\nReturns the authenticated organization's profile.\n\n**Auth required:** Bearer `{{token}}`\n\nTip: Login first with `organization@fursa.local` / `Password1`."
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Update Organization Profile",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PUT",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}organization-profile/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "organization-profile"
+                                    ]
+                                },
+                                "description": "## Update Organization Profile\nUpdates entity profile fields and social links.\n\n**Auth required:** Bearer `{{token}}`\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| nickname / company_name | No | Identity |\n| sector / organizer_type | No | master_choices IDs |\n| registration_number / license_number | No | Legal numbers |\n| latitude / longitude | No | Location |\n| nationality | No | On user |\n| social *_link | No | Social URLs |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "nickname",
+                                            "type": "text",
+                                            "description": "Organization nickname.",
+                                            "value": "fursa_entity"
+                                        },
+                                        {
+                                            "key": "company_name",
+                                            "type": "text",
+                                            "description": "Company / entity display name.",
+                                            "value": "Fursa Demo Entity"
+                                        },
+                                        {
+                                            "key": "sector",
+                                            "type": "text",
+                                            "description": "Sector master_choices.id.",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "organizer_type",
+                                            "type": "text",
+                                            "description": "Organizer type master_choices.id.",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "registration_number",
+                                            "type": "text",
+                                            "description": "Registration number.",
+                                            "value": "REG-1001"
+                                        },
+                                        {
+                                            "key": "license_number",
+                                            "type": "text",
+                                            "description": "License number.",
+                                            "value": "LIC-2002"
+                                        },
+                                        {
+                                            "key": "latitude",
+                                            "type": "text",
+                                            "description": "Latitude.",
+                                            "value": "29.3759"
+                                        },
+                                        {
+                                            "key": "longitude",
+                                            "type": "text",
+                                            "description": "Longitude.",
+                                            "value": "47.9774"
+                                        },
+                                        {
+                                            "key": "nationality",
+                                            "type": "text",
+                                            "description": "Nationality on the linked user.",
+                                            "value": "KW"
+                                        },
+                                        {
+                                            "key": "instagram_link",
+                                            "type": "text",
+                                            "description": "Instagram URL.",
+                                            "value": "https://instagram.com/example"
+                                        },
+                                        {
+                                            "key": "whatsapp_link",
+                                            "type": "text",
+                                            "description": "WhatsApp link.",
+                                            "value": "https://wa.me/96550000002"
+                                        },
+                                        {
+                                            "key": "linkedin_link",
+                                            "type": "text",
+                                            "description": "LinkedIn URL.",
+                                            "value": "https://linkedin.com/company/example"
+                                        },
+                                        {
+                                            "key": "facebook_link",
+                                            "type": "text",
+                                            "description": "Facebook URL.",
+                                            "value": "https://facebook.com/example"
+                                        },
+                                        {
+                                            "key": "twitter_link",
+                                            "type": "text",
+                                            "description": "X/Twitter URL.",
+                                            "value": "https://x.com/example"
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "Update Organization Documents",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PUT",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}organization-profile/documents/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "organization-profile",
+                                        "documents"
+                                    ]
+                                },
+                                "description": "## Update Organization Documents\nSyncs organization documents: keep IDs in `existing_ids`, upload new files via `new_documents[]`. Docs not listed in `existing_ids` are soft-deleted.\n\n**Auth required:** Bearer `{{token}}`\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| existing_ids[0..] | No | Document IDs to keep |\n| new_documents[] | No | New files to upload |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "existing_ids[0]",
+                                            "type": "text",
+                                            "description": "Existing organization_documents.id to keep.",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "existing_ids[1]",
+                                            "type": "text",
+                                            "description": "Another existing document id to keep (optional).",
+                                            "value": "2",
+                                            "disabled": true
+                                        },
+                                        {
+                                            "key": "new_documents[]",
+                                            "type": "file",
+                                            "description": "New document file to upload (attach file in Postman).",
+                                            "src": []
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        }
+                    ]
+                },
+                {
+                    "name": "List Organizations",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}list-organizations/?name=&page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "list-organizations"
+                            ],
+                            "query": [
+                                {
+                                    "key": "name",
+                                    "value": "",
+                                    "description": "Optional name/nickname filter."
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number."
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Results per page (1–100)."
+                                }
+                            ]
+                        },
+                        "description": "## List Organizations\nPaginated approved organizations (excludes current user).\n\n**Auth required:** Bearer `{{token}}`\n\n### Query params\n| Param | Required | Description |\n|-------|----------|-------------|\n| name | No | Filter by company/nickname |\n| page | No | Page number |\n| limit | No | Page size 1–100 |"
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}

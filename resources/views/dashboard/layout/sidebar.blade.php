@@ -30,11 +30,28 @@
                 </a>
             </li>
 
-            <li class="nav-item {{ request()->is('dashboard/admins*') ? 'active' : '' }}">
-                <a href="{{ route('admin.admins.index') }}">
+            <li class="nav-item has-sub {{ request()->is('dashboard/admins*', 'dashboard/roles*', 'dashboard/permissions*') ? 'active open' : '' }}">
+                <a href="#">
                     <i class="feather icon-user-check"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.admins') }}</span>
+                    <span class="menu-title">{{ __('admin.sidebar.access_control') }}</span>
                 </a>
+                <ul class="menu-content">
+                    <li class="{{ request()->is('dashboard/admins*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.admins.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.admins') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/roles*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.roles.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.roles') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/permissions*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.permissions.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.permissions') }}</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
 
             <li class="nav-item has-sub {{ request()->is('dashboard/users*', 'dashboard/volunteers*', 'dashboard/entities*') ? 'active open' : '' }}">

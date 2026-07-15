@@ -16,6 +16,8 @@ use App\Http\Controllers\Admin\LoginController;
 use App\Http\Controllers\Admin\MasterChoiceController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OrganizationProfileController;
+use App\Http\Controllers\Admin\PermissionController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SponsorController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserTypeApprovalController;
@@ -41,6 +43,22 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::resource('forbidden-words', ForbiddenWordController::class)
         ->except(['show'])
         ->parameters(['forbidden-words' => 'forbiddenWord']);
+
+    // Roles — API-style paths
+    Route::get('roles/', [RoleController::class, 'index'])->name('roles.index');
+    Route::post('roles/', [RoleController::class, 'store'])->name('roles.store');
+    Route::get('roles/create/', [RoleController::class, 'create'])->name('roles.create');
+    Route::get('roles/{role}/edit/', [RoleController::class, 'edit'])->name('roles.edit');
+    Route::match(['put', 'patch'], 'roles/{role}/', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('roles/{role}/', [RoleController::class, 'destroy'])->name('roles.destroy');
+
+    // Permissions — API-style paths
+    Route::get('permissions/', [PermissionController::class, 'index'])->name('permissions.index');
+    Route::post('permissions/', [PermissionController::class, 'store'])->name('permissions.store');
+    Route::get('permissions/create/', [PermissionController::class, 'create'])->name('permissions.create');
+    Route::get('permissions/{permission}/edit/', [PermissionController::class, 'edit'])->name('permissions.edit');
+    Route::match(['put', 'patch'], 'permissions/{permission}/', [PermissionController::class, 'update'])->name('permissions.update');
+    Route::delete('permissions/{permission}/', [PermissionController::class, 'destroy'])->name('permissions.destroy');
 
     // Users
     Route::get('users', [UserController::class, 'index'])->name('users.index');

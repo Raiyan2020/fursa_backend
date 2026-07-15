@@ -84,9 +84,18 @@ class User extends Authenticatable
         'user_type' => UserType::class,
         'social_media_provider' => SocialMediaProvider::class,
         'preferred_language' => Language::class,
-        'nationality' => Nationality::class,
         'password' => 'hashed',
     ];
+
+    public function setNationalityAttribute(mixed $value): void
+    {
+        $this->attributes['nationality'] = Nationality::normalize($value);
+    }
+
+    public function getNationalityAttribute(mixed $value): ?Nationality
+    {
+        return Nationality::tryFromInput($value);
+    }
 
     protected static function booted(): void
     {
