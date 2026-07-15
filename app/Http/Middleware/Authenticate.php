@@ -15,7 +15,11 @@ class Authenticate extends Middleware
             return null;
         }
 
-        return route('login');
+        if ($request->is('dashboard*')) {
+            return route('admin.login');
+        }
+
+        return route('admin.login');
     }
 
     protected function unauthenticated($request, array $guards)

@@ -1,0 +1,805 @@
+/* ========================================================================
+   SIDEBAR REDESIGN  –  refined, dense, professional
+   Dark  : deep indigo-blue -> richer navy gradient
+   Light : slate-50 -> cool slate-100 gradient
+   ======================================================================== */
+
+/* -----------------------------------------------------------------------
+   CSS variables – sidebar palette
+   ----------------------------------------------------------------------- */
+:root {
+    /* light sidebar */
+    --sb-bg-start:          #f8fafc;
+    --sb-bg-end:            #eef1f6;
+    /* theme-tint strength for the sidebar gradient (subtle in light mode) */
+    --sb-tint-top:          0.10;
+    --sb-tint-mid:          0.05;
+    --sb-tint-base:         0.03;
+    --sb-dot-color:         rgba(71, 85, 105, 0.05);
+    --sb-border:            rgba(71, 85, 105, 0.12);
+    --sb-text:              #334155;   /* main links: dark slate/charcoal  */
+    --sb-text-muted:        #64748b;   /* sub links: softer slate          */
+    --sb-hover-bg:          rgba(var(--primary-rgb), 0.08);
+    --sb-hover-text:        #1e293b;
+    --sb-active-bg:         rgba(var(--primary-rgb), 0.12);
+    --sb-active-text:       var(--primary);   /* accent (follows theme)     */
+    --sb-accent-bar:        var(--primary);
+    --sb-search-bg:         rgba(255,255,255,0.75);
+    --sb-search-border:     rgba(71, 85, 105, 0.16);
+    --sb-search-text:       #334155;
+    --sb-toggle-bg:         #ffffff;
+    --sb-toggle-border:     rgba(71, 85, 105, 0.18);
+    --sb-toggle-text:       #475569;
+    --sb-child-dot:         #94a3b8;
+    --sb-child-dot-active:  var(--primary);
+    --sb-dropdown-bg:       rgba(71, 85, 105, 0.06);
+    --sb-dropdown-hover-bg: rgba(71, 85, 105, 0.10);
+    --sb-dropdown-active-bg:rgba(71, 85, 105, 0.14);
+    --sb-dropdown-active-text: #1e293b;
+    --sb-scroll-thumb:      rgba(71, 85, 105, 0.25);   /* soft light-slate */
+    --sb-scroll-thumb-hover:rgba(71, 85, 105, 0.45);
+    --sb-header-h:          70px;
+    --sb-search-h:          54px;
+    --sb-divider:           rgba(71, 85, 105, 0.12);
+}
+
+.dark-layout {
+    /* Sidebar — deeper midnight blue (darker than main content) */
+    --sb-bg-start:          #12122b;
+    --sb-bg-end:            #0f0f24;
+    /* subtle theme tint for the dark sidebar gradient (matches navbar) */
+    --sb-tint-top:          0.12;
+    --sb-tint-mid:          0.08;
+    --sb-tint-base:         0.05;
+    --sb-dot-color:         rgba(148, 163, 255, 0.04);
+    --sb-border:            rgba(255, 255, 255, 0.06);
+    --sb-divider:           rgba(255, 255, 255, 0.06);
+    --sb-text:              #e2e8f0;
+    --sb-text-muted:        #94a3b8;
+    /* white overlay — primary-rgb is often dark gray in dark mode, so tint is invisible */
+    --sb-hover-bg:          rgba(255, 255, 255, 0.14);
+    --sb-hover-text:        #f8fafc;
+    --sb-active-bg:         rgba(255, 255, 255, 0.18);
+    --sb-active-text:       #ffffff;
+    --sb-accent-bar:        #cbd5e1;
+    --sb-search-bg:         rgba(255, 255, 255, 0.04);
+    --sb-search-border:     rgba(255, 255, 255, 0.08);
+    --sb-search-text:       #e2e8f0;
+    --sb-toggle-bg:         #1c1a28;
+    --sb-toggle-border:     rgba(255, 255, 255, 0.10);
+    --sb-toggle-text:       #cbd5e1;
+    --sb-child-dot:         #64748b;
+    --sb-child-dot-active:  #cbd5e1;
+    --sb-dropdown-bg:       rgba(255, 255, 255, 0.03);
+    --sb-dropdown-hover-bg: rgba(255, 255, 255, 0.10);
+    --sb-dropdown-active-bg:rgba(255, 255, 255, 0.14);
+    --sb-dropdown-active-text: #f8fafc;
+    --sb-scroll-thumb:      rgba(255, 255, 255, 0.12);
+    --sb-scroll-thumb-hover:rgba(255, 255, 255, 0.22);
+}
+
+/* -----------------------------------------------------------------------
+   SIDEBAR CONTAINER — one unified surface, top to bottom
+   background-attachment:fixed keeps the parent (.main-menu) and child
+   (.main-menu-content) gradients perfectly aligned (no color seam).
+   .dark-layout selectors are needed to beat modern-redesign.css.
+   ----------------------------------------------------------------------- */
+.main-menu,
+.main-menu-content,
+.dark-layout .main-menu,
+.dark-layout .main-menu-content,
+.main-menu.menu-light,
+.main-menu.menu-light.expanded,
+.main-menu.menu-fixed.menu-light.menu-accordion.menu-shadow,
+.main-menu.menu-fixed.menu-light.menu-accordion.menu-shadow.expanded,
+.menu-collapsed .main-menu.expanded,
+.dark-layout .main-menu.menu-light,
+.dark-layout .main-menu.menu-light.expanded {
+    background-image:
+        radial-gradient(circle, var(--sb-dot-color) 1px, transparent 1px),
+        linear-gradient(180deg,
+            rgba(var(--primary-rgb), var(--sb-tint-top)) 0%,
+            rgba(var(--primary-rgb), var(--sb-tint-mid)) 14%,
+            rgba(var(--primary-rgb), var(--sb-tint-base)) 38%,
+            rgba(var(--primary-rgb), var(--sb-tint-base)) 100%) !important;
+    background-size: 24px 24px, 100% 100% !important;
+    background-attachment: fixed, fixed !important;
+    background-color: var(--sb-bg-start) !important;
+    border-right: 1px solid var(--sb-border) !important;
+    border-left:  none !important;
+    box-shadow: 2px 0 16px rgba(0,0,0,0.06) !important;
+}
+
+/* Vuexy .menu-light forces white on nav — make inner areas transparent
+   so the parent gradient shows through uniformly (incl. expanded state) */
+.main-menu.menu-light .navigation,
+.main-menu.menu-light .navigation-main,
+.main-menu.menu-light.expanded .navigation,
+.main-menu.menu-light .navbar-header,
+.main-menu.menu-light .sidebar-search,
+.dark-layout .main-menu.menu-light .navigation,
+.dark-layout .main-menu.menu-light .navigation-main {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* RTL — border on the left */
+html[data-textdirection="rtl"] .main-menu,
+html[data-textdirection="rtl"] .dark-layout .main-menu {
+    border-right: none !important;
+    border-left:  1px solid var(--sb-border) !important;
+}
+
+/* Fill the full viewport — robust flex column so header + search + content
+   always span exactly 100vh with NO bottom gap and NO JS height math.
+   The content area flexes to fill the remaining space and scrolls itself. */
+.main-menu {
+    top: 0 !important;
+    bottom: 0 !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    height: 100dvh !important;          /* track dynamic viewport when supported */
+    border-radius: 0 !important;
+    overflow: visible !important;       /* let the edge chevron button show */
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Fixed-size top regions */
+.main-menu .navbar-header,
+.main-menu .sidebar-search {
+    flex: 0 0 auto !important;
+}
+
+/* Flexible, self-scrolling content area.
+   height:auto !important overrides Vuexy's inline px height (it has no
+   !important, so our stylesheet rule wins) — this kills the collapse glitch. */
+.main-menu .main-menu-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 18px !important;
+    position: relative !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: var(--sb-scroll-thumb) transparent !important;
+}
+
+/* -----------------------------------------------------------------------
+   LOGO HEADER — frameless, clean, centered
+   ----------------------------------------------------------------------- */
+.main-menu .navbar-header {
+    height: var(--sb-header-h) !important;
+    padding: 0 16px !important;
+    border-bottom: 1px solid var(--sb-border) !important;
+    background: transparent !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    position: relative !important;
+}
+
+.main-menu .navbar-header .nav {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    list-style: none !important;
+}
+
+.main-menu .navbar-header .nav-item {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Plain logo — no circle, no border, no background frame */
+.sidebar-logo,
+.main-menu .navbar-header .navbar-brand.sidebar-logo {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-decoration: none !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.sidebar-logo img,
+.main-menu .navbar-header .navbar-brand.sidebar-logo img {
+    width: auto !important;
+    height: 40px !important;
+    max-width: 150px !important;
+    object-fit: contain !important;
+    display: block !important;
+}
+
+.sidebar-logo-mark {
+    display: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.14);
+    flex-shrink: 0;
+}
+
+.sidebar-logo-text {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #f97316 !important;
+    white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------------
+   EDGE CHEVRON COLLAPSE BUTTON
+   Sits on the sidebar's OUTER edge. RTL: sidebar is on the right,
+   so the outer edge is the LEFT edge. LTR: mirror to the right edge.
+   ----------------------------------------------------------------------- */
+.sidebar-collapse-btn {
+    position: absolute !important;
+    top: 24px !important;
+    z-index: 1100 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 26px !important;
+    height: 28px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    background: var(--sb-toggle-bg) !important;
+    border: 1px solid var(--sb-toggle-border) !important;
+    color: var(--sb-toggle-text) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+}
+
+/* RTL — outer edge is the LEFT edge of the sidebar */
+html[data-textdirection="rtl"] .sidebar-collapse-btn {
+    left: -13px !important;
+    right: auto !important;
+}
+/* LTR — outer edge is the RIGHT edge of the sidebar */
+html[data-textdirection="ltr"] .sidebar-collapse-btn {
+    right: -13px !important;
+    left: auto !important;
+}
+
+.sidebar-collapse-btn:hover {
+    color: var(--sb-active-text) !important;
+    border-color: var(--sb-accent-bar) !important;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18) !important;
+}
+
+.sidebar-collapse-btn i {
+    font-size: 15px !important;
+    line-height: 1 !important;
+    transition: none !important;
+}
+
+/* -----------------------------------------------------------------------
+   SEARCH BOX
+   ----------------------------------------------------------------------- */
+.sidebar-search {
+    position: relative !important;
+    height: var(--sb-search-h) !important;
+    padding: 10px 14px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.sidebar-search-icon {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--sb-text-muted) !important;
+    font-size: 14px !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+}
+
+html[data-textdirection="ltr"] .sidebar-search-icon { left: 26px !important; }
+html[data-textdirection="rtl"] .sidebar-search-icon { right: 26px !important; }
+
+#sidebarSearch {
+    width: 100% !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--sb-search-border) !important;
+    background: var(--sb-search-bg) !important;
+    color: var(--sb-search-text) !important;
+    font-size: 0.85rem !important;
+    padding: 7px 14px !important;
+    outline: none !important;
+    transition: all 0.2s ease !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    backdrop-filter: blur(4px) !important;
+    height: 34px !important;
+    box-shadow: none !important;
+}
+
+html[data-textdirection="ltr"] #sidebarSearch { padding-left: 36px !important; }
+html[data-textdirection="rtl"] #sidebarSearch { padding-right: 36px !important; }
+
+#sidebarSearch::placeholder {
+    color: var(--sb-text-muted) !important;
+    opacity: 0.8 !important;
+}
+
+#sidebarSearch:focus {
+    border-color: var(--sb-accent-bar) !important;
+    box-shadow: 0 0 0 3px var(--sb-active-bg) !important;
+}
+
+/* -----------------------------------------------------------------------
+   NAVIGATION ITEMS — compact & dense
+   ----------------------------------------------------------------------- */
+.main-menu-content .navigation {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Thin divider between every link + breathing room above/below each row */
+.main-menu .navigation > li {
+    border-bottom: 1px solid var(--sb-divider) !important;
+    padding: 6px 0 !important;
+}
+
+.main-menu .navigation > li .menu-content > li {
+    border-bottom: 1px solid var(--sb-divider) !important;
+    padding: 4px 0 !important;
+}
+
+.main-menu .navigation > li .menu-content > li:last-child {
+    border-bottom: none !important;
+}
+
+/* Arabic sidebar typography — Almarai, regular weight like reference */
+html[data-textdirection="rtl"] .main-menu,
+html[data-textdirection="rtl"] .main-menu .navigation > li > a,
+html[data-textdirection="rtl"] .main-menu .navigation > li .menu-content > li > a,
+html[data-textdirection="rtl"] .main-menu #sidebarSearch {
+    font-family: 'Almarai', sans-serif !important;
+}
+
+html[data-textdirection="rtl"] .main-menu .navigation > li > a {
+    font-weight: 400 !important;
+}
+
+html[data-textdirection="rtl"] .main-menu .navigation > li.active > a {
+    font-weight: 700 !important;
+}
+
+/* Top-level links — icon + label on one line */
+.main-menu .navigation > li > a,
+.dark-layout .main-menu .navigation > li > a {
+    color: var(--sb-text) !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 11px 16px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    line-height: 1.25 !important;
+    transition: color 0.16s ease !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+    transform: none !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+}
+
+/* Hover — full row (li), not just inner anchor (CSS :hover + Vuexy .hover class) */
+.main-menu .navigation > li:not(.active):hover,
+.main-menu .navigation > li:not(.active).hover,
+.dark-layout .main-menu .navigation > li:not(.active):hover,
+.dark-layout .main-menu .navigation > li:not(.active).hover {
+    background: var(--sb-hover-bg) !important;
+}
+
+.main-menu .navigation > li:not(.active):hover > a,
+.main-menu .navigation > li:not(.active).hover > a,
+.dark-layout .main-menu .navigation > li:not(.active):hover > a,
+.dark-layout .main-menu .navigation > li:not(.active).hover > a {
+    background: transparent !important;
+    color: var(--sb-hover-text) !important;
+    transform: none !important;
+}
+
+/* Colorful accent themes — primary tint is visible on dark sidebar */
+html:not(.theme-accent-dark) .dark-layout {
+    --sb-hover-bg:           rgba(var(--primary-rgb), 0.22);
+    --sb-active-bg:          rgba(var(--primary-rgb), 0.28);
+    --sb-accent-bar:         var(--primary);
+    --sb-dropdown-active-bg: rgba(var(--primary-rgb), 0.24);
+}
+
+/* Active — full row highlight (same clarity approach as hover) */
+.main-menu .navigation > li.active,
+.main-menu .navigation > li.nav-item.active,
+.dark-layout .main-menu .navigation > li.active,
+.dark-layout .main-menu .navigation > li.nav-item.active {
+    background: var(--sb-active-bg) !important;
+}
+
+.main-menu .navigation > li.active > a,
+.main-menu .navigation > li.nav-item.active > a,
+.main-menu.menu-light .navigation > li.active > a,
+.dark-layout .main-menu .navigation > li.active > a,
+.dark-layout .main-menu .navigation > li.nav-item.active > a,
+.dark-layout .main-menu.menu-dark .navigation > li.active > a,
+.dark-layout .main-menu.menu-dark .navigation > li.nav-item.active > a {
+    background: transparent !important;
+    color: var(--sb-active-text) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    font-weight: 600 !important;
+    transform: none !important;
+}
+
+/* Thin accent bar on the inner edge of the active row */
+.main-menu .navigation > li.active > a::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    height: 60% !important;
+    width: 3px !important;
+    border-radius: 3px !important;
+    background: var(--sb-accent-bar) !important;
+}
+
+html[data-textdirection="rtl"] .main-menu .navigation > li.active > a::before {
+    right: 0 !important;
+    left: auto !important;
+}
+html[data-textdirection="ltr"] .main-menu .navigation > li.active > a::before {
+    left: 0 !important;
+    right: auto !important;
+}
+
+/* -----------------------------------------------------------------------
+   ICONS — smaller, vertically centered with label (override Vuexy float/margin/top)
+   ----------------------------------------------------------------------- */
+.main-menu .navigation > li > a > i,
+.main-menu .navigation > li > a svg,
+.main-menu .navigation > li > a .feather,
+.main-menu .navigation > li > a i.ti,
+.main-menu .navigation li > a > i,
+.main-menu.menu-light .navigation > li > a i,
+.main-menu.menu-dark .navigation > li > a i,
+body.vertical-layout.vertical-menu-modern .main-menu .navigation > li > a > i,
+body.vertical-layout.vertical-menu-modern.menu-expanded .main-menu .navigation > li > a > i,
+body.vertical-layout.vertical-menu-modern.menu-collapsed .main-menu .navigation > li > a i,
+html[data-textdirection="rtl"] .main-menu .navigation > li > a > i,
+html[data-textdirection="rtl"] .main-menu .navigation li > a > i {
+    flex-shrink: 0 !important;
+    float: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static !important;
+    top: auto !important;
+    width: 1em !important;
+    height: 1em !important;
+    min-width: 1em !important;
+    font-size: 0.8125rem !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+    transform: none !important;
+    align-self: center !important;
+}
+
+/* Vuexy sets feather icons to ~23px via :before — force small size + center glyph */
+.main-menu .navigation > li > a > i:before,
+.main-menu .navigation > li > a .feather:before,
+.main-menu .navigation > li > a i:before,
+body.vertical-layout.vertical-menu-modern.menu-expanded .main-menu .navigation > li > a > i:before,
+body.vertical-layout.vertical-menu-modern.menu-collapsed .main-menu .navigation > li > a i:before {
+    font-size: 1em !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static !important;
+    top: auto !important;
+}
+
+.main-menu .navigation > li > a .menu-title {
+    line-height: 1.25 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    align-self: center !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+/* -----------------------------------------------------------------------
+   DROPDOWN PARENTS & CHILDREN
+   ----------------------------------------------------------------------- */
+.main-menu .navigation > li.has-sub > a::after {
+    font-size: 10px !important;
+    opacity: 0.5 !important;
+    transition: transform 0.2s ease !important;
+}
+
+.main-menu .navigation > li.has-sub.open > a::after {
+    transform: rotate(-90deg) !important;
+}
+html[data-textdirection="rtl"] .main-menu .navigation > li.has-sub.open > a::after {
+    transform: rotate(90deg) !important;
+}
+
+.main-menu .navigation > li .menu-content {
+    background: var(--sb-dropdown-bg) !important;
+    padding: 8px 0 4px !important;   /* gap below parent before sub-links */
+    margin: 0 !important;
+}
+
+/* Sub-items — lighter, less indent, full-row hover */
+.main-menu .navigation > li .menu-content > li > a {
+    color: var(--sb-text-muted) !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    font-size: 0.8125rem !important;
+    font-weight: 400 !important;
+    line-height: 1.35 !important;
+    transition: color 0.16s ease !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+}
+
+html[data-textdirection="ltr"] .main-menu .navigation > li .menu-content > li > a {
+    padding: 8px 16px 8px 26px !important;
+}
+html[data-textdirection="rtl"] .main-menu .navigation > li .menu-content > li > a {
+    padding: 8px 26px 8px 16px !important;
+}
+
+/* Override Vuexy child-icon margin (1.38rem) + RTL float */
+.main-menu .navigation .menu-content > li > a > i,
+.main-menu .navigation .menu-content > li > a .feather,
+.main-menu .navigation > li ul li > a > i,
+body.vertical-layout.vertical-menu-modern .main-menu .navigation .menu-content > li > a > i,
+html[data-textdirection="rtl"] .main-menu .navigation .menu-content > li > a > i {
+    float: none !important;
+    margin: 0 !important;
+    position: static !important;
+    top: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    align-self: center !important;
+    line-height: 1 !important;
+}
+
+.main-menu .navigation > li .menu-content > li > a .menu-sub-title {
+    line-height: 1.35 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    align-self: center !important;
+}
+
+/* Tiny bullet indicator */
+.main-menu .navigation > li .menu-content > li > a .feather.icon-circle {
+    width: 5px !important;
+    height: 5px !important;
+    font-size: 5px !important;
+    color: var(--sb-child-dot) !important;
+    opacity: 0.45 !important;
+    flex-shrink: 0 !important;
+}
+
+/* Sub hover/active — neutral dropdown tones (not theme color) */
+.main-menu .navigation > li .menu-content > li:not(.active):hover,
+.main-menu .navigation > li .menu-content > li:not(.active).hover {
+    background: var(--sb-dropdown-hover-bg) !important;
+}
+
+.main-menu .navigation > li .menu-content > li:not(.active):hover > a,
+.main-menu .navigation > li .menu-content > li:not(.active).hover > a {
+    background: transparent !important;
+    color: var(--sb-hover-text) !important;
+}
+
+.main-menu .navigation > li .menu-content > li.active {
+    background: var(--sb-dropdown-active-bg) !important;
+}
+
+.main-menu .navigation > li .menu-content > li.active > a {
+    background: transparent !important;
+    color: var(--sb-dropdown-active-text) !important;
+    font-weight: 500 !important;
+}
+
+.main-menu .navigation > li .menu-content > li.active > a .feather.icon-circle {
+    color: var(--sb-child-dot-active) !important;
+    opacity: 1 !important;
+}
+
+/* Parent of an open/active group — keep neutral, no theme tint */
+.main-menu .navigation > li.sidebar-group-active,
+.main-menu .navigation > li.open {
+    background: transparent !important;
+}
+
+.main-menu .navigation > li.sidebar-group-active > a,
+.main-menu .navigation > li.open > a {
+    color: var(--sb-text) !important;
+    background: transparent !important;
+}
+
+/* -----------------------------------------------------------------------
+   CUSTOM SCROLLBAR — ultra-thin, theme-aware, elegant
+   ----------------------------------------------------------------------- */
+/* Neutralize Vuexy's PerfectScrollbar so the native (styleable) scrollbar
+   is used and our webkit styles actually show. */
+.main-menu .main-menu-content.ps {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+.main-menu .main-menu-content .ps__rail-x,
+.main-menu .main-menu-content .ps__rail-y {
+    display: none !important;
+}
+
+/* WebKit (Chrome/Edge/Safari) */
+.main-menu .main-menu-content::-webkit-scrollbar {
+    width: 5px !important;
+    height: 5px !important;
+}
+.main-menu .main-menu-content::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+.main-menu .main-menu-content::-webkit-scrollbar-thumb {
+    background: var(--sb-scroll-thumb) !important;
+    border-radius: 999px !important;
+    transition: background 0.2s ease !important;
+}
+.main-menu .main-menu-content::-webkit-scrollbar-thumb:hover {
+    background: var(--sb-scroll-thumb-hover) !important;
+}
+
+/* -----------------------------------------------------------------------
+   COLLAPSED STATE (Vuexy adds menu-collapsed to body)
+   ----------------------------------------------------------------------- */
+.menu-collapsed .sidebar-search {
+    display: none !important;
+}
+
+.menu-collapsed .main-menu .navbar-header {
+    overflow: hidden !important;
+    padding: 0 8px !important;
+}
+
+.menu-collapsed .main-menu:not(.expanded) .sidebar-logo-text,
+.menu-collapsed .main-menu:not(.expanded) .navbar-header .brand-text {
+    display: none !important;
+}
+
+.menu-collapsed .main-menu:not(.expanded) .sidebar-logo-mark {
+    display: inline-flex !important;
+}
+
+.menu-collapsed .main-menu:not(.expanded) .sidebar-logo {
+    width: 100% !important;
+    overflow: hidden !important;
+    justify-content: center !important;
+}
+
+.menu-collapsed .main-menu.expanded .sidebar-logo-text,
+.menu-collapsed .main-menu.expanded .navbar-header .brand-text {
+    display: inline !important;
+}
+
+.menu-collapsed .main-menu.expanded .sidebar-logo-mark {
+    display: none !important;
+}
+
+/* Keep the logo from overflowing the narrow collapsed rail */
+.menu-collapsed .sidebar-logo img {
+    height: 30px !important;
+    max-width: 44px !important;
+}
+
+/* When the collapsed rail expands on hover, restore full logo size */
+.menu-collapsed .main-menu.expanded .sidebar-logo img {
+    height: 40px !important;
+    max-width: 150px !important;
+}
+
+/* -----------------------------------------------------------------------
+   KILL interfering Vuexy + modern-redesign rules
+   ----------------------------------------------------------------------- */
+.main-menu .shadow-bottom { display: none !important; }
+
+/* Beat modern-redesign.css side margins + hover slide transform */
+.main-menu .navigation > li > a,
+.main-menu .navigation > li:hover > a,
+.dark-layout .main-menu .navigation > li > a,
+.dark-layout .main-menu .navigation > li:hover > a {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    transform: none !important;
+}
+
+.main-menu .navigation > li.active > a,
+.main-menu .navigation > li.nav-item.active > a,
+.dark-layout .main-menu .navigation > li.active > a,
+.dark-layout .main-menu .navigation > li.nav-item.active > a {
+    margin: 0 !important;
+    width: 100% !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+html[data-textdirection="rtl"] .main-menu .navigation > li:hover > a {
+    transform: none !important;
+}
+
+/* Beat Vuexy theme gradient on dropdown active items */
+.main-menu.menu-light .navigation > li ul .active,
+.main-menu.menu-light .navigation > li .menu-content > li.active,
+.main-menu.menu-dark .navigation > li ul .active,
+.main-menu.menu-dark .navigation > li .menu-content > li.active,
+.dark-layout .main-menu-content .navigation-main .nav-item .menu-content .active,
+.dark-layout .main-menu-content .navigation-main .sidebar-group-active .menu-content .active {
+    background: var(--sb-dropdown-active-bg) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+.main-menu.menu-light .navigation > li ul .active > a,
+.main-menu.menu-light .navigation > li .menu-content > li.active > a,
+.main-menu.menu-dark .navigation > li ul .active > a,
+.main-menu.menu-dark .navigation > li .menu-content > li.active > a,
+.dark-layout .main-menu-content .navigation-main .sidebar-group-active .menu-content .active a {
+    background: transparent !important;
+    color: var(--sb-dropdown-active-text) !important;
+}
+
+.main-menu.menu-light .navigation > li.open > a,
+.main-menu.menu-light .navigation > li.sidebar-group-active > a,
+.main-menu.menu-dark .navigation > li.open > a,
+.main-menu.menu-dark .navigation > li.sidebar-group-active > a {
+    background: transparent !important;
+    box-shadow: none !important;
+}

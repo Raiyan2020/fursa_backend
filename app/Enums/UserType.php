@@ -12,4 +12,13 @@ enum UserType: string
     {
         return array_column(self::cases(), 'value');
     }
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::VOLUNTEER => __('admin.user_types.volunteer'),
+            self::ORGANIZATION => __('admin.user_types.organization'),
+            self::ADMIN => __('admin.user_types.admin'),
+        };
+    }
 }

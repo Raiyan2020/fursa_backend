@@ -1,0 +1,975 @@
+/* Admin data table — reference card (theme-aware borders + row hover accent) */
+
+.admin-table-wrap {
+    --tbl-radius: 16px;
+    --tbl-row-h: 3.5rem;
+    --tbl-head-h: 3.25rem;
+    position: relative;
+    width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(var(--primary-rgb), 0.14);
+    border-radius: var(--tbl-radius);
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.05) 0%, transparent 56px),
+        rgba(34, 36, 54, 0.92);
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+body:not(.dark-layout) .admin-table-wrap {
+    background:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.04) 0%, transparent 56px),
+        rgba(255, 255, 255, 0.98);
+    border-color: rgba(var(--primary-rgb), 0.12);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.admin-table-wrap__content {
+    transition: opacity 0.22s ease;
+}
+
+.admin-table-wrap.is-loading .admin-table-wrap__content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.admin-table-wrap.is-loading {
+    min-height: calc(var(--tbl-head-h, 3.25rem) + var(--tbl-row-h, 3.5rem) * 8);
+}
+
+/* Skeleton loader */
+.admin-table-skeleton {
+    display: none;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+    z-index: 3;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.05) 0%, transparent 56px),
+        rgba(34, 36, 54, 0.96);
+}
+
+body:not(.dark-layout) .admin-table-skeleton {
+    background:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.04) 0%, transparent 56px),
+        rgba(255, 255, 255, 0.98);
+}
+
+.admin-table-wrap.is-loading .admin-table-skeleton {
+    display: block;
+}
+
+/* Initial load: no table in DOM yet — keep skeleton in flow so the wrap has height */
+.admin-table-wrap.is-loading:not(:has(.admin-table-wrap__content table)) .admin-table-skeleton {
+    position: static;
+    inset: auto;
+    overflow: visible;
+}
+
+.admin-table-skeleton__head,
+.admin-table-skeleton__row {
+    display: grid;
+    align-items: center;
+    width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+    min-height: var(--tbl-row-h, 3.5rem);
+    padding: 0 0.75rem;
+    border-bottom: 1px solid rgba(var(--primary-rgb), 0.07);
+}
+
+/* Clients — 8 columns */
+.admin-table-skeleton--clients .admin-table-skeleton__head,
+.admin-table-skeleton--clients .admin-table-skeleton__row {
+    grid-template-columns: 44px minmax(160px, 1.4fr) minmax(100px, 1fr) 130px 90px 96px 118px 188px;
+}
+
+/* Countries — reorder, check, name+flag, code, count, actions */
+.admin-table-skeleton--countries .admin-table-skeleton__head,
+.admin-table-skeleton--countries .admin-table-skeleton__row {
+    grid-template-columns: 38px 44px minmax(160px, 1.5fr) 90px 100px 130px;
+}
+
+/* Companies — check, logo+name, responsible, email, phone, type, 3 switches, actions */
+.admin-table-skeleton--companies .admin-table-skeleton__head,
+.admin-table-skeleton--companies .admin-table-skeleton__row {
+    grid-template-columns: 44px minmax(170px, 1.4fr) minmax(100px, 1fr) minmax(120px, 1fr) 130px 100px 96px 96px 96px 188px;
+}
+
+/* Company users — check, avatar+name, company, type, email, phone, 2 switches, actions */
+.admin-table-skeleton--company_users .admin-table-skeleton__head,
+.admin-table-skeleton--company_users .admin-table-skeleton__row {
+    grid-template-columns: 44px minmax(170px, 1.4fr) minmax(120px, 1fr) 100px minmax(120px, 1fr) 130px 96px 96px 188px;
+}
+
+/* Admins — check, avatar+name+email, phone, ban switch, actions */
+.admin-table-skeleton--admins .admin-table-skeleton__head,
+.admin-table-skeleton--admins .admin-table-skeleton__row {
+    grid-template-columns: 44px minmax(170px, 1.5fr) 130px 96px 130px;
+}
+
+/* Orders — id, order#, date, visitor, company, guard, supervisor, card, responsible, status, view */
+.admin-table-skeleton--orders .admin-table-skeleton__head,
+.admin-table-skeleton--orders .admin-table-skeleton__row {
+    grid-template-columns: 50px 90px 90px minmax(90px, 1fr) minmax(110px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) 90px minmax(90px, 1fr) 110px 80px;
+}
+
+/* Subscription packages — check, id, package, amount, trial, duration, status, subs, companies, actions */
+.admin-table-skeleton--packages .admin-table-skeleton__head,
+.admin-table-skeleton--packages .admin-table-skeleton__row {
+    grid-template-columns: 44px 100px minmax(180px, 1.6fr) minmax(100px, 1fr) 80px 80px 118px 100px 100px 130px;
+}
+
+/* Package show — subscriptions: id, company, invoice, ref, dates, amounts, method, 2 statuses, paid_at */
+.admin-table-skeleton--package_subscriptions .admin-table-skeleton__head,
+.admin-table-skeleton--package_subscriptions .admin-table-skeleton__row {
+    grid-template-columns: 50px minmax(140px, 1.2fr) minmax(100px, 1fr) minmax(100px, 1fr) 90px 90px 100px 90px minmax(90px, 1fr) 118px 118px minmax(110px, 1fr);
+}
+
+.admin-table-skeleton--package_subscriptions .admin-table-skeleton__cell:nth-child(1),
+.admin-table-skeleton--package_subscriptions .admin-table-skeleton__cell:nth-child(7),
+.admin-table-skeleton--package_subscriptions .admin-table-skeleton__cell:nth-child(8) {
+    justify-content: center;
+}
+
+/* Socials — check, icon+name, link, actions */
+.admin-table-skeleton--socials .admin-table-skeleton__head,
+.admin-table-skeleton--socials .admin-table-skeleton__row {
+    grid-template-columns: 44px minmax(160px, 1.5fr) minmax(140px, 1.2fr) 130px;
+}
+
+/* Reports — check, subject, ip, actions */
+.admin-table-skeleton--reports .admin-table-skeleton__head,
+.admin-table-skeleton--reports .admin-table-skeleton__row {
+    grid-template-columns: 44px minmax(180px, 1.6fr) 130px 100px;
+}
+
+/* Roles — #, name, actions */
+.admin-table-skeleton--roles .admin-table-skeleton__head,
+.admin-table-skeleton--roles .admin-table-skeleton__row {
+    grid-template-columns: 50px minmax(160px, 1.5fr) 100px;
+}
+
+/* Complaints — check, date, name, phone, email, address, actions */
+.admin-table-skeleton--complaints .admin-table-skeleton__head,
+.admin-table-skeleton--complaints .admin-table-skeleton__row {
+    grid-template-columns: 44px 90px minmax(120px, 1fr) 130px minmax(140px, 1fr) minmax(120px, 1fr) 100px;
+}
+
+/* Reasons (visit/refuse) — reorder, check, name, actions */
+.admin-table-skeleton--reasons .admin-table-skeleton__head,
+.admin-table-skeleton--reasons .admin-table-skeleton__row {
+    grid-template-columns: 38px 44px minmax(160px, 1.5fr) 130px;
+}
+
+/* Categories — reorder, check, name, status, actions */
+.admin-table-skeleton--categories .admin-table-skeleton__head,
+.admin-table-skeleton--categories .admin-table-skeleton__row {
+    grid-template-columns: 38px 44px minmax(160px, 1.5fr) 118px 130px;
+}
+
+/* Pages — check, title, content, actions */
+.admin-table-skeleton--pages .admin-table-skeleton__head,
+.admin-table-skeleton--pages .admin-table-skeleton__row {
+    grid-template-columns: 44px minmax(140px, 1fr) minmax(180px, 1.2fr) 100px;
+}
+
+.admin-table-skeleton--packages .admin-table-skeleton__cell:nth-child(1),
+.admin-table-skeleton--packages .admin-table-skeleton__cell:nth-child(2),
+.admin-table-skeleton--packages .admin-table-skeleton__cell:nth-child(8),
+.admin-table-skeleton--packages .admin-table-skeleton__cell:nth-child(9) {
+    justify-content: center;
+}
+
+.admin-table-skeleton--packages .admin-table-skeleton__cell:nth-child(10) {
+    justify-content: flex-end;
+}
+
+.admin-table-skeleton__head {
+    min-height: var(--tbl-head-h, 3.25rem);
+    background: linear-gradient(
+        180deg,
+        rgba(var(--primary-rgb), 0.12) 0%,
+        rgba(22, 24, 38, 0.98) 100%
+    );
+}
+
+body:not(.dark-layout) .admin-table-skeleton__head {
+    background: linear-gradient(
+        180deg,
+        rgba(var(--primary-rgb), 0.08) 0%,
+        rgba(var(--primary-rgb), 0.03) 100%
+    );
+}
+
+.admin-table-skeleton__cell {
+    padding: 0.65rem 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 0;
+}
+
+.admin-table-skeleton__cell--head {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+}
+
+@keyframes admin-skeleton-shimmer {
+    0% { background-position: 150% 0; }
+    100% { background-position: -50% 0; }
+}
+
+.admin-skeleton-block {
+    display: block;
+    border-radius: 8px;
+    background: linear-gradient(
+        90deg,
+        rgba(var(--primary-rgb), 0.07) 0%,
+        rgba(var(--primary-rgb), 0.18) 45%,
+        rgba(var(--primary-rgb), 0.07) 90%
+    );
+    background-size: 220% 100%;
+    animation: admin-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+.admin-table-skeleton__row .admin-skeleton-block {
+    animation-delay: calc(var(--sk-row, 0) * 0.06s);
+}
+
+.admin-skeleton-block--check {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    margin: 0 auto;
+}
+
+.admin-skeleton-block--label {
+    width: 72%;
+    max-width: 96px;
+    height: 11px;
+    border-radius: 999px;
+}
+
+.admin-skeleton-block--avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.admin-skeleton-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+}
+
+.admin-skeleton-user__lines {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-skeleton-block--line {
+    height: 11px;
+    border-radius: 999px;
+    width: 100%;
+}
+
+.admin-skeleton-block--line-md { max-width: 140px; }
+.admin-skeleton-block--line-sm { max-width: 100px; height: 9px; opacity: 0.85; }
+.admin-skeleton-block--line-xs { max-width: 48px; height: 9px; opacity: 0.85; }
+
+.admin-skeleton-block--line-center {
+    margin-inline: auto;
+}
+
+.admin-skeleton-block--label-xs {
+    width: 48%;
+    max-width: 56px;
+}
+
+.admin-skeleton-block--grip {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    margin: 0 auto;
+}
+
+.admin-skeleton-block--switch {
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    margin: 0 auto;
+}
+
+.admin-skeleton-block--pill {
+    width: 78px;
+    height: 26px;
+    border-radius: 999px;
+}
+
+.admin-skeleton-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    width: 100%;
+}
+
+.admin-skeleton-block--action {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+    .admin-table-skeleton--clients .admin-table-skeleton__head,
+    .admin-table-skeleton--clients .admin-table-skeleton__row {
+        min-width: 920px;
+    }
+
+    .admin-table-skeleton--countries .admin-table-skeleton__head,
+    .admin-table-skeleton--countries .admin-table-skeleton__row {
+        min-width: 560px;
+    }
+
+    .admin-table-skeleton--companies .admin-table-skeleton__head,
+    .admin-table-skeleton--companies .admin-table-skeleton__row {
+        min-width: 1100px;
+    }
+
+    .admin-table-skeleton--company_users .admin-table-skeleton__head,
+    .admin-table-skeleton--company_users .admin-table-skeleton__row {
+        min-width: 1000px;
+    }
+
+    .admin-table-skeleton--admins .admin-table-skeleton__head,
+    .admin-table-skeleton--admins .admin-table-skeleton__row {
+        min-width: 640px;
+    }
+
+    .admin-table-skeleton--orders .admin-table-skeleton__head,
+    .admin-table-skeleton--orders .admin-table-skeleton__row {
+        min-width: 1200px;
+    }
+
+    .admin-table-skeleton--packages .admin-table-skeleton__head,
+    .admin-table-skeleton--packages .admin-table-skeleton__row {
+        min-width: 1060px;
+    }
+
+    .admin-table-skeleton--package_subscriptions .admin-table-skeleton__head,
+    .admin-table-skeleton--package_subscriptions .admin-table-skeleton__row {
+        min-width: 1320px;
+    }
+
+    .admin-table-skeleton--socials .admin-table-skeleton__head,
+    .admin-table-skeleton--socials .admin-table-skeleton__row {
+        min-width: 520px;
+    }
+
+    .admin-table-skeleton--reports .admin-table-skeleton__head,
+    .admin-table-skeleton--reports .admin-table-skeleton__row {
+        min-width: 500px;
+    }
+
+    .admin-table-skeleton--roles .admin-table-skeleton__head,
+    .admin-table-skeleton--roles .admin-table-skeleton__row {
+        min-width: 420px;
+    }
+
+    .admin-table-skeleton--complaints .admin-table-skeleton__head,
+    .admin-table-skeleton--complaints .admin-table-skeleton__row {
+        min-width: 900px;
+    }
+
+    .admin-table-skeleton--reasons .admin-table-skeleton__head,
+    .admin-table-skeleton--reasons .admin-table-skeleton__row {
+        min-width: 480px;
+    }
+
+    .admin-table-skeleton--categories .admin-table-skeleton__head,
+    .admin-table-skeleton--categories .admin-table-skeleton__row {
+        min-width: 560px;
+    }
+
+    .admin-table-skeleton--pages .admin-table-skeleton__head,
+    .admin-table-skeleton--pages .admin-table-skeleton__row {
+        min-width: 640px;
+    }
+
+    .admin-table-skeleton {
+        overflow-x: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .admin-skeleton-block {
+        animation: none;
+        background: rgba(var(--primary-rgb), 0.12);
+    }
+}
+
+.admin-table-wrap .admin-data-table {
+    margin: 0 !important;
+    border: none !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    width: 100% !important;
+    table-layout: auto;
+}
+
+body .admin-table-wrap table.table.admin-data-table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+}
+
+/* Column widths — shrink-to-fit for compact cols, fluid for text cols */
+.admin-table-wrap col.admin-table-col-reorder { width: 38px; }
+.admin-table-wrap col.admin-table-col-check { width: 44px; }
+.admin-table-wrap col.admin-table-col-flag { width: 58px; }
+.admin-table-wrap col.admin-table-col-code { width: 90px; }
+.admin-table-wrap col.admin-table-col-count { width: 100px; }
+.admin-table-wrap col.admin-table-col-phone { width: 130px; }
+.admin-table-wrap col.admin-table-col-country { width: 90px; }
+.admin-table-wrap col.admin-table-col-switch { width: 96px; }
+.admin-table-wrap col.admin-table-col-status { width: 118px; }
+.admin-table-wrap col.admin-table-col-actions { width: 188px; }
+.admin-table-wrap col.admin-table-col-actions--compact { width: 130px; }
+
+/* Drag handle (reorder tables on index pages) */
+.admin-table-wrap .drag-handle-cell {
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.65rem 0.25rem !important;
+}
+
+.admin-table-wrap .drag-handle {
+    cursor: grab;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    color: var(--primary-ui, #94a3b8);
+    font-size: 18px;
+    line-height: 1;
+    user-select: none;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.admin-table-wrap .drag-handle:hover {
+    color: var(--primary, #3b82f6);
+    background: rgba(var(--primary-rgb), 0.1);
+}
+
+.admin-table-wrap .drag-handle:active {
+    cursor: grabbing;
+}
+
+.admin-table-wrap .admin-data-table tr.reorder-drag {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.admin-table-wrap .admin-data-table tr.reorder-ghost > td {
+    background: rgba(var(--primary-rgb), 0.1) !important;
+    border-top: 2px dashed var(--primary, #3b82f6);
+    border-bottom: 2px dashed var(--primary, #3b82f6);
+}
+
+.admin-table-wrap .admin-data-table tr.reorder-chosen > td {
+    background: rgba(var(--primary-rgb), 0.04);
+}
+
+@keyframes admin-reorder-flash {
+    0%   { background-color: rgba(34, 197, 94, 0.35); }
+    100% { background-color: transparent; }
+}
+
+.admin-table-wrap .admin-data-table tr.reorder-flash > td {
+    animation: admin-reorder-flash 1.2s ease-out;
+}
+
+/* Header — beat modern-redesign .dark-layout table.table thead th { transparent } */
+.admin-table-wrap .admin-data-table thead tr {
+    background: linear-gradient(
+        180deg,
+        rgba(var(--primary-rgb), 0.14) 0%,
+        rgba(22, 24, 38, 0.98) 100%
+    ) !important;
+}
+
+body.dark-layout .admin-table-wrap table.table.admin-data-table thead th,
+.admin-table-wrap table.table.admin-data-table thead th {
+    background: transparent !important;
+    color: var(--primary-ui, #8b93a7) !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(var(--primary-rgb), 0.18) !important;
+    padding: 1rem 1.1rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    text-transform: none;
+    letter-spacing: 0;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+body:not(.dark-layout) .admin-table-wrap .admin-data-table thead tr {
+    background: linear-gradient(
+        180deg,
+        rgba(var(--primary-rgb), 0.08) 0%,
+        rgba(var(--primary-rgb), 0.03) 100%
+    ) !important;
+}
+
+body:not(.dark-layout) .admin-table-wrap table.table.admin-data-table thead th {
+    color: #64748b !important;
+    border-bottom-color: rgba(var(--primary-rgb), 0.12) !important;
+}
+
+/* Compact checkbox column */
+.admin-table-wrap .admin-data-table .admin-table-col-check {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    padding: 0.65rem 0.25rem !important;
+    text-align: center;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+.admin-table-wrap .admin-data-table .admin-table-col-flag,
+.admin-table-wrap .admin-data-table th.admin-table-col-flag,
+.admin-table-wrap .admin-data-table td.admin-table-col-flag {
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+    padding: 0.65rem 0.35rem !important;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.admin-table-wrap .admin-data-table .admin-table-col-code {
+    width: 90px !important;
+    white-space: nowrap;
+}
+
+.admin-table-wrap .admin-data-table .admin-table-col-count {
+    width: 100px !important;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.admin-table-wrap .admin-data-table .admin-table-col-actions--compact {
+    width: 130px !important;
+    min-width: 130px !important;
+    max-width: 130px !important;
+}
+
+.admin-table-wrap .admin-table-check {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 24px !important;
+    height: 24px !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    position: relative;
+}
+
+.admin-table-wrap .admin-table-check .checkmark {
+    position: relative !important;
+    inset: auto !important;
+    left: auto !important;
+    top: auto !important;
+    width: 22px !important;
+    height: 22px !important;
+    margin: 0 !important;
+    border-radius: 6px;
+    background-color: rgba(var(--primary-rgb), 0.12);
+    border: 1px solid rgba(var(--primary-rgb), 0.22);
+}
+
+body.dark-layout .admin-table-wrap .admin-table-check .checkmark {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-table-wrap .admin-table-check input:checked ~ .checkmark {
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
+    border-color: transparent;
+}
+
+/* Tighten gap between checkbox and name columns */
+.admin-table-wrap .admin-data-table .admin-table-col-check + th,
+.admin-table-wrap .admin-data-table .admin-table-col-check + td {
+    padding-inline-end: 0.75rem !important;
+}
+
+/* Rows + hover (accent bar on first cell edge — no tr::before to avoid layout gap) */
+.admin-table-wrap .admin-data-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.admin-table-wrap .admin-data-table tbody td {
+    padding: 1rem 1.1rem !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(var(--primary-rgb), 0.07) !important;
+    vertical-align: middle !important;
+    background: transparent !important;
+    color: #dbe2ef !important;
+    font-size: 0.875rem !important;
+    font-weight: 500;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-table-wrap .admin-data-table tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+.admin-table-wrap .admin-data-table tbody tr:hover td {
+    background: rgba(var(--primary-rgb), 0.2) !important;
+    color: #f4f6fb !important;
+}
+
+body.dark-layout .admin-table-wrap .admin-data-table tbody tr td {
+    background: transparent !important;
+}
+
+body.dark-layout .admin-table-wrap .admin-data-table tbody tr:hover td,
+body.dark-layout .admin-table-wrap .admin-data-table tbody tr:hover td.product-action {
+    background: rgba(var(--primary-rgb), 0.2) !important;
+}
+
+html[data-textdirection="rtl"] .admin-table-wrap .admin-data-table tbody tr:hover td.admin-table-col-check {
+    box-shadow: inset -4px 0 0 0 var(--primary), 0 0 12px rgba(var(--primary-rgb), 0.45);
+}
+
+html[data-textdirection="ltr"] .admin-table-wrap .admin-data-table tbody tr:hover td.admin-table-col-check {
+    box-shadow: inset 4px 0 0 0 var(--primary), 0 0 12px rgba(var(--primary-rgb), 0.45);
+}
+
+body:not(.dark-layout) .admin-table-wrap .admin-data-table tbody td {
+    color: #334155 !important;
+    border-bottom-color: rgba(var(--primary-rgb), 0.08) !important;
+}
+
+body:not(.dark-layout) .admin-table-wrap .admin-data-table tbody tr:hover td {
+    background: rgba(var(--primary-rgb), 0.06) !important;
+    color: #0f172a !important;
+}
+
+/* Merged user cell */
+.admin-table-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.admin-table-user__avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid rgba(var(--primary-rgb), 0.25);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.admin-table-user__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.admin-table-user__name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #f4f6fb;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-table-user__email {
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: #8b93a7;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body:not(.dark-layout) .admin-table-user__name {
+    color: #0f172a;
+}
+
+body:not(.dark-layout) .admin-table-user__email {
+    color: #64748b;
+}
+
+/* Status pill */
+.admin-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.admin-status-pill__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.admin-status-pill--success {
+    color: #4ade80;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.22);
+}
+
+.admin-status-pill--success .admin-status-pill__dot {
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.65);
+}
+
+.admin-status-pill--danger {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+}
+
+.admin-status-pill--danger .admin-status-pill__dot {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.55);
+}
+
+.admin-status-pill:not(.admin-status-pill--success):not(.admin-status-pill--danger) {
+    color: var(--primary-ui, #8b93a7);
+    background: rgba(var(--primary-rgb), 0.1);
+    border: 1px solid rgba(var(--primary-rgb), 0.2);
+}
+
+.admin-status-pill:not(.admin-status-pill--success):not(.admin-status-pill--danger) .admin-status-pill__dot {
+    background: var(--primary, #6366f1);
+    box-shadow: 0 0 6px rgba(var(--primary-rgb), 0.45);
+}
+
+/* Control column — no extra gap on table edge (RTL: flush to physical left) */
+.admin-table-wrap .admin-data-table .admin-table-col-actions {
+    width: 188px !important;
+    min-width: 188px !important;
+    max-width: 188px !important;
+    padding: 0.65rem 0.75rem !important;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+html[data-textdirection="rtl"] .admin-table-wrap .admin-data-table th.admin-table-col-actions,
+html[data-textdirection="rtl"] .admin-table-wrap .admin-data-table td.admin-table-col-actions {
+    text-align: left;
+}
+
+html[data-textdirection="ltr"] .admin-table-wrap .admin-data-table th.admin-table-col-actions,
+html[data-textdirection="ltr"] .admin-table-wrap .admin-data-table td.admin-table-col-actions {
+    text-align: right;
+}
+
+/* Keep td as table-cell — flex lives on inner wrapper so hover bg fills full row height */
+.admin-table-wrap .admin-data-table td.admin-table-col-actions {
+    display: table-cell !important;
+    vertical-align: middle !important;
+    height: 1px;
+}
+
+.admin-table-wrap .admin-data-table td.admin-table-col-actions .admin-table-actions,
+.admin-table-wrap td.product-action .admin-table-actions,
+td.product-action .admin-table-actions {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px !important;
+    flex-wrap: nowrap;
+    min-height: 32px;
+    width: 100%;
+}
+
+/* Space action buttons even when not wrapped yet */
+td.product-action > a.btn,
+td.product-action > a.admin-table-action,
+td.product-action .admin-table-actions > a,
+.admin-table-wrap td.product-action .admin-table-actions > span,
+.admin-table-wrap .admin-table-action {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px;
+    margin: 0 !important;
+    margin-inline-end: 8px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px !important;
+    background: rgba(148, 163, 184, 0.12) !important;
+    cursor: pointer;
+    transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+}
+
+td.product-action > a.btn:last-child,
+td.product-action .admin-table-actions > a:last-child,
+td.product-action .admin-table-actions > span:last-child {
+    margin-inline-end: 0 !important;
+}
+
+.admin-table-wrap .admin-table-action > a {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: inherit !important;
+    text-decoration: none !important;
+}
+
+.admin-table-wrap td.product-action .admin-table-actions i,
+.admin-table-wrap td.product-action .admin-table-actions > span i {
+    font-size: 0.95rem !important;
+    color: inherit !important;
+}
+
+.admin-table-wrap .admin-table-action--view {
+    background: rgba(45, 212, 191, 0.14) !important;
+    color: #2dd4bf !important;
+}
+
+.admin-table-wrap .admin-table-action--edit {
+    background: rgba(34, 197, 94, 0.14) !important;
+    color: #22c55e !important;
+}
+
+.admin-table-wrap .admin-table-action--notify {
+    background: rgba(251, 146, 60, 0.14) !important;
+    color: #fb923c !important;
+}
+
+.admin-table-wrap .admin-table-action--mail {
+    background: rgba(var(--primary-rgb), 0.18) !important;
+    color: var(--primary-ui, var(--primary)) !important;
+}
+
+.admin-table-wrap .admin-table-action--delete {
+    background: rgba(239, 68, 68, 0.14) !important;
+    color: #ef4444 !important;
+}
+
+.admin-table-wrap td.product-action .admin-table-actions > span:hover,
+.admin-table-wrap .admin-table-action:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.admin-table-wrap .app-switch {
+    transform: scale(0.92);
+    transform-origin: center;
+}
+
+.admin-table-wrap + .d-flex.justify-content-center.mt-3 {
+    margin-top: 1rem !important;
+}
+
+/* Empty state */
+.admin-table-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin: 2rem 1rem 2.5rem;
+    padding: 4rem 1.5rem;
+    text-align: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.admin-table-empty__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* width: 96px; */
+    /* height: 96px; */
+    color: var(--primary);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    opacity: 0.95;
+}
+
+.admin-table-empty__icon .feather {
+    width: 91px;
+    height: 46px;
+    stroke-width: 1.35;
+    font-size: 40px;
+}
+
+.admin-table-empty__title {
+    margin: 0;
+    max-width: 36rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.6;
+    color: #f4f6fb;
+}
+
+body:not(.dark-layout) .admin-table-empty__title {
+    color: #1e293b;
+}
+
+@media (max-width: 767px) {
+    .admin-table-wrap {
+        border-radius: 12px;
+    }
+
+    .admin-table-wrap__content {
+        overflow-x: auto;
+    }
+
+    .admin-table-wrap .admin-table-actions {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+}
+
+/* Hide default DataTables search — custom toolbar provides one search field */
+.admin-table-wrap .dataTables_filter,
+.card-dashboard .dataTables_filter,
+.admin-table-wrap__content .dataTables_filter {
+    display: none !important;
+}

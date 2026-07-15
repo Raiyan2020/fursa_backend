@@ -12,4 +12,9 @@ enum ApprovalStatus: string
     {
         return array_column(self::cases(), 'value');
     }
+
+    public function label(): string
+    {
+        return __('admin.statuses.'.$this->value);
+    }
 }

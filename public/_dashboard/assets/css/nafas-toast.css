@@ -1,0 +1,206 @@
+/* ========================================================================
+   NAFAS Dashboard Toast — top-left, theme-aware
+   ======================================================================== */
+
+.nafas-toast-container {
+    position: fixed;
+    top: 88px;
+    left: 24px;
+    z-index: 100050;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(360px, calc(100vw - 48px));
+    pointer-events: none;
+}
+
+[dir="rtl"] .nafas-toast-container {
+    left: 24px;
+    right: auto;
+}
+
+.nafas-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--bg-card, #ffffff);
+    color: var(--text-main, #0f172a);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.nafas-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.nafas-toast.is-leaving {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.nafas-toast__icon {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nafas-toast__icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.nafas-toast__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.nafas-toast__message {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--text-main, #0f172a);
+    word-break: break-word;
+}
+
+.nafas-toast__close {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted, #64748b);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+    padding: 0;
+}
+
+.nafas-toast__close:hover {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-main, #0f172a);
+}
+
+.nafas-toast__progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    border-radius: 0 0 0 12px;
+    background: currentColor;
+    opacity: 0.35;
+    animation: nafas-toast-progress linear forwards;
+}
+
+.nafas-toast {
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes nafas-toast-progress {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+/* Types */
+.nafas-toast--success {
+    border-color: rgba(34, 197, 94, 0.25);
+}
+.nafas-toast--success .nafas-toast__icon { color: #22c55e; }
+.nafas-toast--success .nafas-toast__progress { color: #22c55e; }
+
+.nafas-toast--error {
+    border-color: rgba(239, 68, 68, 0.25);
+}
+.nafas-toast--error .nafas-toast__icon { color: #ef4444; }
+.nafas-toast--error .nafas-toast__progress { color: #ef4444; }
+
+.nafas-toast--warning {
+    border-color: rgba(245, 158, 11, 0.25);
+}
+.nafas-toast--warning .nafas-toast__icon { color: #f59e0b; }
+.nafas-toast--warning .nafas-toast__progress { color: #f59e0b; }
+
+.nafas-toast--info {
+    border-color: rgba(59, 130, 246, 0.25);
+}
+.nafas-toast--info .nafas-toast__icon { color: #3b82f6; }
+.nafas-toast--info .nafas-toast__progress { color: #3b82f6; }
+
+/* Dark theme */
+.dark-layout .nafas-toast {
+    background: var(--dash-card, #2d2d44);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.dark-layout .nafas-toast__message {
+    color: #e2e8f0;
+}
+
+.dark-layout .nafas-toast__close {
+    color: #94a3b8;
+}
+
+.dark-layout .nafas-toast__close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+}
+
+/* SweetAlert confirm dialogs — dark theme only for confirmations */
+.nafas-swal-popup.swal2-popup {
+    border-radius: 14px !important;
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+    background: var(--bg-card, #fff) !important;
+    color: var(--text-main, #0f172a) !important;
+    padding: 1.5rem !important;
+}
+
+.dark-layout .nafas-swal-popup.swal2-popup {
+    background: var(--dash-card, #2d2d44) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
+}
+
+.nafas-swal-popup .swal2-title {
+    color: var(--text-main, #0f172a) !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+}
+
+.dark-layout .nafas-swal-popup .swal2-title {
+    color: #e2e8f0 !important;
+}
+
+.nafas-swal-popup .swal2-html-container {
+    color: var(--text-muted, #64748b) !important;
+}
+
+.dark-layout .nafas-swal-popup .swal2-html-container {
+    color: #94a3b8 !important;
+}
+
+.nafas-swal-popup .swal2-confirm {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+
+.nafas-swal-popup .swal2-cancel {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}

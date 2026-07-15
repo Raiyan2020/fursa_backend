@@ -1,0 +1,212 @@
+Added successfully !
+All rights reserved
+Approve
+Approve deletion request ?
+Approved successfully !
+Arabic
+Available
+Cancel
+Collapse menu
+Confirm
+Content section
+Deleted successfully !
+Do you want to approve this item ?
+Do you want to delete the item ?
+Drag and drop a file here or click
+English
+Expand menu
+Good afternoon
+Good evening
+Good morning
+Language
+Loading...
+New users today
+No results found
+Pending approvals
+Refresh
+Reject
+Reject item
+Rejected successfully !
+Rejection reason
+Rejection reason is required.
+Remove
+Search
+Searching...
+Sorry, the file is too large
+Status changed successfully !
+System is running
+Theme
+Theme color
+Theme mode
+There is no data
+These credentials do not match our records.
+This account is inactive.
+Too many login attempts. Please try again in :seconds seconds.
+Unban this user ?
+Updated successfully !
+Users section
+Welcome to Forsa control panel
+actions
+active
+add new
+added by
+admins
+all
+all users
+answer_ar
+answer_en
+approval status
+ar
+back
+badge
+badges
+banned
+banner_url
+banners
+choice type
+civil id
+company name
+content
+country code
+created at
+creator
+current year hours
+cycle index
+cycle scope
+cycle settings
+cycle type
+cycle year
+date of birth
+deletion status
+description
+edit
+email
+email templates
+emergency contact civil id
+emergency contact country code
+emergency contact name
+emergency contact phone
+en
+end date
+end time
+entities
+entity details
+event status
+events
+experience
+facebook link
+faqs
+first name
+forbidden words
+forsa friends
+from age
+fursa friends
+gender
+general settings
+health concerns
+id
+image
+inactive
+instagram link
+is public
+language
+last name
+learn & serve opportunities
+learn & share opportunities
+leave blank to keep
+license number
+license required
+license requirements
+linkedin link
+location
+login
+logout
+main page
+manual attendance threshold
+max_hours
+message (ar)
+message (en)
+min_hours
+name
+nationality
+nickname
+no
+none
+notifications
+number of opportunities
+occupation
+ooops, something wrong appended.
+opportunities
+opportunity settings
+opportunity status
+organization
+organization name
+organization type
+organizations
+organizer type
+participants needed
+password
+per page
+person name
+phone
+preferred language
+priority
+public
+question_ar
+question_en
+registration number
+registration required
+rejected reason
+rejection reason
+required
+requires approval
+resources expected
+save
+sector
+select
+send
+send new
+settings
+show
+sponsor details
+sponsor type
+sponsors
+sponsorship details
+start date
+start time
+status
+subject
+tags
+target
+time duration
+time unit
+title
+title (ar)
+title (en)
+to age
+total
+total certificates
+total opportunities
+total volunteer hours
+twitter link
+type of support
+user details
+user role
+user type
+user type approvals
+username
+users
+uuid
+value_ar
+value_en
+verified
+view
+volunteer
+volunteer details
+volunteer opportunities
+volunteers
+whatsapp link
+why interested
+word_ar
+word_en
+yes

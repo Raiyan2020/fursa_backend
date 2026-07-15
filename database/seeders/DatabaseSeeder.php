@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
 
             // Demo accounts last (depends on choices/badges)
             AdminUserSeeder::class,
+            AdminSeeder::class,
         ]);
     }
 }

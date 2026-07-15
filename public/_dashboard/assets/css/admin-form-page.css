@@ -1,0 +1,442 @@
+/* Admin form pages — matches breadcrumb / toolbar / table card styling */
+
+.admin-form-page {
+    margin: 0;
+}
+
+.admin-form-page .admin-form-card {
+    border: 1px solid rgba(var(--primary-rgb), 0.16) !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.07) 0%, transparent 72px),
+        linear-gradient(145deg, #35355a 0%, #2d2d44 52%, #252545 100%) !important;
+    background-image:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.07) 0%, transparent 72px),
+        linear-gradient(145deg, #35355a 0%, #2d2d44 52%, #252545 100%) !important;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Override legacy dark-layout form card (was #151722 — too dark) */
+.dark-layout .admin-form-page .admin-form-card,
+.dark-layout .admin-form-page.client .card.admin-form-card,
+.dark-layout #multiple-column-form.admin-form-page .card {
+    background:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.07) 0%, transparent 72px),
+        linear-gradient(145deg, #35355a 0%, #2d2d44 52%, #252545 100%) !important;
+    background-image:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.07) 0%, transparent 72px),
+        linear-gradient(145deg, #35355a 0%, #2d2d44 52%, #252545 100%) !important;
+    border: 1px solid rgba(var(--primary-rgb), 0.16) !important;
+    border-top: 1px solid rgba(var(--primary-rgb), 0.16) !important;
+}
+
+body:not(.dark-layout) .admin-form-page .admin-form-card {
+    background:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.04) 0%, transparent 72px),
+        rgba(255, 255, 255, 0.98) !important;
+    background-image:
+        linear-gradient(180deg, rgba(var(--primary-rgb), 0.04) 0%, transparent 72px),
+        linear-gradient(180deg, #ffffff 0%, #fafbff 100%) !important;
+    border-color: rgba(var(--primary-rgb), 0.12) !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* -----------------------------------------------------------------------
+   Ghost badge card title (matches reference form pages)
+   ----------------------------------------------------------------------- */
+@keyframes adminFormHeaderIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes adminFormTitleGlow {
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 1px rgba(var(--primary-rgb), 0.08),
+            0 0 16px rgba(var(--primary-rgb), 0.12);
+    }
+    50% {
+        box-shadow:
+            0 0 0 1px rgba(var(--primary-rgb), 0.16),
+            0 0 22px rgba(var(--primary-rgb), 0.22);
+    }
+}
+
+.admin-form-card__header,
+#multiple-column-form.admin-form-page .card-header.admin-form-card__header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 1.25rem 1.5rem !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(var(--primary-rgb), 0.12) !important;
+    background: transparent !important;
+}
+
+.admin-form-card__title {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    padding: 10px 18px !important;
+    border-radius: 8px !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0 !important;
+    color: var(--primary-ui, #cbd5e1) !important;
+    background: rgba(var(--primary-rgb), 0.05) !important;
+    border: 1px solid rgba(var(--primary-rgb), 0.42) !important;
+    box-shadow:
+        0 0 0 1px rgba(var(--primary-rgb), 0.06),
+        0 0 18px rgba(var(--primary-rgb), 0.12) !important;
+    animation:
+        adminFormHeaderIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both,
+        adminFormTitleGlow 3.2s ease-in-out infinite;
+}
+
+/* Prevent legacy card-title pseudo icon */
+.admin-form-card__title::before {
+    content: none !important;
+    display: none !important;
+}
+
+.admin-form-card__title .feather {
+    width: 16px;
+    height: 16px;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+body:not(.dark-layout) .admin-form-card__title {
+    color: var(--primary) !important;
+    background: rgba(var(--primary-rgb), 0.04) !important;
+    border-color: rgba(var(--primary-rgb), 0.35) !important;
+}
+
+/* -----------------------------------------------------------------------
+   Form body & labels
+   ----------------------------------------------------------------------- */
+.admin-form-page .admin-form-card .card-content,
+.admin-form-page .admin-form-card .card-body {
+    background: transparent !important;
+}
+
+.admin-form-card__body {
+    padding: 1.5rem 1.5rem 0.5rem !important;
+}
+
+.admin-form-page .form-group {
+    margin-bottom: 1.15rem;
+}
+
+.admin-form-page .form-group > label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.45rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--primary-ui, #8b93a7);
+}
+
+.admin-form-page .form-group > label::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 6px rgba(var(--primary-rgb), 0.55);
+    flex-shrink: 0;
+}
+
+/* -----------------------------------------------------------------------
+   Unified input shell — text, number, email, password, select2
+   ----------------------------------------------------------------------- */
+.admin-form-page .admin-form-field {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.admin-form-page .admin-form-field .form-control,
+.admin-form-page .admin-form-field .select2-container--default .select2-selection--single {
+    width: 100%;
+    min-height: 46px !important;
+    height: 46px !important;
+    margin-top: 0 !important;
+    padding: 0 14px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(var(--primary-rgb), 0.22) !important;
+    background: rgba(15, 15, 36, 0.38) !important;
+    color: #e2e8f0 !important;
+    font-size: 0.88rem !important;
+    font-weight: 500;
+    line-height: 44px !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.admin-form-page .admin-form-field textarea.form-control,
+.admin-form-page .admin-form-field textarea.admin-form-textarea {
+    min-height: 160px !important;
+    height: auto !important;
+    line-height: 1.55 !important;
+    padding: 12px 14px !important;
+    resize: vertical;
+}
+
+body:not(.dark-layout) .admin-form-page .admin-form-field .form-control,
+body:not(.dark-layout) .admin-form-page .admin-form-field .select2-container--default .select2-selection--single {
+    background: #fff !important;
+    color: #0f172a !important;
+    border-color: rgba(var(--primary-rgb), 0.16) !important;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.admin-form-page .admin-form-field .form-control::placeholder {
+    color: rgba(148, 163, 184, 0.85) !important;
+    opacity: 1;
+}
+
+body:not(.dark-layout) .admin-form-page .admin-form-field .form-control::placeholder {
+    color: #94a3b8 !important;
+}
+
+.admin-form-page .admin-form-field .form-control:focus,
+.admin-form-page .admin-form-field .select2-container--default.select2-container--focus .select2-selection--single,
+.admin-form-page .admin-form-field .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: rgba(var(--primary-rgb), 0.6) !important;
+    box-shadow:
+        0 0 0 3px rgba(var(--primary-rgb), 0.16) !important,
+        inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+    outline: none !important;
+}
+
+/* Override global / legacy form rules inside admin-form-page */
+.admin-form-page .form-control,
+.admin-form-page form input[type="text"],
+.admin-form-page form input[type="email"],
+.admin-form-page form input[type="password"],
+.admin-form-page form input[type="number"],
+.admin-form-page form input[type="tel"],
+.admin-form-page form textarea,
+.admin-form-page form select,
+.admin-form-page .select2-container--default .select2-selection--single {
+    margin-top: 0 !important;
+}
+
+.dark-layout .admin-form-page .form-control,
+.dark-layout .admin-form-page .select2-container .select2-selection {
+    background-color: rgba(15, 15, 36, 0.38) !important;
+    border-color: rgba(var(--primary-rgb), 0.22) !important;
+    color: #e2e8f0 !important;
+}
+
+.dark-layout .admin-form-page .form-control:focus {
+    border-color: rgba(var(--primary-rgb), 0.6) !important;
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16) !important;
+}
+
+/* Select2 alignment */
+.admin-form-page .admin-form-field .select2-container {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 0 !important;
+}
+
+.admin-form-page .admin-form-field .select2-container--default .select2-selection--single {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    padding-top: 0 !important;
+}
+
+.admin-form-page .admin-form-field .select2-container--default .select2-selection--single .select2-selection__rendered {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-inline: 14px !important;
+    padding-block: 0 !important;
+    line-height: 44px !important;
+    color: inherit !important;
+}
+
+.admin-form-page .admin-form-field .select2-container--default .select2-selection--single .select2-selection__arrow {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: absolute !important;
+    top: 0 !important;
+    inset-inline-end: 10px !important;
+    width: 24px !important;
+    height: 100% !important;
+}
+
+.admin-form-page .store .select2-container--default .select2-selection--single .select2-selection__arrow {
+    display: flex !important;
+}
+
+.admin-form-page .admin-form-field .select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: rgba(var(--primary-rgb), 0.75) transparent transparent transparent !important;
+}
+
+/* Validation errors */
+.admin-form-page .form-group.error .admin-form-field .form-control,
+.admin-form-page .form-group.issue .admin-form-field .form-control,
+.admin-form-page .form-group.error .admin-form-field .select2-container--default .select2-selection--single,
+.admin-form-page .form-group.issue .admin-form-field .select2-container--default .select2-selection--single {
+    border-color: #ea5455 !important;
+    box-shadow: 0 0 0 3px rgba(234, 84, 85, 0.12) !important;
+}
+
+.admin-form-page .form-group .help-block,
+.admin-form-page .form-group .help-inline {
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+}
+
+/* Number input — hide spinners for consistent height */
+.admin-form-page .admin-form-field input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.admin-form-page .admin-form-field input[type="number"]::-webkit-outer-spin-button,
+.admin-form-page .admin-form-field input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* -----------------------------------------------------------------------
+   Image upload
+   ----------------------------------------------------------------------- */
+.admin-form-upload {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(var(--primary-rgb), 0.1);
+}
+
+.admin-form-upload .imagesUploadBlock {
+    width: 132px;
+    height: 132px;
+    border: 2px dashed rgba(var(--primary-rgb), 0.28);
+    background: rgba(var(--primary-rgb), 0.06);
+    box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.08);
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.admin-form-upload .imagesUploadBlock:hover {
+    border-color: rgba(var(--primary-rgb), 0.45);
+    background: rgba(var(--primary-rgb), 0.1);
+}
+
+.admin-form-upload .uploadImg {
+    background: transparent !important;
+    display: flex !important;
+}
+
+.admin-form-page .store label.uploadImg {
+    display: flex !important;
+}
+
+.admin-form-upload .uploadImg span i {
+    color: var(--primary) !important;
+    font-size: 2.4rem !important;
+}
+
+/* -----------------------------------------------------------------------
+   Footer buttons
+   ----------------------------------------------------------------------- */
+.admin-form-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 0.5rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+    border-top: 1px solid rgba(var(--primary-rgb), 0.1);
+    background: rgba(var(--primary-rgb), 0.03);
+}
+
+body:not(.dark-layout) .admin-form-card__footer {
+    background: rgba(var(--primary-rgb), 0.02);
+}
+
+.admin-form-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 1.35rem;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1;
+    border: 1px solid transparent;
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+}
+
+.admin-form-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+}
+
+.admin-form-btn--primary {
+    color: #fff !important;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
+    border-color: rgba(var(--primary-rgb), 0.35);
+    box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.28);
+}
+
+.admin-form-btn--ghost {
+    color: var(--primary-ui, var(--primary)) !important;
+    background: rgba(var(--primary-rgb), 0.08) !important;
+    border-color: rgba(var(--primary-rgb), 0.22) !important;
+}
+
+body:not(.dark-layout) .admin-form-btn--ghost {
+    color: var(--primary) !important;
+}
+
+@media (max-width: 767px) {
+    .admin-form-card__header,
+    #multiple-column-form.admin-form-page .card-header.admin-form-card__header {
+        padding-inline: 1rem !important;
+    }
+
+    .admin-form-card__body {
+        padding-inline: 1rem !important;
+    }
+
+    .admin-form-card__footer {
+        padding-inline: 1rem;
+    }
+
+    .admin-form-btn {
+        flex: 1 1 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .admin-form-card__title {
+        animation: adminFormHeaderIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+    }
+}
