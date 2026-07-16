@@ -469,7 +469,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function publicProfile(int $userId): JsonResponse
+    public function publicProfile(int $user_id): JsonResponse
     {
         $user = User::query()
             ->with([
@@ -481,7 +481,7 @@ class AuthController extends Controller
                 'badge',
                 'masterInterests.choiceType',
             ])
-            ->find($userId);
+            ->find($user_id);
 
         if (! $user) {
             return ApiResponse::error('User not found.', 'المستخدم غير موجود.', 404);

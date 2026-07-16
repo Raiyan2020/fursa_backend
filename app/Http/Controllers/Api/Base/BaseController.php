@@ -40,9 +40,9 @@ class BaseController extends Controller
         }
     }
 
-    public function choices(string $choiceType): JsonResponse
+    public function choices(string $choice_type): JsonResponse
     {
-        $type = ChoiceType::query()->where('name', $choiceType)->first();
+        $type = ChoiceType::query()->where('name', $choice_type)->first();
         $choices = collect();
 
         if ($type) {
@@ -52,7 +52,7 @@ class BaseController extends Controller
                 ->get()
                 ->map(fn (MasterChoice $c) => [
                     'id' => $c->id,
-                    'choice_type' => $choiceType,
+                    'choice_type' => $choice_type,
                     'value_en' => $c->value_en,
                     'value_ar' => $c->value_ar,
                 ])

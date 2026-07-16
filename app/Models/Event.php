@@ -59,4 +59,24 @@ class Event extends Model
     {
         return $this->belongsToMany(Interest::class, 'interest_event');
     }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(EventImage::class);
+    }
+
+    public function sponsorImages(): HasMany
+    {
+        return $this->hasMany(EventSponsorImage::class);
+    }
+
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(EventFeedback::class);
+    }
+
+    public function scanPermissions(): HasMany
+    {
+        return $this->hasMany(ScanPermission::class);
+    }
 }

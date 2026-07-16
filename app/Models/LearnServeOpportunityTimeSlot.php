@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LearnServeOpportunityTimeSlot extends Model
 {
@@ -21,5 +22,10 @@ class LearnServeOpportunityTimeSlot extends Model
     public function opportunity(): BelongsTo
     {
         return $this->belongsTo(LearnServeOpportunity::class, 'opportunity_id');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(LearnServeOpportunityAssignment::class, 'time_slot_id');
     }
 }

@@ -100,17 +100,27 @@ class ApiResponse
             $msg = app()->getLocale() === 'en' ? ($msg ?: $third) : $third;
         }
 
-        return self::success([
-            'items' => $items,
-            'pagination' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'from' => $paginator->firstItem(),
-                'to' => $paginator->lastItem(),
+        $resolvedMsg = $msg ?? __('apis.data_retrieved_successfully');
+
+        return response()->json([
+            'key' => 'success',
+            'msg' => $resolvedMsg,
+            'code' => 200,
+            'response_status' => [
+                'error' => false,
+                'validation_errors' => [],
             ],
-        ], $msg ?? __('apis.data_retrieved_successfully'));
+            'data' => array_values($items instanceof \Illuminate\Support\Collection ? $items->all() : (array) $items),
+            'meta' => [
+                'pagination' => [
+                    'page' => $paginator->currentPage(),
+                    'limit' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'total_pages' => $paginator->lastPage(),
+                ],
+                'timestamp' => now()->utc()->toIso8601String(),
+            ],
+        ], 200);
     }
 
     protected static function resolveMsgAndCode(

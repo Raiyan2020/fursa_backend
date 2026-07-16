@@ -44,6 +44,26 @@ class LearnServeOpportunity extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function learningType(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'learning_type_id');
+    }
+
+    public function gender(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'gender_id');
+    }
+
+    public function format(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'format_id');
+    }
+
+    public function certificateType(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'certificate_type_id');
+    }
+
     public function registrations(): HasMany
     {
         return $this->hasMany(LearnServeOpportunityRegistration::class, 'opportunity_id');
@@ -57,5 +77,20 @@ class LearnServeOpportunity extends Model
     public function interests(): BelongsToMany
     {
         return $this->belongsToMany(Interest::class, 'interest_learn_serve_opportunity');
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(OpportunityImage::class);
+    }
+
+    public function sponsorImages(): HasMany
+    {
+        return $this->hasMany(OpportunitySponsorImage::class);
+    }
+
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(OpportunityFeedback::class, 'learn_serve_opportunity_id');
     }
 }

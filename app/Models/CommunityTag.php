@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class CommunityTag extends Model
 {
@@ -16,4 +17,9 @@ class CommunityTag extends Model
         'is_deleted',
         'deleted_at',
     ];
+
+    public function posts(): BelongsToMany
+    {
+        return $this->belongsToMany(Post::class, 'community_tag_post');
+    }
 }

@@ -74,4 +74,19 @@ class VolunteerOpportunity extends Model
     {
         return $this->belongsToMany(Interest::class, 'interest_volunteer_opportunity');
     }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(OpportunityImage::class);
+    }
+
+    public function sponsorImages(): HasMany
+    {
+        return $this->hasMany(OpportunitySponsorImage::class);
+    }
+
+    public function scanPermissions(): HasMany
+    {
+        return $this->hasMany(ScanPermission::class, 'opportunity_id');
+    }
 }

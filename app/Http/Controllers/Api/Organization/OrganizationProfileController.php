@@ -7,8 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Organization\OrganizationDocumentResource;
 use App\Http\Resources\Organization\OrganizationListResource;
 use App\Http\Resources\Organization\OrganizationProfileResource;
-use App\Models\OrganizationDocument;
+use App\Http\Resources\Auth\UserResource;
+use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
+use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
+use App\Models\VolunteerProfile;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -174,5 +177,158 @@ class OrganizationProfileController extends Controller
             'Organizations retrieved successfully.',
             'تم استرجاع الجهات بنجاح.'
         );
+    }
+
+    /** Matches Django GET all-profiles/ (combined volunteers + orgs + volunteer teams). */
+    public function allProfiles(Request $request): JsonResponse
+    {
+        $search = $request->query('search');
+        $name = $request->query('name');
+        $nickname = $request->query('nickname');
+        $userType = $request->query('user_type');
+        $genericPage = max(1, (int) $request->query('page', 1));
+        $volunteerPage = max(1, (int) $request->query('volunteer_page', $genericPage));
+        $organizationPage = max(1, (int) $request->query('organization_page', $genericPage));
+        $volunteerTeamPage = max(1, (int) $request->query('volunteer_team_page', $genericPage));
+        $limit = min(100, max(1, (int) $request->query('limit', 10)));
+
+        $volunteerTeamType = MasterChoice::query()
+            ->notDeleted()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+            ->where('value_en', 'Volunteer Team')
+            ->first();
+
+        $volunteerQuery = VolunteerProfile::query()
+            ->notDeleted()
+            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
+            ->with([
+                'user.interests',
+                'user.masterInterests.choiceType',
+                'user.badge',
+                'user.volunteerProfile.gender.choiceType',
+                'user.emergencyContactRelationship.choiceType',
+                'gender.choiceType',
+                'currentBadge',
+            ]);
+
+        $orgQuery = OrganizationProfile::query()
+            ->notDeleted()
+            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
+            ->with([
+                'organizerType.choiceType',
+                'sector.choiceType',
+                'documents',
+                'user.interests',
+                'user.masterInterests.choiceType',
+                'user.badge',
+            ]);
+
+        if ($volunteerTeamType) {
+            $orgQuery->where('organizer_type_id', '!=', $volunteerTeamType->id);
+        }
+
+        $teamQuery = OrganizationProfile::query()
+            ->notDeleted()
+            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
+            ->with([
+                'organizerType.choiceType',
+                'sector.choiceType',
+                'documents',
+                'user.interests',
+                'user.masterInterests.choiceType',
+                'user.badge',
+            ]);
+
+        if ($volunteerTeamType) {
+            $teamQuery->where('organizer_type_id', $volunteerTeamType->id);
+        } else {
+            $teamQuery->whereRaw('1 = 0');
+        }
+
+        $applySearch = function ($query, string $relation = 'user') use ($search, $name, $nickname) {
+            if ($search) {
+                $query->where(function ($q) use ($search, $relation) {
+                    $q->where('nickname', 'like', "%{$search}%")
+                        ->orWhereHas($relation, function ($uq) use ($search) {
+                            $uq->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+            if ($name) {
+                $query->whereHas($relation, function ($uq) use ($name) {
+                    $uq->where('first_name', 'like', "%{$name}%")
+                        ->orWhere('last_name', 'like', "%{$name}%");
+                });
+            }
+            if ($nickname) {
+                $query->where('nickname', 'like', "%{$nickname}%");
+            }
+        };
+
+        $applySearch($volunteerQuery);
+        $applySearch($orgQuery);
+        $applySearch($teamQuery);
+
+        if ($userType === 'volunteer') {
+            $orgQuery->whereRaw('1 = 0');
+            $teamQuery->whereRaw('1 = 0');
+        } elseif ($userType === 'organization') {
+            $volunteerQuery->whereRaw('1 = 0');
+            $teamQuery->whereRaw('1 = 0');
+        } elseif ($userType === 'volunteer_team') {
+            $volunteerQuery->whereRaw('1 = 0');
+            $orgQuery->whereRaw('1 = 0');
+        }
+
+        $paginate = fn ($query, int $page) => $query->latest('updated_at')
+            ->skip(($page - 1) * $limit)
+            ->take($limit)
+            ->get();
+
+        $volunteerItems = $paginate($volunteerQuery, $volunteerPage);
+        $orgItems = $paginate($orgQuery, $organizationPage);
+        $teamItems = $paginate($teamQuery, $volunteerTeamPage);
+
+        $serializeVolunteer = fn ($profile) => array_merge(
+            (new VolunteerProfileWithUserResource($profile))->resolve(),
+            ['user_details' => (new UserResource($profile->user))->resolve()]
+        );
+
+        $serializeOrg = fn ($profile) => array_merge(
+            (new OrganizationProfileResource($profile))->resolve(),
+            ['user_details' => (new UserResource($profile->user))->resolve()]
+        );
+
+        $totalPages = fn (int $count) => $count > 0 ? (int) ceil($count / $limit) : 0;
+
+        return ApiResponse::success([
+            'volunteer' => $volunteerItems->map($serializeVolunteer)->values(),
+            'organization' => $orgItems->map($serializeOrg)->values(),
+            'volunteer_team' => $teamItems->map($serializeOrg)->values(),
+            'meta' => [
+                'pagination' => [
+                    'volunteer' => [
+                        'page' => $volunteerPage,
+                        'limit' => $limit,
+                        'total' => $volunteerQuery->count(),
+                        'total_pages' => $totalPages($volunteerQuery->count()),
+                    ],
+                    'organization' => [
+                        'page' => $organizationPage,
+                        'limit' => $limit,
+                        'total' => $orgQuery->count(),
+                        'total_pages' => $totalPages($orgQuery->count()),
+                    ],
+                    'volunteer_team' => [
+                        'page' => $volunteerTeamPage,
+                        'limit' => $limit,
+                        'total' => $teamQuery->count(),
+                        'total_pages' => $totalPages($teamQuery->count()),
+                    ],
+                ],
+                'timestamp' => now()->toIso8601String(),
+            ],
+        ], 'Profiles retrieved successfully.', 'تم استرجاع الملفات بنجاح.');
     }
 }

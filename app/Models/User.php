@@ -152,6 +152,21 @@ class User extends Authenticatable
         return $this->belongsToMany(MasterChoice::class, 'master_choice_user');
     }
 
+    public function volunteerStatistics(): HasMany
+    {
+        return $this->hasMany(VolunteerStatistic::class);
+    }
+
+    public function organizationStatistics(): HasMany
+    {
+        return $this->hasMany(OrganizationStatistic::class);
+    }
+
+    public function userNotifications(): HasMany
+    {
+        return $this->hasMany(UserNotification::class);
+    }
+
     public function isVolunteer(): bool
     {
         return $this->user_type === UserType::VOLUNTEER;
