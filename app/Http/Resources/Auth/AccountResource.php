@@ -28,7 +28,7 @@ class AccountResource extends JsonResource
             'phone_number' => $this->phone_number,
             'country_code' => $this->country_code,
             'birth_year' => $this->birth_year,
-            'password' => $this->getRawOriginal('password'),
+            'password' => null,
             'manual_id' => $this->manual_id,
             'user_type' => $this->user_type?->value ?? $this->user_type,
             'password_length' => $this->password_length,
