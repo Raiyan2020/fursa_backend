@@ -129,15 +129,7 @@ class AuthController extends Controller
 
         $this->authService->sendForgotPassword($user);
 
-        if (config('fursa.authentication_method') === 'OTP') {
-            return ApiResponse::success(null, 'Please check your email for the OTP.', 'يرجى التحقق من بريدك الإلكتروني للحصول على OTP.');
-        }
-
-        return ApiResponse::success(
-            null,
-            'Please check your email for the password reset link.',
-            'يرجى التحقق من بريدك الإلكتروني للحصول على رابط إعادة تعيين كلمة المرور.'
-        );
+        return ApiResponse::success(null, 'Please check your email for the OTP.', 'يرجى التحقق من بريدك الإلكتروني للحصول على OTP.');
     }
 
     public function changePassword(Request $request): JsonResponse
@@ -181,15 +173,6 @@ class AuthController extends Controller
 
     public function verifyOtpOrToken(Request $request): JsonResponse
     {
-        if (config('fursa.authentication_method') !== 'OTP') {
-            return ApiResponse::error(
-                'Invalid Request.',
-                'طلب غير صالح.',
-                400,
-                ['detail' => ['en' => 'Invalid Request.', 'ar' => 'طلب غير صالح.']]
-            );
-        }
-
         $data = $request->validate([
             'email' => ['required', 'email'],
             'type' => ['required', Rule::in(['register', 'password'])],
@@ -249,18 +232,10 @@ class AuthController extends Controller
             $this->authService->sendForgotPassword($user);
         }
 
-        if (config('fursa.authentication_method') === 'OTP') {
-            return ApiResponse::success(
-                null,
-                'OTP has been sent to the email address.',
-                'تم إرسال OTP إلى عنوان البريد الإلكتروني.'
-            );
-        }
-
         return ApiResponse::success(
             null,
-            'Account activation link has been sent to the email address.',
-            'تم إرسال رابط تفعيل الحساب إلى عنوان البريد الإلكتروني.'
+            'OTP has been sent to the email address.',
+            'تم إرسال OTP إلى عنوان البريد الإلكتروني.'
         );
     }
 

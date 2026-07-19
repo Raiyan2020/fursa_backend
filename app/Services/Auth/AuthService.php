@@ -12,6 +12,7 @@ use App\Models\OtpVerification;
 use App\Models\TokenVerification;
 use App\Models\User;
 use App\Models\VolunteerProfile;
+use App\Services\Mail\DynamicEmailService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -114,46 +115,44 @@ class AuthService
 
     public function sendAccountActivation(User $user): void
     {
-        if (config('fursa.authentication_method') === 'OTP') {
-            $otp = OtpVerification::query()->create([
-                'user_id' => $user->id,
-                'verification_type' => VerificationType::ACCOUNT_ACTIVATION,
-            ]);
+        // OTP is always delivered by email (register / resend / inactive login).
+        $otp = OtpVerification::query()->create([
+            'user_id' => $user->id,
+            'verification_type' => VerificationType::ACCOUNT_ACTIVATION,
+        ]);
+
+        $sent = DynamicEmailService::send('account_activation_email', $user, [
+            'otp' => $otp->otp,
+        ]);
+
+        if (! $sent) {
             $this->sendMail(
                 $user->email,
                 'Account Activation OTP',
                 "Your OTP is: {$otp->otp}"
             );
-
-            return;
         }
-
-        $token = TokenVerification::query()->create([
-            'user_id' => $user->id,
-            'verification_type' => VerificationType::ACCOUNT_ACTIVATION,
-        ]);
-        $link = rtrim(config('fursa.backend_host'), '/').'/api/auth/register/verify/'.$token->token;
-        $this->sendMail($user->email, 'Activate your account', "Activation link: {$link}");
     }
 
     public function sendForgotPassword(User $user): void
     {
-        if (config('fursa.authentication_method') === 'OTP') {
-            $otp = OtpVerification::query()->create([
-                'user_id' => $user->id,
-                'verification_type' => VerificationType::FORGOT_PASSWORD,
-            ]);
-            $this->sendMail($user->email, 'Password Reset OTP', "Your OTP is: {$otp->otp}");
-
-            return;
-        }
-
-        $token = TokenVerification::query()->create([
+        // OTP is always delivered by email (forgot-password / resend).
+        $otp = OtpVerification::query()->create([
             'user_id' => $user->id,
             'verification_type' => VerificationType::FORGOT_PASSWORD,
         ]);
-        $link = rtrim(config('fursa.frontend_host'), '/').'/login/forgot-password/'.$token->token;
-        $this->sendMail($user->email, 'Reset your password', "Reset link: {$link}");
+
+        $sent = DynamicEmailService::send('forgot_password', $user, [
+            'otp' => $otp->otp,
+        ]);
+
+        if (! $sent) {
+            $this->sendMail(
+                $user->email,
+                'Password Reset OTP',
+                "Your OTP is: {$otp->otp}"
+            );
+        }
     }
 
     public function verifyRegisterOtp(User $user, string $otp): ExpiringToken
