@@ -175,7 +175,7 @@ class HomeController extends Controller
         return Post::query()
             ->notDeleted()
             ->where('is_displayed', true)
-            ->with('user')
+            ->with(['user.organizationProfile', 'user.volunteerProfile'])
             ->latest()
             ->limit($limit)
             ->get()
