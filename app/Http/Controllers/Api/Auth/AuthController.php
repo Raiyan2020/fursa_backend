@@ -35,8 +35,13 @@ class AuthController extends Controller
             return ApiResponse::error('Registration failed.', 'فشل التسجيل.', 400, $e->getMessage());
         }
 
+        $payload = (new UserResource($user))->resolve();
+        if (config('fursa.expose_otp_in_response') && $user->getAttribute('debug_otp')) {
+            $payload['otp'] = $user->getAttribute('debug_otp');
+        }
+
         return ApiResponse::success(
-            new UserResource($user),
+            $payload,
             'OTP has been sent to the email address.',
             'تم إرسال OTP إلى عنوان البريد الإلكتروني.',
             201
@@ -127,9 +132,10 @@ class AuthController extends Controller
             ]);
         }
 
-        $this->authService->sendForgotPassword($user);
+        $otp = $this->authService->sendForgotPassword($user);
+        $data = config('fursa.expose_otp_in_response') ? ['otp' => $otp] : null;
 
-        return ApiResponse::success(null, 'Please check your email for the OTP.', 'يرجى التحقق من بريدك الإلكتروني للحصول على OTP.');
+        return ApiResponse::success($data, 'Please check your email for the OTP.', 'يرجى التحقق من بريدك الإلكتروني للحصول على OTP.');
     }
 
     public function changePassword(Request $request): JsonResponse
@@ -227,13 +233,15 @@ class AuthController extends Controller
                     'email' => ['en' => 'Account is already active.', 'ar' => 'الحساب مفعل بالفعل.'],
                 ]);
             }
-            $this->authService->sendAccountActivation($user);
+            $otp = $this->authService->sendAccountActivation($user);
         } else {
-            $this->authService->sendForgotPassword($user);
+            $otp = $this->authService->sendForgotPassword($user);
         }
 
+        $payload = config('fursa.expose_otp_in_response') ? ['otp' => $otp] : null;
+
         return ApiResponse::success(
-            null,
+            $payload,
             'OTP has been sent to the email address.',
             'تم إرسال OTP إلى عنوان البريد الإلكتروني.'
         );

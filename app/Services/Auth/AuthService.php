@@ -90,9 +90,11 @@ class AuthService
             }
         }
 
-        $this->sendAccountActivation($user);
+        $otp = $this->sendAccountActivation($user);
+        $user = $user->fresh(['volunteerProfile', 'organizationProfile']);
+        $user->setAttribute('debug_otp', $otp);
 
-        return $user->fresh(['volunteerProfile', 'organizationProfile']);
+        return $user;
     }
 
     public function login(User $user, bool $rememberMe = false): array
@@ -113,46 +115,99 @@ class AuthService
         return ExpiringToken::issueFor($user, (int) config('fursa.token_expiry_days.social', 30));
     }
 
-    public function sendAccountActivation(User $user): void
+    public function sendAccountActivation(User $user): string
     {
-        // OTP is always delivered by email (register / resend / inactive login).
+        Log::info('OTP sendAccountActivation started', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'mailer' => config('mail.default'),
+            'mail_host' => config('mail.mailers.smtp.host'),
+            'mail_port' => config('mail.mailers.smtp.port'),
+            'mail_username' => config('mail.mailers.smtp.username'),
+            'mail_password_set' => filled(config('mail.mailers.smtp.password')),
+            'mail_from' => config('mail.from.address'),
+        ]);
+
         $otp = OtpVerification::query()->create([
             'user_id' => $user->id,
             'verification_type' => VerificationType::ACCOUNT_ACTIVATION,
+        ]);
+
+        Log::info('OTP record created for account activation', [
+            'user_id' => $user->id,
+            'otp_id' => $otp->id,
+            'otp' => $otp->otp,
         ]);
 
         $sent = DynamicEmailService::send('account_activation_email', $user, [
             'otp' => $otp->otp,
         ]);
 
+        Log::info('OTP dynamic template send result', [
+            'user_id' => $user->id,
+            'template' => 'account_activation_email',
+            'sent' => $sent,
+        ]);
+
         if (! $sent) {
+            Log::warning('OTP template send failed, falling back to raw mail', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
             $this->sendMail(
                 $user->email,
                 'Account Activation OTP',
                 "Your OTP is: {$otp->otp}"
             );
         }
+
+        return (string) $otp->otp;
     }
 
-    public function sendForgotPassword(User $user): void
+    public function sendForgotPassword(User $user): string
     {
-        // OTP is always delivered by email (forgot-password / resend).
+        Log::info('OTP sendForgotPassword started', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'mailer' => config('mail.default'),
+            'mail_host' => config('mail.mailers.smtp.host'),
+            'mail_password_set' => filled(config('mail.mailers.smtp.password')),
+        ]);
+
         $otp = OtpVerification::query()->create([
             'user_id' => $user->id,
             'verification_type' => VerificationType::FORGOT_PASSWORD,
+        ]);
+
+        Log::info('OTP record created for forgot password', [
+            'user_id' => $user->id,
+            'otp_id' => $otp->id,
+            'otp' => $otp->otp,
         ]);
 
         $sent = DynamicEmailService::send('forgot_password', $user, [
             'otp' => $otp->otp,
         ]);
 
+        Log::info('OTP dynamic template send result', [
+            'user_id' => $user->id,
+            'template' => 'forgot_password',
+            'sent' => $sent,
+        ]);
+
         if (! $sent) {
+            Log::warning('OTP template send failed, falling back to raw mail', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
             $this->sendMail(
                 $user->email,
                 'Password Reset OTP',
                 "Your OTP is: {$otp->otp}"
             );
         }
+
+        return (string) $otp->otp;
     }
 
     public function verifyRegisterOtp(User $user, string $otp): ExpiringToken
@@ -239,11 +294,25 @@ class AuthService
     protected function sendMail(string $to, string $subject, string $body): void
     {
         try {
+            Log::info('OTP raw mail attempt', [
+                'to' => $to,
+                'subject' => $subject,
+                'mailer' => config('mail.default'),
+            ]);
+
             Mail::raw($body, function ($message) use ($to, $subject) {
                 $message->to($to)->subject($subject);
             });
+
+            Log::info('OTP raw mail sent successfully', ['to' => $to, 'subject' => $subject]);
         } catch (\Throwable $e) {
-            Log::warning('Failed to send auth email: '.$e->getMessage(), ['to' => $to]);
+            Log::error('Failed to send auth email', [
+                'to' => $to,
+                'subject' => $subject,
+                'error' => $e->getMessage(),
+                'exception' => $e::class,
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 }

@@ -12,7 +12,22 @@ class DynamicEmailService
 {
     public static function send(string $templateName, User $user, array $context = []): bool
     {
+        Log::info('DynamicEmailService::send start', [
+            'template' => $templateName,
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'context_keys' => array_keys($context),
+            'mailer' => config('mail.default'),
+            'mail_host' => config('mail.mailers.smtp.host'),
+            'mail_password_set' => filled(config('mail.mailers.smtp.password')),
+        ]);
+
         if (! $user->email) {
+            Log::warning('DynamicEmailService aborted: user has no email', [
+                'template' => $templateName,
+                'user_id' => $user->id,
+            ]);
+
             return false;
         }
 
@@ -25,6 +40,11 @@ class DynamicEmailService
             ->first();
 
         if (! $template) {
+            Log::info('DynamicEmailService template not found for language, falling back to en', [
+                'template' => $templateName,
+                'language' => $language,
+            ]);
+
             $template = EmailTemplate::query()
                 ->notDeleted()
                 ->where('name', $templateName)
@@ -33,7 +53,11 @@ class DynamicEmailService
         }
 
         if (! $template) {
-            Log::info("Email template missing: {$templateName}");
+            Log::warning('DynamicEmailService email template missing', [
+                'template' => $templateName,
+                'language' => $language,
+                'user_id' => $user->id,
+            ]);
 
             return false;
         }
@@ -54,11 +78,21 @@ class DynamicEmailService
                 $message->to($user->email)->subject($subject);
             });
 
-            return true;
-        } catch (\Throwable $e) {
-            Log::warning('Dynamic email failed: '.$e->getMessage(), [
+            Log::info('DynamicEmailService mail sent successfully', [
                 'template' => $templateName,
                 'to' => $user->email,
+                'subject' => $subject,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('DynamicEmailService mail failed', [
+                'template' => $templateName,
+                'to' => $user->email,
+                'subject' => $subject,
+                'error' => $e->getMessage(),
+                'exception' => $e::class,
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return false;
