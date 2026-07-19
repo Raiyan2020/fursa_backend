@@ -45,6 +45,11 @@ class Event extends Model
         return $this->belongsTo(OrganizationProfile::class, 'created_by');
     }
 
+    public function eventType(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'event_type_id');
+    }
+
     public function registrations(): HasMany
     {
         return $this->hasMany(EventRegistration::class);

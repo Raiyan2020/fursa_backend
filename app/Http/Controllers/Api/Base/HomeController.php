@@ -3,27 +3,23 @@
 namespace App\Http\Controllers\Api\Base;
 
 use App\Enums\ApprovalStatus;
+use App\Enums\OpportunityStatus;
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Auth\UserResource;
-use App\Http\Resources\Event\EventResource;
-use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
-use App\Http\Resources\Opportunity\VolunteerOpportunityResource;
-use App\Http\Resources\Organization\OrganizationProfileResource;
-use App\Http\Resources\Sponsor\SponsorResource;
-use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
 use App\Models\BannerImage;
 use App\Models\Event;
-use App\Models\Faq;
+use App\Models\HomeSection;
 use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
-use App\Models\OrganizationStatistic;
+use App\Models\Page;
+use App\Models\Post;
+use App\Models\SiteSetting;
 use App\Models\Sponsor;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
-use App\Models\VolunteerProfile;
 use App\Models\VolunteerStatistic;
+use App\Models\WhyFursaItem;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,7 +27,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Public landing-page aggregate — GET home/
- * No auth. Flat arrays (no pagination) for homepage carousels.
+ * Only homepage card/section keys (no auth, no pagination).
  */
 class HomeController extends Controller
 {
@@ -41,38 +37,41 @@ class HomeController extends Controller
 
         return ApiResponse::success(
             [
-                'banners' => $this->banners(),
-                'statistics' => $this->platformStatistics(),
+                'hero' => $this->hero(),
+                'statistics' => $this->statistics(),
                 'sponsors' => $this->sponsors(),
-                'events' => $this->events($limit),
+                'why_fursa' => $this->whyFursa(),
                 'opportunities' => $this->opportunities($limit),
-                'learn_share' => $this->learnShare(limit: $limit),
                 'community' => $this->community($limit),
+                'learn_share' => $this->learnShare($limit),
+                'share_idea' => $this->section('share_idea'),
+                'events' => $this->events($limit),
                 'achievements' => $this->achievements(),
-                'faqs' => $this->faqs($limit),
+                'footer' => $this->footer(),
             ],
             'Home content retrieved successfully.',
             'تم استرجاع محتوى الصفحة الرئيسية بنجاح.'
         );
     }
 
-    protected function banners()
+    protected function hero(): array
     {
-        return BannerImage::query()->notDeleted()->latest()->get()->map(fn (BannerImage $b) => [
-            'id' => $b->id,
-            'name' => $b->name,
-            'image' => $b->image ? Storage::disk('public')->url($b->image) : null,
-            'banner_url' => $b->banner_url,
-            'created_at' => optional($b->created_at)?->toIso8601String(),
-        ])->values();
+        $section = $this->section('hero');
+
+        return [
+            'title_en' => $section['title_en'] ?? null,
+            'title_ar' => $section['title_ar'] ?? null,
+            'banners' => BannerImage::query()->notDeleted()->latest()->get()->map(fn (BannerImage $b) => [
+                'id' => $b->id,
+                'image' => $this->mediaUrl($b->image),
+                'banner_url' => $b->banner_url,
+            ])->values(),
+        ];
     }
 
-    protected function platformStatistics(): array
+    protected function statistics(): array
     {
-        $volunteerTeamType = MasterChoice::query()
-            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-            ->where('value_en', 'Volunteer Team')
-            ->first();
+        $volunteerTeamType = $this->volunteerTeamType();
 
         $volunteerTeamCount = 0;
         $organizationQuery = User::query()
@@ -98,141 +97,186 @@ class HomeController extends Controller
 
     protected function sponsors()
     {
-        $sponsors = Sponsor::query()
+        return Sponsor::query()
             ->notDeleted()
             ->where('approval_status', ApprovalStatus::APPROVED)
-            ->with(['documents', 'sponsorType', 'orgType', 'typeOfSupport'])
             ->latest()
-            ->get();
-
-        return SponsorResource::collection($sponsors)->resolve();
+            ->get()
+            ->map(fn (Sponsor $s) => [
+                'id' => $s->id,
+                'name' => $s->org_name ?: $s->person_name,
+                'logo' => $s->sponsor_logo ? getimg($s->sponsor_logo) : null,
+            ])
+            ->values();
     }
 
-    protected function events(int $limit)
+    protected function whyFursa()
     {
-        $events = Event::query()
+        return WhyFursaItem::query()
             ->notDeleted()
-            ->where('approval_status', ApprovalStatus::APPROVED)
-            ->with(['images', 'sponsorImages', 'interests'])
-            ->latest('start_date')
-            ->limit($limit)
-            ->get();
-
-        return EventResource::collection($events)->resolve();
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (WhyFursaItem $item) => [
+                'id' => $item->id,
+                'title_en' => $item->title_en,
+                'title_ar' => $item->title_ar,
+                'icon' => $this->mediaUrl($item->icon),
+            ])
+            ->values();
     }
 
     protected function opportunities(int $limit)
     {
-        $items = VolunteerOpportunity::query()
+        return VolunteerOpportunity::query()
             ->notDeleted()
             ->where('is_public', true)
             ->where('approval_status', ApprovalStatus::APPROVED)
-            ->with(['creator', 'gender.choiceType', 'interests', 'images'])
+            ->with(['images', 'interests'])
             ->withCount(['registrations' => fn ($q) => $q->notDeleted()])
+            ->orderByDesc('is_urgent')
             ->orderBy('start_date')
             ->limit($limit)
-            ->get();
+            ->get()
+            ->map(function (VolunteerOpportunity $item) {
+                $registered = (int) ($item->registrations_count ?? 0);
+                $needed = (int) ($item->participants_needed ?? 0);
+                $image = $item->images?->first(fn ($img) => ! $img->is_deleted);
 
-        return VolunteerOpportunityResource::collection($items)->resolve();
+                return [
+                    'id' => $item->id,
+                    'title_en' => $item->title_en,
+                    'title_ar' => $item->title_ar,
+                    'image' => $image?->image ? getimg($image->image) : null,
+                    'is_urgent' => (bool) $item->is_urgent,
+                    'start_date' => optional($item->start_date)?->format('Y-m-d'),
+                    'end_date' => optional($item->end_date)?->format('Y-m-d'),
+                    'start_time' => $item->start_time,
+                    'end_time' => $item->end_time,
+                    'from_age' => $item->from_age,
+                    'to_age' => $item->to_age,
+                    'location_en' => $item->location_en,
+                    'location_ar' => $item->location_ar,
+                    'registered_count' => $registered,
+                    'participants_needed' => $needed,
+                    'tags' => $item->interests?->map(fn ($i) => [
+                        'id' => $i->id,
+                        'name_en' => $i->name_en,
+                        'name_ar' => $i->name_ar,
+                    ])->values() ?? [],
+                    'status' => $this->cardStatus($item->opportunity_status, $registered, $needed),
+                ];
+            })
+            ->values();
+    }
+
+    protected function community(int $limit)
+    {
+        return Post::query()
+            ->notDeleted()
+            ->where('is_displayed', true)
+            ->with('user')
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->map(function (Post $post) {
+                $user = $post->user;
+
+                return [
+                    'id' => $post->id,
+                    'user_id' => $user?->id,
+                    'name' => $this->displayName($user),
+                    'image' => $this->profileImage($user),
+                    'text_en' => $post->idea_text_en ?: $post->title_en,
+                    'text_ar' => $post->idea_text_ar ?: $post->title_ar,
+                ];
+            })
+            ->values();
     }
 
     protected function learnShare(int $limit)
     {
-        $items = LearnServeOpportunity::query()
+        return LearnServeOpportunity::query()
             ->notDeleted()
             ->where('approval_status', ApprovalStatus::APPROVED)
-            ->with(['creator', 'interests', 'images', 'timeSlots'])
+            ->with(['images', 'interests', 'format', 'learningType'])
+            ->withCount(['registrations' => fn ($q) => $q->notDeleted()])
             ->latest()
             ->limit($limit)
-            ->get();
+            ->get()
+            ->map(function (LearnServeOpportunity $item) {
+                $registered = (int) ($item->registrations_count ?? 0);
+                $needed = (int) ($item->participants_needed ?? 0);
+                $image = $item->images?->first(fn ($img) => ! $img->is_deleted);
 
-        return LearnServeOpportunityResource::collection($items)->resolve();
+                return [
+                    'id' => $item->id,
+                    'title_en' => $item->title_en,
+                    'title_ar' => $item->title_ar,
+                    'image' => $image?->image ? getimg($image->image) : null,
+                    'start_date' => optional($item->start_date)?->format('Y-m-d'),
+                    'end_date' => optional($item->end_date)?->format('Y-m-d'),
+                    'start_time' => $item->start_time,
+                    'end_time' => $item->end_time,
+                    'type_en' => $item->learningType?->value_en,
+                    'type_ar' => $item->learningType?->value_ar,
+                    'format_en' => $item->format?->value_en,
+                    'format_ar' => $item->format?->value_ar,
+                    'registered_count' => $registered,
+                    'participants_needed' => $needed,
+                    'tags' => $item->interests?->map(fn ($i) => [
+                        'id' => $i->id,
+                        'name_en' => $i->name_en,
+                        'name_ar' => $i->name_ar,
+                    ])->values() ?? [],
+                    'status' => $this->cardStatus($item->opportunity_status, $registered, $needed),
+                ];
+            })
+            ->values();
     }
 
-    protected function community(int $limit): array
+    protected function events(int $limit)
     {
-        $volunteerTeamType = MasterChoice::query()
+        return Event::query()
             ->notDeleted()
-            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-            ->where('value_en', 'Volunteer Team')
-            ->first();
-
-        $volunteerItems = VolunteerProfile::query()
-            ->notDeleted()
-            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
-            ->with([
-                'user.interests',
-                'user.masterInterests.choiceType',
-                'user.badge',
-                'user.volunteerProfile.gender.choiceType',
-                'user.emergencyContactRelationship.choiceType',
-                'gender.choiceType',
-                'currentBadge',
-            ])
-            ->latest('updated_at')
+            ->where('approval_status', ApprovalStatus::APPROVED)
+            ->with(['images', 'interests', 'eventType'])
+            ->latest('start_date')
             ->limit($limit)
-            ->get();
+            ->get()
+            ->map(function (Event $event) {
+                $image = $event->images?->first(fn ($img) => ! ($img->is_deleted ?? false));
 
-        $orgQuery = OrganizationProfile::query()
-            ->notDeleted()
-            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
-            ->with([
-                'organizerType.choiceType',
-                'sector.choiceType',
-                'documents',
-                'user.interests',
-                'user.masterInterests.choiceType',
-                'user.badge',
-            ]);
-
-        if ($volunteerTeamType) {
-            $orgQuery->where('organizer_type_id', '!=', $volunteerTeamType->id);
-        }
-
-        $orgItems = $orgQuery->latest('updated_at')->limit($limit)->get();
-
-        $teamQuery = OrganizationProfile::query()
-            ->notDeleted()
-            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
-            ->with([
-                'organizerType.choiceType',
-                'sector.choiceType',
-                'documents',
-                'user.interests',
-                'user.masterInterests.choiceType',
-                'user.badge',
-            ]);
-
-        if ($volunteerTeamType) {
-            $teamQuery->where('organizer_type_id', $volunteerTeamType->id);
-        } else {
-            $teamQuery->whereRaw('1 = 0');
-        }
-
-        $teamItems = $teamQuery->latest('updated_at')->limit($limit)->get();
-
-        $serializeVolunteer = fn ($profile) => array_merge(
-            (new VolunteerProfileWithUserResource($profile))->resolve(),
-            ['user_details' => (new UserResource($profile->user))->resolve()]
-        );
-
-        $serializeOrg = fn ($profile) => array_merge(
-            (new OrganizationProfileResource($profile))->resolve(),
-            ['user_details' => (new UserResource($profile->user))->resolve()]
-        );
-
-        return [
-            'volunteer' => $volunteerItems->map($serializeVolunteer)->values(),
-            'organization' => $orgItems->map($serializeOrg)->values(),
-            'volunteer_team' => $teamItems->map($serializeOrg)->values(),
-        ];
+                return [
+                    'id' => $event->id,
+                    'title_en' => $event->title_en,
+                    'title_ar' => $event->title_ar,
+                    'image' => $image?->image ? getimg($image->image) : null,
+                    'is_free' => ! (bool) $event->paid_registration,
+                    'start_date' => optional($event->start_date)?->format('Y-m-d'),
+                    'end_date' => optional($event->end_date)?->format('Y-m-d'),
+                    'start_time' => $event->start_time,
+                    'end_time' => $event->end_time,
+                    'view_count' => (int) $event->view_count,
+                    'event_type_en' => $event->eventType?->value_en,
+                    'event_type_ar' => $event->eventType?->value_ar,
+                    'location_en' => $event->location_en,
+                    'location_ar' => $event->location_ar,
+                    'tags' => $event->interests?->map(fn ($i) => [
+                        'id' => $i->id,
+                        'name_en' => $i->name_en,
+                        'name_ar' => $i->name_ar,
+                    ])->values() ?? [],
+                ];
+            })
+            ->values();
     }
 
     protected function achievements(): array
     {
         $currentYear = (int) now()->format('Y');
 
-        $individuals = VolunteerStatistic::query()
+        $rows = VolunteerStatistic::query()
             ->whereNotNull('month')
             ->where('year', $currentYear)
             ->selectRaw('user_id, SUM(volunteer_hours) as total_hours, SUM(opportunities_organized) as total_organizing')
@@ -241,125 +285,138 @@ class HomeController extends Controller
             ->limit(10)
             ->get();
 
-        $profiles = VolunteerProfile::query()
-            ->whereIn('user_id', $individuals->pluck('user_id'))
-            ->with(['user.badge', 'currentBadge'])
+        $users = User::query()
+            ->whereIn('id', $rows->pluck('user_id'))
+            ->with(['volunteerProfile', 'badge'])
             ->get()
-            ->keyBy('user_id');
+            ->keyBy('id');
 
-        $individualsData = $individuals->map(function ($row) use ($profiles) {
-            $profile = $profiles->get($row->user_id);
-            $user = $profile?->user;
-            $volHours = (int) ($row->total_hours ?? 0);
-            $orgHours = (int) ($row->total_organizing ?? 0);
-            $total = $volHours + $orgHours;
-            if ($total <= 0) {
+        $individuals = $rows->map(function ($row) use ($users) {
+            $user = $users->get($row->user_id);
+            $total = (int) ($row->total_hours ?? 0) + (int) ($row->total_organizing ?? 0);
+            if ($total <= 0 || ! $user) {
                 return null;
             }
 
             return [
-                'user_id' => $row->user_id,
-                'name' => trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')),
-                'nickname' => $profile?->nickname,
-                'volunteer_hours' => $volHours,
-                'organizing_hours' => $orgHours,
+                'user_id' => $user->id,
+                'name' => $this->displayName($user),
+                'image' => $this->profileImage($user),
                 'total_hours' => $total,
-                'badge_info' => $this->badgeInfo($user),
+                'badge' => $user->badge ? [
+                    'id' => $user->badge->id,
+                    'name' => $user->badge->name,
+                ] : null,
             ];
         })->filter()->values();
 
-        $teamType = MasterChoice::query()
-            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-            ->where('value_en', 'Volunteer Team')
-            ->first();
-
-        $teamData = collect();
-        if ($teamType) {
-            $teams = OrganizationProfile::query()
-                ->notDeleted()
-                ->where('organizer_type_id', $teamType->id)
-                ->where('organization_status', ApprovalStatus::APPROVED)
-                ->with('user')
-                ->get();
-
-            $teamStats = OrganizationStatistic::query()
-                ->whereNotNull('month')
-                ->where('year', $currentYear)
-                ->whereIn('user_id', $teams->pluck('user_id'))
-                ->selectRaw('user_id, SUM(vol_opportunity_organized) as total_vol, SUM(learn_opportunity_organized) as total_learn')
-                ->groupBy('user_id')
-                ->get()
-                ->keyBy('user_id');
-
-            $teamData = $teams->map(function ($team) use ($teamStats) {
-                $stats = $teamStats->get($team->user_id);
-                if (! $stats) {
-                    return null;
-                }
-                $total = (int) (($stats->total_vol ?? 0) + ($stats->total_learn ?? 0));
-                if ($total <= 0) {
-                    return null;
-                }
-
-                return [
-                    'organization_id' => $team->user_id,
-                    'organization_name' => $team->company_name ?: trim(($team->user->first_name ?? '').' '.($team->user->last_name ?? '')),
-                    'executed_opportunities' => $total,
-                    'badge_info' => $this->badgeInfo($team->user),
-                ];
-            })->filter()->sortByDesc('executed_opportunities')->values()->take(10);
-        }
-
         return [
-            'individuals' => $individualsData,
-            'teams' => $teamData,
-            'cycle_info' => [
-                'cycle_type' => 'monthly',
-                'cycle_scope' => 'current',
-                'start_date' => now()->startOfYear()->toDateString(),
-                'end_date' => now()->endOfYear()->toDateString(),
-            ],
+            'individuals' => $individuals,
         ];
     }
 
-    protected function faqs(int $limit)
+    protected function footer(): array
     {
-        return Faq::query()
-            ->notDeleted()
-            ->orderBy('id')
-            ->limit($limit)
-            ->get()
-            ->map(fn (Faq $faq) => [
-                'id' => $faq->id,
-                'question_en' => $faq->question_en,
-                'question_ar' => $faq->question_ar,
-                'answer_en' => $faq->answer_en,
-                'answer_ar' => $faq->answer_ar,
-            ])
-            ->values();
+        $settings = SiteSetting::current();
+
+        return [
+            'pages' => Page::query()->notDeleted()->orderBy('id')->get()->map(fn (Page $p) => [
+                'slug' => $p->slug,
+                'title_en' => $p->title_en,
+                'title_ar' => $p->title_ar,
+            ])->values(),
+            'contact_email' => $settings->contact_email,
+            'social' => [
+                'tiktok' => $settings->tiktok_url,
+                'twitter' => $settings->twitter_url,
+                'youtube' => $settings->youtube_url,
+                'instagram' => $settings->instagram_url,
+            ],
+            'copyright_en' => $settings->copyright_en,
+            'copyright_ar' => $settings->copyright_ar,
+        ];
     }
 
-    protected function badgeInfo(?User $user): ?array
+    protected function section(string $slug): ?array
+    {
+        $section = HomeSection::query()->notDeleted()->where('slug', $slug)->first();
+        if (! $section) {
+            return null;
+        }
+
+        return [
+            'slug' => $section->slug,
+            'title_en' => $section->title_en,
+            'title_ar' => $section->title_ar,
+            'description_en' => $section->description_en,
+            'description_ar' => $section->description_ar,
+            'image' => $this->mediaUrl($section->image),
+        ];
+    }
+
+    protected function cardStatus(mixed $status, int $registered, int $needed): string
+    {
+        $value = $status instanceof OpportunityStatus ? $status->value : (string) $status;
+
+        if (in_array($value, [OpportunityStatus::COMPLETED->value, 'cancelled', 'closed'], true)) {
+            return 'closed';
+        }
+
+        if ($needed > 0 && $registered >= $needed) {
+            return 'full';
+        }
+
+        return 'open';
+    }
+
+    protected function volunteerTeamType(): ?MasterChoice
+    {
+        return MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+            ->where('value_en', 'Volunteer Team')
+            ->first();
+    }
+
+    protected function displayName(?User $user): ?string
     {
         if (! $user) {
             return null;
         }
 
-        $yearStats = VolunteerStatistic::query()
-            ->where('user_id', $user->id)
-            ->where('year', now()->year)
-            ->whereNull('month')
-            ->with('badge')
-            ->first();
-
-        if ($yearStats?->badge) {
-            return ['id' => $yearStats->badge->id, 'name' => $yearStats->badge->name];
+        $orgName = $user->organizationProfile?->company_name
+            ?: $user->organizationProfile?->nickname;
+        if ($orgName) {
+            return $orgName;
         }
 
-        if ($user->badge) {
-            return ['id' => $user->badge->id, 'name' => $user->badge->name];
+        $full = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+
+        return $full !== '' ? $full : ($user->username ?: $user->volunteerProfile?->nickname);
+    }
+
+    protected function profileImage(?User $user): ?string
+    {
+        if (! $user) {
+            return null;
         }
 
-        return null;
+        if ($user->profile_pic) {
+            return getimg($user->profile_pic);
+        }
+
+        return $user->social_profile_pic_url;
+    }
+
+    protected function mediaUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return function_exists('getimg') ? getimg($path) : Storage::disk('public')->url($path);
     }
 }
