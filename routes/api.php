@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Base\BaseController;
+use App\Http\Controllers\Api\Base\HomeController;
 use App\Http\Controllers\Api\Calendar\CalendarController;
 use App\Http\Controllers\Api\Community\LikeController;
 use App\Http\Controllers\Api\Community\MentionSuggestionsController;
@@ -53,6 +54,7 @@ Route::post('linkedin/callback/', [AuthController::class, 'linkedinCallback']);
 Route::get('public-profile/{user_id}/', [AuthController::class, 'publicProfile']);
 
 // Base — public
+Route::get('home/', HomeController::class);
 Route::get('choices/{choice_type}/', [BaseController::class, 'choices']);
 Route::get('banner-images/', [BaseController::class, 'bannerImages']);
 Route::get('proxy-image/', [BaseController::class, 'proxyImage']);
