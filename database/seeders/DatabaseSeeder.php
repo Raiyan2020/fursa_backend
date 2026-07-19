@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             InterestSeeder::class,
             FaqSeeder::class,
             PageSeeder::class,
+            HomeCmsSeeder::class,
             EmailTemplateSeeder::class,
             ForbiddenWordSeeder::class,
             CommunityTagSeeder::class,

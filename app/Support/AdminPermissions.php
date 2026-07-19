@@ -36,6 +36,9 @@ class AdminPermissions
             'forbidden-words.view', 'forbidden-words.create', 'forbidden-words.update', 'forbidden-words.delete',
             'faqs.view', 'faqs.create', 'faqs.update', 'faqs.delete',
             'pages.view', 'pages.create', 'pages.update', 'pages.delete',
+            'why-fursa.view', 'why-fursa.create', 'why-fursa.update', 'why-fursa.delete',
+            'home-sections.view', 'home-sections.update',
+            'site-settings.view', 'site-settings.update',
             'email-templates.view', 'email-templates.update',
             'notifications.view', 'notifications.create', 'notifications.delete',
 

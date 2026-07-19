@@ -358,7 +358,7 @@ class HomeController extends Controller
     {
         $value = $status instanceof OpportunityStatus ? $status->value : (string) $status;
 
-        if (in_array($value, [OpportunityStatus::COMPLETED->value, 'cancelled', 'closed'], true)) {
+        if (in_array($value, [OpportunityStatus::COMPLETED->value, OpportunityStatus::CANCELLED->value], true)) {
             return 'closed';
         }
 

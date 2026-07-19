@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\ForbiddenWordController;
 use App\Http\Controllers\Admin\FursaFriendController;
 use App\Http\Controllers\Admin\HomeController;
+use App\Http\Controllers\Admin\HomeSectionController;
 use App\Http\Controllers\Admin\LearnServeOpportunityController;
 use App\Http\Controllers\Admin\LicenseRequirementController;
 use App\Http\Controllers\Admin\LoginController;
@@ -19,11 +20,13 @@ use App\Http\Controllers\Admin\OrganizationProfileController;
 use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\SiteSettingController;
 use App\Http\Controllers\Admin\SponsorController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserTypeApprovalController;
 use App\Http\Controllers\Admin\VolunteerOpportunityController;
 use App\Http\Controllers\Admin\VolunteerProfileController;
+use App\Http\Controllers\Admin\WhyFursaItemController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['middleware' => ['guest:admin', 'localization']], function () {
@@ -42,6 +45,14 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::resource('tags', MasterChoiceController::class)->except(['show']);
     Route::resource('faqs', FaqController::class)->except(['show']);
     Route::resource('pages', PageController::class)->except(['show']);
+    Route::resource('why-fursa', WhyFursaItemController::class)
+        ->except(['show'])
+        ->parameters(['why-fursa' => 'why_fursa']);
+    Route::get('home-sections', [HomeSectionController::class, 'index'])->name('home-sections.index');
+    Route::get('home-sections/{home_section}/edit', [HomeSectionController::class, 'edit'])->name('home-sections.edit');
+    Route::match(['put', 'patch'], 'home-sections/{home_section}', [HomeSectionController::class, 'update'])->name('home-sections.update');
+    Route::get('site-settings', [SiteSettingController::class, 'edit'])->name('site-settings.edit');
+    Route::match(['put', 'patch'], 'site-settings', [SiteSettingController::class, 'update'])->name('site-settings.update');
     Route::resource('forbidden-words', ForbiddenWordController::class)
         ->except(['show'])
         ->parameters(['forbidden-words' => 'forbiddenWord']);

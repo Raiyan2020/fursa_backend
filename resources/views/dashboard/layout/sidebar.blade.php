@@ -161,6 +161,27 @@
                 </a>
             </li>
 
+            <li class="nav-item {{ request()->is('dashboard/why-fursa*') ? 'active' : '' }}">
+                <a href="{{ route('admin.why-fursa.index') }}">
+                    <i class="feather icon-star"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.why_fursa') }}</span>
+                </a>
+            </li>
+
+            <li class="nav-item {{ request()->is('dashboard/home-sections*') ? 'active' : '' }}">
+                <a href="{{ route('admin.home-sections.index') }}">
+                    <i class="feather icon-layout"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.home_sections') }}</span>
+                </a>
+            </li>
+
+            <li class="nav-item {{ request()->is('dashboard/site-settings*') ? 'active' : '' }}">
+                <a href="{{ route('admin.site-settings.edit') }}">
+                    <i class="feather icon-globe"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.site_settings') }}</span>
+                </a>
+            </li>
+
             <li class="nav-item {{ request()->is('dashboard/email-templates*') ? 'active' : '' }}">
                 <a href="{{ route('admin.email-templates.index') }}">
                     <i class="feather icon-mail"></i>
