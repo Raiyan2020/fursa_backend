@@ -154,6 +154,13 @@
                 </a>
             </li>
 
+            <li class="nav-item {{ request()->is('dashboard/pages*') ? 'active' : '' }}">
+                <a href="{{ route('admin.pages.index') }}">
+                    <i class="feather icon-file-text"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.pages') }}</span>
+                </a>
+            </li>
+
             <li class="nav-item {{ request()->is('dashboard/email-templates*') ? 'active' : '' }}">
                 <a href="{{ route('admin.email-templates.index') }}">
                     <i class="feather icon-mail"></i>

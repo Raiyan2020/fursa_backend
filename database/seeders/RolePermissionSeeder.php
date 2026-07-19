@@ -40,6 +40,7 @@ class RolePermissionSeeder extends Seeder
             'banners.view', 'banners.create', 'banners.update', 'banners.delete',
             'forbidden-words.view', 'forbidden-words.create', 'forbidden-words.update', 'forbidden-words.delete',
             'faqs.view', 'faqs.create', 'faqs.update', 'faqs.delete',
+            'pages.view', 'pages.create', 'pages.update', 'pages.delete',
             'email-templates.view', 'email-templates.update',
             'notifications.view', 'notifications.create', 'notifications.delete',
         ]);

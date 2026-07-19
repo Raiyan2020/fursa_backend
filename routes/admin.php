@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\LoginController;
 use App\Http\Controllers\Admin\MasterChoiceController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OrganizationProfileController;
+use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SponsorController;
@@ -40,6 +41,7 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::resource('banners', BannerController::class)->except(['show']);
     Route::resource('tags', MasterChoiceController::class)->except(['show']);
     Route::resource('faqs', FaqController::class)->except(['show']);
+    Route::resource('pages', PageController::class)->except(['show']);
     Route::resource('forbidden-words', ForbiddenWordController::class)
         ->except(['show'])
         ->parameters(['forbidden-words' => 'forbiddenWord']);

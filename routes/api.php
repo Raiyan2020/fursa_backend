@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Api\Event\EventTimeSlotController;
 use App\Http\Controllers\Api\Faq\FaqController;
 use App\Http\Controllers\Api\Notification\NotificationController;
+use App\Http\Controllers\Api\Page\PageController;
 use App\Http\Controllers\Api\Opportunity\LearnServeOpportunityController;
 use App\Http\Controllers\Api\Opportunity\LearnServeRegistrationController;
 use App\Http\Controllers\Api\Opportunity\LearnServeTimeSlotController;
@@ -60,6 +61,8 @@ Route::get('banner-images/', [BaseController::class, 'bannerImages']);
 Route::get('proxy-image/', [BaseController::class, 'proxyImage']);
 Route::options('proxy-image/', [BaseController::class, 'proxyImage']);
 Route::get('faqs/', [FaqController::class, 'index']);
+Route::get('pages/', [PageController::class, 'index']);
+Route::get('pages/{slug}/', [PageController::class, 'show']);
 
 // Organization — public (Django AllowAny)
 Route::get('all-profiles/', [OrganizationProfileController::class, 'allProfiles']);

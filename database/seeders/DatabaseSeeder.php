@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             // Content / lookups
             InterestSeeder::class,
             FaqSeeder::class,
+            PageSeeder::class,
             EmailTemplateSeeder::class,
             ForbiddenWordSeeder::class,
             CommunityTagSeeder::class,
