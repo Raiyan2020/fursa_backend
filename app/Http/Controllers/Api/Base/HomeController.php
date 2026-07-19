@@ -46,7 +46,7 @@ class HomeController extends Controller
                 'sponsors' => $this->sponsors(),
                 'events' => $this->events($limit),
                 'opportunities' => $this->opportunities($limit),
-                'learn_share' => $this->learnShare($limit),
+                'learn_share' => $this->learnShare(limit: $limit),
                 'community' => $this->community($limit),
                 'achievements' => $this->achievements(),
                 'faqs' => $this->faqs($limit),
