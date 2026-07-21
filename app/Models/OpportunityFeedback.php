@@ -12,6 +12,8 @@ class OpportunityFeedback extends Model
 {
     use HasSoftFlags;
 
+    protected $table = 'opportunity_feedbacks';
+
     protected $fillable = [
         'user_id', 'learn_serve_opportunity_id', 'rating', 'comment_en', 'comment_ar',
         'primary_language', 'is_deleted', 'deleted_at',

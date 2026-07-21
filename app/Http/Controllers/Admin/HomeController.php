@@ -285,10 +285,16 @@ class HomeController extends Controller
         $start = Carbon::now()->subMonths($months - 1)->startOfMonth();
         $table = $query->getModel()->getTable();
         $qualified = str_contains($dateColumn, '.') ? $dateColumn : "{$table}.{$dateColumn}";
+        $connectionName = $query->getModel()->getConnectionName() ?? config('database.default');
+        $isSqlite = config("database.connections.{$connectionName}.driver") === 'sqlite';
 
         $rows = (clone $query)
             ->whereBetween($qualified, [$start->toDateTimeString(), $end->toDateTimeString()])
-            ->selectRaw("DATE_FORMAT({$qualified}, '%Y-%m') as ym, COUNT(*) as aggregate")
+            ->selectRaw(
+                $isSqlite
+                    ? "strftime('%Y-%m', {$qualified}) as ym, COUNT(*) as aggregate"
+                    : "DATE_FORMAT({$qualified}, '%Y-%m') as ym, COUNT(*) as aggregate"
+            )
             ->groupBy('ym')
             ->orderBy('ym')
             ->pluck('aggregate', 'ym');

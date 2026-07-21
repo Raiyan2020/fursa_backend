@@ -37,21 +37,9 @@ class LikeController extends Controller
         if (! empty($data['post_id'])) {
             $target = Post::query()->notDeleted()->find($data['post_id']);
             $targetType = 'post';
-            $likeQuery = ['post_id' => $target->id, 'reply_id' => null];
-            $countQuery = fn () => CommunityLike::query()
-                ->notDeleted()
-                ->where('post_id', $target->id)
-                ->where('is_liked', true)
-                ->count();
         } else {
             $target = Reply::query()->notDeleted()->find($data['reply_id']);
             $targetType = 'reply';
-            $likeQuery = ['reply_id' => $target->id, 'post_id' => null];
-            $countQuery = fn () => CommunityLike::query()
-                ->notDeleted()
-                ->where('reply_id', $target->id)
-                ->where('is_liked', true)
-                ->count();
         }
 
         if (! $target) {
@@ -61,6 +49,15 @@ class LikeController extends Controller
                 404
             );
         }
+
+        $foreignKey = $targetType === 'post' ? 'post_id' : 'reply_id';
+        $otherKey = $targetType === 'post' ? 'reply_id' : 'post_id';
+        $likeQuery = [$foreignKey => $target->id, $otherKey => null];
+        $countQuery = fn () => CommunityLike::query()
+            ->notDeleted()
+            ->where($foreignKey, $target->id)
+            ->where('is_liked', true)
+            ->count();
 
         $existing = CommunityLike::query()
             ->where('user_id', $request->user()->id)

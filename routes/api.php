@@ -92,7 +92,8 @@ Route::get('opportunities/{opportunity_id}/details/', [VolunteerOpportunityContr
 Route::get('list-all-opportunities/', [VolunteerOpportunityController::class, 'listAllOpportunities']);
 Route::get('list-user-opportunities/', [VolunteerOpportunityController::class, 'listUserOpportunities']);
 Route::get('learn-serve-opportunities/', [LearnServeOpportunityController::class, 'index']);
-Route::get('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'show']);
+Route::get('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'show'])
+    ->whereNumber('id');
 Route::get('opportunity-feedbacks/', [OpportunityFeedbackController::class, 'index']);
 Route::get('opportunity-feedbacks/{id}/', [OpportunityFeedbackController::class, 'show']);
 Route::get('download-url/', [OpportunityMediaController::class, 'imageDownloadUrl']);
@@ -216,7 +217,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('event-registrations/', [EventRegistrationController::class, 'index']);
     Route::get('event-registrations/my-registrations/', [EventRegistrationController::class, 'myRegistrations']);
     Route::post('event-registrations/', [EventRegistrationController::class, 'store']);
-    Route::get('event-registrations/{event_id}/', [EventRegistrationController::class, 'byEvent']);
+    Route::get('event-registrations/by-event/{event_id}/', [EventRegistrationController::class, 'byEvent']);
     Route::get('event-registrations/{id}/', [EventRegistrationController::class, 'show']);
     Route::get('event-registrations/{id}/registrations/', [EventRegistrationController::class, 'eventRegistrations']);
     Route::match(['put', 'patch'], 'event-registrations/{id}/', [EventRegistrationController::class, 'update']);

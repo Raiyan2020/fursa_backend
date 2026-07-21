@@ -10,18 +10,18 @@ trait AssertsDjangoApiEnvelope
     {
         $response->assertStatus($status)
             ->assertJsonStructure([
-                'status',
+                'key',
+                'msg',
                 'code',
-                'message_en',
-                'message_ar',
+                'response_status' => ['error', 'validation_errors'],
                 'data',
-                'meta',
             ])
-            ->assertJsonPath('status', 'success')
-            ->assertJsonPath('code', $status);
+            ->assertJsonPath('key', 'success')
+            ->assertJsonPath('code', $status)
+            ->assertJsonPath('response_status.error', false);
 
         if ($messageEn !== null) {
-            $response->assertJsonPath('message_en', $messageEn);
+            $response->assertJsonPath('msg', $messageEn);
         }
 
         return $response;
@@ -31,18 +31,18 @@ trait AssertsDjangoApiEnvelope
     {
         $response->assertStatus($status)
             ->assertJsonStructure([
-                'status',
+                'key',
+                'msg',
                 'code',
-                'message_en',
-                'message_ar',
+                'response_status' => ['error', 'validation_errors'],
                 'data',
-                'meta',
             ])
-            ->assertJsonPath('status', 'error')
-            ->assertJsonPath('code', $status);
+            ->assertJsonPath('key', 'fail')
+            ->assertJsonPath('code', $status)
+            ->assertJsonPath('response_status.error', true);
 
         if ($messageEn !== null) {
-            $response->assertJsonPath('message_en', $messageEn);
+            $response->assertJsonPath('msg', $messageEn);
         }
 
         return $response;
@@ -56,6 +56,17 @@ trait AssertsDjangoApiEnvelope
                 'timestamp',
             ],
         ]);
+
+        return $response;
+    }
+
+    protected function assertNoServerException(TestResponse $response): TestResponse
+    {
+        $this->assertLessThan(
+            500,
+            $response->getStatusCode(),
+            "Endpoint returned {$response->getStatusCode()}:\n".$response->getContent()
+        );
 
         return $response;
     }

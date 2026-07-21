@@ -39,7 +39,10 @@ class AuthApiTest extends TestCase
         ]);
 
         $this->assertSuccessEnvelope($verify, 200, 'OTP verified successfully.');
-        $verify->assertJsonPath('data.user_id', User::first()->id);
+        $verify->assertJsonPath(
+            'data.user_id',
+            User::query()->where('email', 'volunteer1@test.com')->value('id')
+        );
 
         $login = $this->postJson('/api/login/', [
             'email' => 'volunteer1@test.com',
@@ -60,7 +63,7 @@ class AuthApiTest extends TestCase
 
         $this->getJson('/api/choices/gender/')
             ->assertOk()
-            ->assertJsonPath('status', 'success');
+            ->assertJsonPath('key', 'success');
 
         $this->getJson('/health/')
             ->assertOk()

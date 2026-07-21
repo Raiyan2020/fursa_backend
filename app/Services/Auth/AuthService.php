@@ -92,7 +92,10 @@ class AuthService
 
         $otp = $this->sendAccountActivation($user);
         $user = $user->fresh(['volunteerProfile', 'organizationProfile']);
-        $user->setAttribute('debug_otp', $otp);
+        // Keep the debug OTP in-memory only. A normal Eloquent attribute would be
+        // written as a non-existent `debug_otp` column if the user is saved later
+        // in the social-auth flow.
+        $user->setRelation('debug_otp', $otp);
 
         return $user;
     }

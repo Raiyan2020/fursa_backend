@@ -62,9 +62,9 @@ class SponsorController extends Controller
     {
         $data = $request->validate([
             'sponsor_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
-            'org_name' => ['nullable', 'string', 'max:255'],
+            'org_name' => ['required', 'string', 'max:255'],
             'org_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
-            'person_name' => ['nullable', 'string', 'max:255'],
+            'person_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email'],
             'country_code' => ['nullable', 'string', 'max:10'],
             'phone_number' => ['nullable', 'string', 'max:20'],

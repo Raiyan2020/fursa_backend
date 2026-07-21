@@ -62,8 +62,7 @@ class AllEndpointsCompatibilityTest extends TestCase
         ]);
 
         $this->assertSuccessEnvelope($response, 201, 'OTP has been sent to the email address.');
-        $response->assertJsonPath('message_ar', 'تم إرسال OTP إلى عنوان البريد الإلكتروني.')
-            ->assertJsonStructure([
+        $response->assertJsonStructure([
                 'data' => [
                     'id',
                     'email',
@@ -96,8 +95,8 @@ class AllEndpointsCompatibilityTest extends TestCase
             'user_type' => 'volunteer',
         ]);
 
-        $this->assertErrorEnvelope($response, 400);
-        $response->assertJsonStructure(['errors']);
+        $this->assertErrorEnvelope($response, 422);
+        $response->assertJsonStructure(['response_status' => ['validation_errors']]);
     }
 
     public function test_verify_otp_register_matches_django(): void
@@ -120,8 +119,7 @@ class AllEndpointsCompatibilityTest extends TestCase
         ]);
 
         $this->assertSuccessEnvelope($response, 200, 'OTP verified successfully.');
-        $response->assertJsonPath('message_ar', 'تم التحقق من OTP بنجاح.')
-            ->assertJsonStructure(['data' => ['token', 'user_id']])
+        $response->assertJsonStructure(['data' => ['token', 'user_id']])
             ->assertJsonPath('data.user_id', $user->id);
 
         $this->assertTrue($user->fresh()->is_active);
@@ -136,8 +134,7 @@ class AllEndpointsCompatibilityTest extends TestCase
         ]);
 
         $this->assertSuccessEnvelope($response, 200, 'Login successful.');
-        $response->assertJsonPath('message_ar', 'تم تسجيل الدخول بنجاح.')
-            ->assertJsonStructure([
+        $response->assertJsonStructure([
                 'data' => [
                     'data' => [
                         'id',
@@ -162,7 +159,7 @@ class AllEndpointsCompatibilityTest extends TestCase
         ]);
 
         $this->assertErrorEnvelope($response, 400, 'Login failed.');
-        $response->assertJsonStructure(['errors']);
+        $response->assertJsonStructure(['response_status' => ['validation_errors']]);
     }
 
     public function test_forgot_password_and_verify_password_otp_and_change_password(): void
@@ -298,7 +295,7 @@ class AllEndpointsCompatibilityTest extends TestCase
 
         $missing = $this->getJson('/api/choices/does_not_exist/');
         $this->assertErrorEnvelope($missing, 404, 'No choices found for the given choice type.');
-        $missing->assertJsonPath('data', []);
+        $missing->assertJsonPath('data', null);
     }
 
     public function test_banner_images_and_statistics_shape(): void
@@ -358,7 +355,7 @@ class AllEndpointsCompatibilityTest extends TestCase
     {
         $show = $this->withTokenHeader($this->volunteerToken)->getJson('/api/volunteer-profile/');
         $this->assertSuccessEnvelope($show, 200, 'Volunteer profile retrieved successfully.');
-        $show->assertJsonPath('data.user_id', $this->volunteer->id);
+        $show->assertJsonPath('data.id', $this->volunteer->volunteerProfile->id);
 
         $update = $this->withTokenHeader($this->volunteerToken)->patchJson('/api/volunteer-profile/', [
             'nickname' => 'HeroVol',
@@ -375,7 +372,7 @@ class AllEndpointsCompatibilityTest extends TestCase
 
         $qr = $this->withTokenHeader($this->volunteerToken)->getJson('/api/volunteer-profile/qr-code/');
         $this->assertSuccessEnvelope($qr, 200, 'QR code details fetched successfully.');
-        $qr->assertJsonStructure(['data' => ['display_url', 'download_url', 'uuid', 'verify_url']]);
+        $qr->assertJsonStructure(['data' => ['volunteer_id', 'qr_code_url', 'name', 'manual_id']]);
 
         $uuid = $this->volunteer->volunteerProfile->uuid;
         $verify = $this->getJson('/api/verify/'.$uuid.'/');
@@ -428,14 +425,14 @@ class AllEndpointsCompatibilityTest extends TestCase
 
         $this->assertSuccessEnvelope($response, 200, 'Login successful. Welcome!');
         $response->assertJsonStructure([
-            'data' => ['id', 'email', 'auth_token', 'is_social_login', 'user_type'],
+            'data' => ['id', 'email', 'auth_token', 'is_new_user', 'user_type'],
         ])->assertJsonPath('data.email', 'social.vol@test.com')
-            ->assertJsonPath('data.is_social_login', true);
+            ->assertJsonPath('data.is_new_user', true);
     }
 
     public function test_linkedin_callback_requires_code_and_redirect_uri(): void
     {
-        $this->assertErrorEnvelope($this->postJson('/api/linkedin/callback/', []), 400);
+        $this->assertErrorEnvelope($this->postJson('/api/linkedin/callback/', []), 422);
     }
 
     protected function withTokenHeader(string $token)

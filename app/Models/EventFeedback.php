@@ -12,6 +12,8 @@ class EventFeedback extends Model
 {
     use HasSoftFlags;
 
+    protected $table = 'event_feedbacks';
+
     protected $fillable = [
         'user_id', 'event_id', 'rating', 'comment_en', 'comment_ar',
         'primary_language', 'is_deleted', 'deleted_at',
