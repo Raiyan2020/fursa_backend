@@ -34,7 +34,9 @@ trait UploadTrait
             return;
         }
 
-        $this->attributes['image'] = $value;
+        $this->attributes['image'] = is_string($value)
+            ? normalize_storage_path($value)
+            : $value;
     }
 
     /**

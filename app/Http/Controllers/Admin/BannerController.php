@@ -29,7 +29,7 @@ class BannerController extends Controller
             'banner_url' => ['nullable', 'url', 'max:255'],
         ]);
 
-        // Pass UploadedFile — UploadTrait::setImageAttribute uploads & stores "/storage/..."
+        // Pass UploadedFile — UploadTrait::setImageAttribute uploads & stores the disk path.
         BannerImage::create([
             'name' => $data['name'],
             'banner_url' => $data['banner_url'] ?? null,
@@ -64,10 +64,7 @@ class BannerController extends Controller
             $banner->image = $request->file('image');
 
             if ($old) {
-                $relative = str_starts_with($old, '/storage/')
-                    ? substr($old, strlen('/storage/'))
-                    : ltrim(str_replace('storage/', '', $old), '/');
-                Storage::disk('public')->delete($relative);
+                Storage::disk('public')->delete(normalize_storage_path($old));
             }
         }
 

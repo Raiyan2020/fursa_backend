@@ -12,6 +12,7 @@ class StorageUrlHelperTest extends TestCase
 
         $this->assertStringEndsWith('/storage/opportunity_images/uuid/cropped-image.jpg', $url);
         $this->assertStringNotContainsString('/storage/public/', $url);
+        $this->assertStringStartsWith('http', $url);
     }
 
     public function test_getimg_handles_relative_disk_paths(): void
@@ -26,6 +27,25 @@ class StorageUrlHelperTest extends TestCase
         $url = getimg('/storage/public/profile_pics/avatar.jpg');
 
         $this->assertStringEndsWith('/storage/profile_pics/avatar.jpg', $url);
+    }
+
+    public function test_getimg_strips_uploader_style_storage_prefix(): void
+    {
+        $url = getimg('/storage/banners/home-hero-placeholder.jpg');
+
+        $this->assertSame(
+            rtrim((string) config('fursa.backend_host'), '/').'/storage/banners/home-hero-placeholder.jpg',
+            $url
+        );
+        $this->assertStringNotContainsString('/storage/storage/', $url);
+    }
+
+    public function test_getimg_strips_repeated_storage_prefixes(): void
+    {
+        $url = getimg('storage/storage/banners/home-hero-placeholder.jpg');
+
+        $this->assertStringEndsWith('/storage/banners/home-hero-placeholder.jpg', $url);
+        $this->assertStringNotContainsString('/storage/storage/', $url);
     }
 
     public function test_getimg_returns_external_urls_unchanged(): void

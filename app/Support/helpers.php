@@ -77,12 +77,15 @@ if (! function_exists('normalize_storage_path')) {
     {
         $path = ltrim($path, '/');
 
-        if (str_starts_with($path, 'storage/')) {
-            $path = substr($path, strlen('storage/'));
-        }
+        while (str_starts_with($path, 'storage/') || str_starts_with($path, 'public/')) {
+            if (str_starts_with($path, 'storage/')) {
+                $path = substr($path, strlen('storage/'));
+                continue;
+            }
 
-        if (str_starts_with($path, 'public/')) {
-            $path = substr($path, strlen('public/'));
+            if (str_starts_with($path, 'public/')) {
+                $path = substr($path, strlen('public/'));
+            }
         }
 
         return $path;
@@ -103,13 +106,17 @@ if (! function_exists('getimg')) {
             return $filename;
         }
 
-        return asset('storage/'.normalize_storage_path($filename));
+        $path = normalize_storage_path($filename);
+
+        $base = rtrim((string) (config('fursa.backend_host') ?: config('app.url')), '/');
+
+        return $base.'/storage/'.$path;
     }
 }
 
 if (! function_exists('uploader')) {
     /**
-     * Store an uploaded file on the public disk and return "/storage/..." path (Nafas-style).
+     * Store an uploaded file on the public disk and return the relative disk path.
      */
     function uploader($file, string $folder = 'uploads'): ?string
     {
@@ -117,9 +124,7 @@ if (! function_exists('uploader')) {
             return null;
         }
 
-        $path = Storage::disk('public')->putFile($folder, $file);
-
-        return '/storage/'.$path;
+        return Storage::disk('public')->putFile($folder, $file);
     }
 }
 

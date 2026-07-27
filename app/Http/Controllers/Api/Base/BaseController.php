@@ -81,7 +81,7 @@ class BaseController extends Controller
         $images = BannerImage::query()->notDeleted()->get()->map(fn (BannerImage $b) => [
             'id' => $b->id,
             'name' => $b->name,
-            'image' => $b->image ? getimg($b->image) : null,
+            'image' => ($path = $b->getRawImagePath()) ? getimg($path) : null,
             'banner_url' => $b->banner_url,
             'created_at' => optional($b->created_at)?->toIso8601String(),
         ])->values();
