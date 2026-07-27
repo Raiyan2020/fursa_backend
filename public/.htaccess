@@ -10,6 +10,10 @@
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
     # Redirect Trailing Slashes If Not A Folder...
+    # IMPORTANT: skip OPTIONS (CORS preflight cannot follow redirects) and
+    # skip /api/* (Laravel API routes intentionally use trailing slashes).
+    RewriteCond %{REQUEST_METHOD} !OPTIONS
+    RewriteCond %{THE_REQUEST} !\s/+api/
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
