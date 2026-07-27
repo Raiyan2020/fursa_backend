@@ -50,6 +50,21 @@ class Event extends Model
         return $this->belongsTo(MasterChoice::class, 'event_type_id');
     }
 
+    public function participationType(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'participation_type_id');
+    }
+
+    public function attendanceType(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'attendance_type_id');
+    }
+
+    public function genderChoice(): BelongsTo
+    {
+        return $this->belongsTo(MasterChoice::class, 'gender_id');
+    }
+
     public function registrations(): HasMany
     {
         return $this->hasMany(EventRegistration::class);

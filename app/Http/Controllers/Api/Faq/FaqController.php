@@ -25,10 +25,6 @@ class FaqController extends Controller
                 'question_ar' => $faq->question_ar,
                 'answer_en' => $faq->answer_en,
                 'answer_ar' => $faq->answer_ar,
-                'created_at' => optional($faq->created_at)?->toIso8601String(),
-                'updated_at' => optional($faq->updated_at)?->toIso8601String(),
-                'is_deleted' => (bool) $faq->is_deleted,
-                'deleted_at' => optional($faq->deleted_at)?->toIso8601String(),
             ])->values();
 
             return ApiResponse::paginated(

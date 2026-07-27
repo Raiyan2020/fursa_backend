@@ -52,7 +52,6 @@ class BaseController extends Controller
                 ->get()
                 ->map(fn (MasterChoice $c) => [
                     'id' => $c->id,
-                    'choice_type' => $choice_type,
                     'value_en' => $c->value_en,
                     'value_ar' => $c->value_ar,
                 ])
@@ -79,11 +78,8 @@ class BaseController extends Controller
     public function bannerImages(): JsonResponse
     {
         $images = BannerImage::query()->notDeleted()->get()->map(fn (BannerImage $b) => [
-            'id' => $b->id,
-            'name' => $b->name,
             'image' => ($path = $b->getRawImagePath()) ? getimg($path) : null,
             'banner_url' => $b->banner_url,
-            'created_at' => optional($b->created_at)?->toIso8601String(),
         ])->values();
 
         $volunteerTeamType = MasterChoice::query()

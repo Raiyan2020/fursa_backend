@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Sponsor;
 use App\Enums\ApprovalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Sponsor\SponsorResource;
+use App\Http\Resources\Website\WebsiteSponsorResource;
 use App\Models\MasterChoice;
 use App\Models\Sponsor;
 use App\Models\SponsorDocument;
@@ -33,7 +34,7 @@ class SponsorController extends Controller
         }
 
         return ApiResponse::success(
-            SponsorResource::collection($query->get()),
+            WebsiteSponsorResource::collection($query->get()),
             'Sponsors retrieved successfully.',
             'تم استرداد الرعاة بنجاح.'
         );

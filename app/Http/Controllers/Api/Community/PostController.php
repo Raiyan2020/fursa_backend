@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Community;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Community\PostResource;
+use App\Http\Resources\Website\WebsitePostResource;
 use App\Models\CommunityLike;
 use App\Models\CommunityTag;
 use App\Models\Post;
@@ -83,7 +84,7 @@ class PostController extends Controller
 
         return ApiResponse::paginated(
             $paginator,
-            PostResource::collection($paginator->getCollection()),
+            WebsitePostResource::collection($paginator->getCollection()),
             'Posts retrieved successfully.',
             'تم استرجاع المنشورات بنجاح.'
         );
@@ -102,7 +103,7 @@ class PostController extends Controller
         }
 
         return ApiResponse::success(
-            new PostResource($post),
+            new WebsitePostResource($post, detail: true),
             'Post retrieved successfully.',
             'تم استرجاع المنشور بنجاح.'
         );
@@ -142,8 +143,7 @@ class PostController extends Controller
             return $post;
         });
 
-        $payload = (new PostResource($post->load(['user', 'images', 'tags'])))->resolve();
-        $payload['mentioned_users'] = CommunityMentions::extract($post->idea_text_en, $post->idea_text_ar);
+        $payload = (new WebsitePostResource($post->load(['user', 'images', 'tags']), detail: true))->resolve();
         if ($detected !== []) {
             $payload['forbidden_words_detected'] = $detected;
         }
@@ -192,8 +192,7 @@ class PostController extends Controller
         }
         $this->syncImages($post, $request);
 
-        $payload = (new PostResource($post->fresh(['user', 'images', 'tags'])))->resolve();
-        $payload['mentioned_users'] = CommunityMentions::extract($ideaEn, $ideaAr);
+        $payload = (new WebsitePostResource($post->fresh(['user', 'images', 'tags']), detail: true))->resolve();
 
         return ApiResponse::success($payload, 'Post updated successfully.', 'تم تحديث المنشور بنجاح.');
     }

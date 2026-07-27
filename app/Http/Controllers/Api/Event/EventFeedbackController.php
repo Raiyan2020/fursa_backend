@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Event;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventFeedbackResource;
+use App\Http\Resources\Website\WebsiteEventFeedbackResource;
 use App\Models\EventFeedback;
 use App\Models\EventFeedbackLike;
 use App\Support\ApiResponse;
@@ -21,7 +22,7 @@ class EventFeedbackController extends Controller
         }
 
         return ApiResponse::success(
-            EventFeedbackResource::collection($query->latest()->get()),
+            WebsiteEventFeedbackResource::collection($query->latest()->get()),
             'Feedback retrieved successfully.',
             'تم استرداد التغذية الرجعية بنجاح.'
         );
@@ -35,7 +36,7 @@ class EventFeedbackController extends Controller
         }
 
         return ApiResponse::success(
-            new EventFeedbackResource($feedback),
+            new WebsiteEventFeedbackResource($feedback),
             'Feedback retrieved successfully.',
             'تم استرداد التغذية الرجعية بنجاح.'
         );
@@ -54,7 +55,7 @@ class EventFeedbackController extends Controller
         $feedback = EventFeedback::create(array_merge($data, ['user_id' => $request->user()->id]));
 
         return ApiResponse::success(
-            new EventFeedbackResource($feedback->load(['user', 'likes'])),
+            new WebsiteEventFeedbackResource($feedback->load(['user', 'likes'])),
             'Feedback submitted successfully.',
             'تم إرسال التغذية الرجعية بنجاح.',
             201
@@ -84,7 +85,7 @@ class EventFeedbackController extends Controller
         $feedback->update($data);
 
         return ApiResponse::success(
-            new EventFeedbackResource($feedback->fresh(['user', 'likes'])),
+            new WebsiteEventFeedbackResource($feedback->fresh(['user', 'likes'])),
             'Feedback updated successfully.',
             'تم تحديث التغذية الرجعية بنجاح.'
         );

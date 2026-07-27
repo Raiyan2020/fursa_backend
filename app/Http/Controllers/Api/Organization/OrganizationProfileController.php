@@ -7,8 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Organization\OrganizationDocumentResource;
 use App\Http\Resources\Organization\OrganizationListResource;
 use App\Http\Resources\Organization\OrganizationProfileResource;
-use App\Http\Resources\Auth\UserResource;
-use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
+use App\Http\Resources\Website\WebsiteProfileListItemResource;
 use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
 use App\Models\VolunteerProfile;
@@ -290,15 +289,9 @@ class OrganizationProfileController extends Controller
         $orgItems = $paginate($orgQuery, $organizationPage);
         $teamItems = $paginate($teamQuery, $volunteerTeamPage);
 
-        $serializeVolunteer = fn ($profile) => array_merge(
-            (new VolunteerProfileWithUserResource($profile))->resolve(),
-            ['user_details' => (new UserResource($profile->user))->resolve()]
-        );
+        $serializeVolunteer = fn ($profile) => (new WebsiteProfileListItemResource($profile, 'volunteer'))->resolve();
 
-        $serializeOrg = fn ($profile) => array_merge(
-            (new OrganizationProfileResource($profile))->resolve(),
-            ['user_details' => (new UserResource($profile->user))->resolve()]
-        );
+        $serializeOrg = fn ($profile) => (new WebsiteProfileListItemResource($profile, 'organization'))->resolve();
 
         $totalPages = fn (int $count) => $count > 0 ? (int) ceil($count / $limit) : 0;
 

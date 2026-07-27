@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Http\Resources\Website;
+
+use App\Http\Resources\Website\Concerns\BuildsWebsiteFields;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/** Website public profile payload. */
+class WebsitePublicProfileResource extends JsonResource
+{
+    use BuildsWebsiteFields;
+
+    public function toArray(Request $request): array
+    {
+        /** @var User $user */
+        $user = $this->resource;
+
+        $user->loadMissing([
+            'volunteerProfile.currentBadge',
+            'volunteerProfile.gender.choiceType',
+            'organizationProfile.organizerType',
+            'organizationProfile.sector.choiceType',
+            'organizationProfile.documents',
+            'masterInterests.choiceType',
+            'badge',
+        ]);
+
+        $isVolunteerTeam = $user->organizationProfile?->organizerType?->value_en === 'Volunteer Team';
+        $profileData = null;
+
+        if ($user->isVolunteer()) {
+            $profile = $user->volunteerProfile;
+            $profileData = [
+                'id' => $user->id,
+                'full_name' => $this->fullName($user),
+                'nickname' => $profile?->nickname,
+                'profile_pic' => $this->profilePicUrl($user),
+                'gender_display' => $this->websiteChoicePayload($profile?->gender),
+                'interest_display' => $this->masterChoiceCollection($user->masterInterests),
+                'occupation' => $profile?->occupation,
+                'experience' => $profile?->experience,
+                'manual_id' => $user->manual_id,
+                'instagram_link' => $user->instagram_link,
+                'whatsapp_link' => $user->whatsapp_link,
+                'linkedin_link' => $user->linkedin_link,
+                'facebook_link' => $user->facebook_link,
+                'twitter_link' => $user->twitter_link,
+                'total_volunteer_hours' => round((float) ($profile?->total_volunteer_hours ?? 0), 2),
+                'total_opportunities' => round((float) ($profile?->total_opportunities ?? 0), 2),
+                'total_certificates' => $profile?->total_certificates ?? 0,
+                'opportunities_organized' => round((float) ($profile?->opportunities_organized ?? 0), 2),
+                'statistics' => [
+                    'all_time' => [
+                        'total_hours' => round((float) ($profile?->total_volunteer_hours ?? 0), 2),
+                        'total_opportunities' => round((float) ($profile?->total_opportunities ?? 0), 2),
+                        'total_certificates' => $profile?->total_certificates ?? 0,
+                        'opportunities_organized' => round((float) ($profile?->opportunities_organized ?? 0), 2),
+                    ],
+                ],
+            ];
+        } elseif ($user->isOrganization()) {
+            $organization = $user->organizationProfile;
+            $profileData = [
+                'id' => $user->id,
+                'nickname' => $organization?->nickname,
+                'company_name' => $organization?->company_name,
+                'profile_pic' => $this->profilePicUrl($user),
+                'registration_number' => $organization?->registration_number,
+                'sector_display' => $this->websiteChoicePayload($organization?->sector),
+                'interest_display' => $this->masterChoiceCollection($user->masterInterests),
+                'documents' => collect($organization?->documents ?? [])->map(fn ($document) => [
+                    'id' => $document->id,
+                    'document' => getimg($document->document),
+                ])->values()->all(),
+                'instagram_link' => $user->instagram_link,
+                'whatsapp_link' => $user->whatsapp_link,
+                'linkedin_link' => $user->linkedin_link,
+                'facebook_link' => $user->facebook_link,
+                'twitter_link' => $user->twitter_link,
+                'organization_hours' => $organization?->organization_hours,
+                'learn_opportunity_organized' => $organization?->learn_opportunity_organized,
+                'vol_opportunity_organized' => $organization?->vol_opportunity_organized,
+                'sponsored' => $organization?->sponsored_count,
+                'statistics' => [
+                    'all_time' => [
+                        'total_hours' => $organization?->organization_hours,
+                        'opportunities_organized' => ($organization?->learn_opportunity_organized ?? 0) + ($organization?->vol_opportunity_organized ?? 0),
+                    ],
+                ],
+            ];
+        }
+
+        $badgeInfo = null;
+        if ($user->isVolunteer() && $user->volunteerProfile?->currentBadge) {
+            $badgeInfo = $this->badgeInfoPayload($user->volunteerProfile->currentBadge);
+        } elseif ($user->isOrganization() && $user->badge) {
+            $badgeInfo = $this->badgeInfoPayload($user->badge);
+        }
+
+        return [
+            'id' => $user->id,
+            'profile_data' => $profileData,
+            'user_type' => $user->user_type?->value ?? $user->user_type,
+            'is_volunteer_team' => (bool) $isVolunteerTeam,
+            'is_public' => $user->isVolunteer()
+                ? (bool) ($user->volunteerProfile?->is_public)
+                : true,
+            'badge_info' => $badgeInfo,
+        ];
+    }
+}

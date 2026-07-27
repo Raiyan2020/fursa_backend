@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\Community;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Community\ReplyResource;
+use App\Http\Resources\Website\WebsiteReplyResource;
 use App\Models\Reply;
 use App\Models\ReplyImage;
 use App\Support\ApiResponse;
@@ -32,7 +32,7 @@ class ReplyController extends Controller
 
         return ApiResponse::paginated(
             $paginator,
-            ReplyResource::collection($paginator->getCollection()),
+            WebsiteReplyResource::collection($paginator->getCollection()),
             'Replies retrieved successfully.',
             'تم استرجاع الردود بنجاح.'
         );
@@ -51,7 +51,7 @@ class ReplyController extends Controller
         }
 
         return ApiResponse::success(
-            new ReplyResource($reply),
+            new WebsiteReplyResource($reply),
             'Reply retrieved successfully.',
             'تم استرجاع الرد بنجاح.'
         );
@@ -107,7 +107,7 @@ class ReplyController extends Controller
             }
         }
 
-        $payload = (new ReplyResource($reply->load(['user', 'images', 'children'])))->resolve();
+        $payload = (new WebsiteReplyResource($reply->load(['user', 'images', 'children'])))->resolve();
         $payload['mentioned_users'] = CommunityMentions::extract($reply->text_en, $reply->text_ar);
 
         return ApiResponse::success($payload, 'Reply created successfully.', 'تم إنشاء الرد بنجاح.', 201);
@@ -157,7 +157,7 @@ class ReplyController extends Controller
             }
         }
 
-        $payload = (new ReplyResource($reply->fresh(['user', 'images', 'children'])))->resolve();
+        $payload = (new WebsiteReplyResource($reply->fresh(['user', 'images', 'children'])))->resolve();
         $payload['mentioned_users'] = CommunityMentions::extract($textEn, $textAr);
 
         return ApiResponse::success($payload, 'Reply updated successfully.', 'تم تحديث الرد بنجاح.');

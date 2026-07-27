@@ -69,11 +69,6 @@ class AllEndpointsCompatibilityTest extends TestCase
                     'first_name',
                     'last_name',
                     'user_type',
-                    'civil_id',
-                    'manual_id',
-                    'is_social_login',
-                    'is_banned',
-                    'preferred_language',
                 ],
             ])
             ->assertJsonPath('data.email', 'new.volunteer@test.com')
@@ -142,7 +137,9 @@ class AllEndpointsCompatibilityTest extends TestCase
                         'auth_token',
                         'user_type',
                         'manual_id',
-                        'is_social_login',
+                        'first_name',
+                        'last_name',
+                        'profile_pic',
                     ],
                 ],
             ])
@@ -289,9 +286,9 @@ class AllEndpointsCompatibilityTest extends TestCase
         $this->assertSuccessEnvelope($ok, 200, 'Choices retrieved successfully.');
         $ok->assertJsonStructure([
             'data' => [
-                ['id', 'choice_type', 'value_en', 'value_ar'],
+                ['id', 'value_en', 'value_ar'],
             ],
-        ])->assertJsonPath('data.0.choice_type', 'gender');
+        ]);
 
         $missing = $this->getJson('/api/choices/does_not_exist/');
         $this->assertErrorEnvelope($missing, 404, 'No choices found for the given choice type.');
@@ -346,7 +343,7 @@ class AllEndpointsCompatibilityTest extends TestCase
         $this->assertPaginationMeta($response);
         $response->assertJsonStructure([
             'data' => [
-                ['id', 'question_en', 'question_ar', 'answer_en', 'answer_ar', 'created_at', 'updated_at', 'is_deleted', 'deleted_at'],
+                ['id', 'question_en', 'question_ar', 'answer_en', 'answer_ar'],
             ],
         ]);
     }

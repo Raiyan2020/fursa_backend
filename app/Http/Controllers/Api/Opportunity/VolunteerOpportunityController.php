@@ -9,6 +9,9 @@ use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Opportunity\VolunteerOpportunityResource;
+use App\Http\Resources\Website\WebsiteEventResource;
+use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
+use App\Http\Resources\Website\WebsiteVolunteerOpportunityResource;
 use App\Models\Event;
 use App\Models\LearnServeOpportunity;
 use App\Models\User;
@@ -187,7 +190,7 @@ class VolunteerOpportunityController extends Controller
 
         return ApiResponse::paginated(
             $paginator,
-            VolunteerOpportunityResource::collection($paginator->getCollection()),
+            WebsiteVolunteerOpportunityResource::collection($paginator->getCollection()),
             'Opportunities retrieved successfully.',
             'تم استرجاع الفرص بنجاح.'
         );
@@ -234,22 +237,24 @@ class VolunteerOpportunityController extends Controller
         $this->applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, $request, $user);
 
         $combined = collect()
-            ->merge(VolunteerOpportunityResource::collection(
-                $volunteerQuery->with(['creator', 'gender.choiceType', 'interests'])->get()
+            ->merge(WebsiteVolunteerOpportunityResource::collection(
+                $volunteerQuery->with(['creator', 'gender.choiceType', 'interests', 'images', 'registrations'])->get()
             )->resolve())
-            ->merge(LearnServeOpportunityResource::collection(
-                $learnQuery->with(['creator', 'interests'])->get()
+            ->merge(WebsiteLearnServeOpportunityResource::collection(
+                $learnQuery->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])->get()
             )->resolve())
-            ->merge($eventQuery->get()->map(fn (Event $e) => [
-                'id' => $e->id,
-                'type' => 'event',
-                'title_en' => $e->title_en,
-                'title_ar' => $e->title_ar,
-                'opportunity_status' => $e->event_status?->value,
-                'start_date' => optional($e->start_date)?->toDateString(),
-                'end_date' => optional($e->end_date)?->toDateString(),
-            ]))
-            ->sortBy(fn ($item) => match ($item['opportunity_status'] ?? '') {
+            ->merge(WebsiteEventResource::collection(
+                $eventQuery->with([
+                    'images',
+                    'interests',
+                    'organization.user',
+                    'eventType.choiceType',
+                    'participationType.choiceType',
+                    'attendanceType.choiceType',
+                    'genderChoice.choiceType',
+                ])->get()
+            )->resolve())
+            ->sortBy(fn ($item) => match ($item['event_status'] ?? $item['opportunity_status'] ?? '') {
                 'upcoming' => 1,
                 'inprogress' => 2,
                 'completed' => 3,
@@ -330,8 +335,8 @@ class VolunteerOpportunityController extends Controller
         }
 
         $combined = collect()
-            ->merge(VolunteerOpportunityResource::collection($volunteerQuery->with(['creator', 'interests'])->get())->resolve())
-            ->merge(LearnServeOpportunityResource::collection($learnQuery->with(['creator', 'interests'])->get())->resolve())
+            ->merge(WebsiteVolunteerOpportunityResource::collection($volunteerQuery->with(['creator', 'interests', 'images', 'registrations'])->get())->resolve())
+            ->merge(WebsiteLearnServeOpportunityResource::collection($learnQuery->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])->get())->resolve())
             ->sortBy(fn ($item) => match ($item['opportunity_status'] ?? '') {
                 'upcoming' => 1,
                 'inprogress' => 2,

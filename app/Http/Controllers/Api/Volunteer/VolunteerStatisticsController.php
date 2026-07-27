@@ -58,7 +58,6 @@ class VolunteerStatisticsController extends Controller
         $reliefTrips = VolunteerOpportunity::query()->notDeleted()->where('is_relief', true)->count();
 
         return ApiResponse::success([
-            'results' => $yearList,
             'yearly_hours' => $yearList,
             'grand_total_hours' => $grandTotal,
             'volunteer_opportunities_completed' => $volunteerCompleted,
@@ -101,8 +100,7 @@ class VolunteerStatisticsController extends Controller
                 'user_id' => $row->user_id,
                 'name' => trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')),
                 'nickname' => $profile?->nickname,
-                'volunteer_hours' => $volHours,
-                'organizing_hours' => $orgHours,
+                'profile_pic' => getimg($user?->profile_pic),
                 'total_hours' => $total,
                 'badge_info' => $this->badgeInfo($user),
             ];
@@ -153,12 +151,6 @@ class VolunteerStatisticsController extends Controller
         return ApiResponse::success([
             'individuals' => $individualsData,
             'teams' => $teamData,
-            'cycle_info' => [
-                'cycle_type' => 'monthly',
-                'cycle_scope' => 'current',
-                'start_date' => now()->startOfYear()->toDateString(),
-                'end_date' => now()->endOfYear()->toDateString(),
-            ],
         ], 'Top volunteers retrieved successfully.', 'تم استرجاع أفضل المتطوعين بنجاح.');
     }
 
@@ -297,40 +289,43 @@ class VolunteerStatisticsController extends Controller
             ], 'PDF generation stub.', 'إنشاء PDF غير متوفر بعد.');
         }
 
-        $stats = VolunteerStatistic::query()
-            ->where('user_id', $request->user()->id)
-            ->whereNull('month')
-            ->where('year', now()->year)
-            ->first();
+        $page = max(1, (int) $request->query('page', 1));
+        $limit = min(100, max(1, (int) $request->query('limit', 20)));
 
-        $registrations = VolunteerOpportunityRegistration::query()
+        $coursesQuery = LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('user_id', $request->user()->id)
+            ->where('is_certified', true)
             ->with('opportunity')
-            ->latest()
-            ->limit(20)
+            ->latest();
+
+        $total = (clone $coursesQuery)->count();
+        $courses = $coursesQuery
+            ->skip(($page - 1) * $limit)
+            ->take($limit)
             ->get()
-            ->map(fn ($reg) => [
-                'id' => $reg->id,
-                'title_en' => $reg->opportunity?->title_en,
-                'title_ar' => $reg->opportunity?->title_ar,
-                'registration_date' => $reg->registration_date?->toIso8601String(),
-                'status' => $reg->status?->value,
-            ]);
+            ->map(fn ($registration) => [
+                'title_en' => $registration->opportunity?->title_en,
+                'title_ar' => $registration->opportunity?->title_ar,
+                'year' => optional($registration->registration_date)?->format('Y'),
+            ])
+            ->values();
 
         return ApiResponse::success([
-            'profile' => [
-                'id' => $profile->id,
-                'nickname' => $profile->nickname,
-                'total_volunteer_hours' => $profile->total_volunteer_hours,
-                'total_opportunities' => $profile->total_opportunities,
-                'total_certificates' => $profile->total_certificates,
-                'opportunities_organized' => $profile->opportunities_organized,
-                'current_rank' => $profile->current_rank,
-                'current_year_hours' => $profile->current_year_hours,
+            'total_volunteer_hours' => $profile->total_volunteer_hours,
+            'total_opportunities' => $profile->total_opportunities,
+            'total_certificates' => $profile->total_certificates,
+            'opportunities' => [
+                'data' => $courses,
+                'meta' => [
+                    'pagination' => [
+                        'page' => $page,
+                        'limit' => $limit,
+                        'total' => $total,
+                        'total_pages' => $total > 0 ? (int) ceil($total / $limit) : 0,
+                    ],
+                ],
             ],
-            'year_statistics' => $stats,
-            'recent_registrations' => $registrations,
         ], 'Volunteer details retrieved successfully.', 'تم استرجاع تفاصيل المتطوع بنجاح.');
     }
 

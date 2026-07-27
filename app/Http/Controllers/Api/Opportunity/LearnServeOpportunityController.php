@@ -8,6 +8,7 @@ use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
+use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
 use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
 use App\Support\ApiResponse;
@@ -22,7 +23,7 @@ class LearnServeOpportunityController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = $this->baseQuery($request)
-            ->with(['creator', 'interests', 'images', 'timeSlots'])
+            ->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])
             ->latest();
 
         $page = max(1, (int) $request->query('page', 1));
@@ -31,7 +32,7 @@ class LearnServeOpportunityController extends Controller
 
         return ApiResponse::paginated(
             $paginator,
-            LearnServeOpportunityResource::collection($paginator->getCollection()),
+            WebsiteLearnServeOpportunityResource::collection($paginator->getCollection()),
             'Learn & Serve opportunities retrieved successfully.',
             'تم استرجاع فرص التعلم والخدمة بنجاح.'
         );

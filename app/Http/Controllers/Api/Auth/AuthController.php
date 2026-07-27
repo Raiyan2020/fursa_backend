@@ -9,6 +9,9 @@ use App\Http\Resources\Auth\AccountResource;
 use App\Http\Resources\Auth\PublicProfileResource;
 use App\Http\Resources\Auth\SocialAuthUserResource;
 use App\Http\Resources\Auth\UserResource;
+use App\Http\Resources\Website\WebsiteLoginUserResource;
+use App\Http\Resources\Website\WebsitePublicProfileResource;
+use App\Http\Resources\Website\WebsiteRegisterUserResource;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use App\Support\ApiResponse;
@@ -35,7 +38,7 @@ class AuthController extends Controller
             return ApiResponse::error('Registration failed.', 'فشل التسجيل.', 400, $e->getMessage());
         }
 
-        $payload = (new UserResource($user))->resolve();
+        $payload = (new WebsiteRegisterUserResource($user))->resolve();
         if (config('fursa.expose_otp_in_response') && $user->getAttribute('debug_otp')) {
             $payload['otp'] = $user->getAttribute('debug_otp');
         }
@@ -102,7 +105,7 @@ class AuthController extends Controller
         }
 
         [$user, $token] = $this->authService->login($user, (bool) ($data['rememberMe'] ?? false));
-        $payload = (new UserResource($user))->resolve();
+        $payload = (new WebsiteLoginUserResource($user))->resolve();
         $payload['auth_token'] = $token->key;
 
         return ApiResponse::success(
@@ -405,7 +408,7 @@ class AuthController extends Controller
         $token = $this->authService->issueSocialToken($user);
         $user = $user->fresh(['volunteerProfile', 'organizationProfile', 'emergencyContactRelationship.choiceType']);
         $user->_is_new_user = $isNewUser;
-        $payload = (new SocialAuthUserResource($user))->resolve();
+        $payload = (new WebsiteLoginUserResource($user))->resolve();
         $payload['auth_token'] = $token->key;
 
         return ApiResponse::success($payload, 'Login successful. Welcome!', 'تم تسجيل الدخول بنجاح. مرحبًا!');
@@ -470,6 +473,6 @@ class AuthController extends Controller
             return ApiResponse::error('User not found.', 'المستخدم غير موجود.', 404);
         }
 
-        return ApiResponse::success(new PublicProfileResource($user));
+        return ApiResponse::success(new WebsitePublicProfileResource($user));
     }
 }

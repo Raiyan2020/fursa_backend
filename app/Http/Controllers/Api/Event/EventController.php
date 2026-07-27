@@ -8,6 +8,7 @@ use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventResource;
+use App\Http\Resources\Website\WebsiteEventResource;
 use App\Models\Event;
 use App\Models\EventImage;
 use App\Models\EventRegistration;
@@ -29,11 +30,20 @@ class EventController extends Controller
 
         $page = max(1, (int) $request->query('page', 1));
         $limit = min(100, max(1, (int) $request->query('limit', 20)));
-        $paginator = $query->with(['images', 'sponsorImages', 'interests'])->paginate($limit, ['*'], 'page', $page);
+        $paginator = $query->with([
+            'images',
+            'sponsorImages',
+            'interests',
+            'organization.user',
+            'eventType.choiceType',
+            'participationType.choiceType',
+            'attendanceType.choiceType',
+            'genderChoice.choiceType',
+        ])->paginate($limit, ['*'], 'page', $page);
 
         return ApiResponse::paginated(
             $paginator,
-            EventResource::collection($paginator->getCollection()),
+            WebsiteEventResource::collection($paginator->getCollection()),
             'Events retrieved successfully.',
             'تم استرداد الأحداث بنجاح.'
         );
@@ -41,7 +51,16 @@ class EventController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $event = Event::query()->notDeleted()->with(['images', 'sponsorImages', 'interests', 'organization.user'])->find($id);
+        $event = Event::query()->notDeleted()->with([
+            'images',
+            'sponsorImages',
+            'interests',
+            'organization.user',
+            'eventType.choiceType',
+            'participationType.choiceType',
+            'attendanceType.choiceType',
+            'genderChoice.choiceType',
+        ])->find($id);
         if (! $event) {
             return ApiResponse::error('Event not found.', 'الحدث غير موجود.', 404);
         }
@@ -55,16 +74,11 @@ class EventController extends Controller
             $event->increment('view_count');
         }
 
-        $data = (new EventResource($event))->resolve();
-        if ($event->registration_required && $event->participants_needed > 0) {
-            $registered = EventRegistration::query()
-                ->notDeleted()
-                ->where('event_id', $event->id)
-                ->count();
-            $data['remaining_slots'] = max(0, $event->participants_needed - $registered);
-        }
-
-        return ApiResponse::success($data, 'Event retrieved successfully.', 'تم استرداد الحدث بنجاح.');
+        return ApiResponse::success(
+            (new WebsiteEventResource($event, detail: true))->resolve(),
+            'Event retrieved successfully.',
+            'تم استرداد الحدث بنجاح.'
+        );
     }
 
     public function store(Request $request): JsonResponse
