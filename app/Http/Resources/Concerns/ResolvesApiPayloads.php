@@ -4,7 +4,6 @@ namespace App\Http\Resources\Concerns;
 
 use App\Models\MasterChoice;
 use App\Models\User;
-use Illuminate\Support\Facades\Storage;
 
 trait ResolvesApiPayloads
 {
@@ -40,7 +39,7 @@ trait ResolvesApiPayloads
         }
 
         if ($user->profile_pic) {
-            return Storage::disk('public')->url($user->profile_pic);
+            return getimg($user->profile_pic);
         }
 
         if ($user->is_social_login && $user->social_profile_pic_url) {
@@ -95,7 +94,7 @@ trait ResolvesApiPayloads
             return null;
         }
 
-        return Storage::disk('public')->url($path);
+        return getimg($path);
     }
 
     protected function fullName(?User $user): string

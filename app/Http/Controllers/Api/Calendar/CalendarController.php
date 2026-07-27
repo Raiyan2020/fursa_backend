@@ -116,7 +116,7 @@ class CalendarController extends Controller
         $request->validate(['ics_file' => ['required', 'file']]);
 
         $path = $request->file('ics_file')->store('calendar_ics', 'public');
-        $fileUrl = Storage::disk('public')->url($path);
+        $fileUrl = getimg($path);
         $webcalUrl = str_replace(['https://', 'http://'], 'webcal://', $fileUrl);
 
         return ApiResponse::success([

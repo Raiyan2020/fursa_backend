@@ -417,6 +417,6 @@ class HomeController extends Controller
             return $path;
         }
 
-        return function_exists('getimg') ? getimg($path) : Storage::disk('public')->url($path);
+        return getimg($path);
     }
 }

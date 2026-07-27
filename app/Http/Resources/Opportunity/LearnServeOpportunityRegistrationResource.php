@@ -26,7 +26,7 @@ class LearnServeOpportunityRegistrationResource extends JsonResource
             'is_attended' => $this->is_attended,
             'is_certified' => $this->is_certified,
             'certificate_image' => $this->certificate_image
-                ? Storage::disk('public')->url($this->certificate_image)
+                ? getimg($this->certificate_image)
                 : null,
             'time_slot' => $this->assignment?->timeSlot ? [
                 'id' => $this->assignment->timeSlot->id,

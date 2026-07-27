@@ -169,7 +169,7 @@ class VolunteerProfileController extends Controller
             return ApiResponse::error('Volunteer profile not found.', 'ملف المتطوع غير موجود.', 404);
         }
 
-        $url = $profile->qr_code ? Storage::disk('public')->url($profile->qr_code) : null;
+        $url = $profile->qr_code ? getimg($profile->qr_code) : null;
         $user = $profile->user;
         $name = trim(($user?->first_name ?? '').' '.($user?->last_name ?? ''));
 

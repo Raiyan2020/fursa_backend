@@ -14,7 +14,7 @@ class OrganizationDocumentResource extends JsonResource
         return [
             'id' => $this->id,
             'document' => $this->document
-                ? Storage::disk('public')->url($this->document)
+                ? getimg($this->document)
                 : null,
             'uploaded_at' => optional($this->uploaded_at)?->toIso8601String(),
         ];

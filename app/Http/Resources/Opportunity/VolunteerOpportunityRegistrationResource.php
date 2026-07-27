@@ -47,7 +47,7 @@ class VolunteerOpportunityRegistrationResource extends JsonResource
 
         $qrCodeUrl = null;
         if ($volunteerProfile?->qr_code) {
-            $qrCodeUrl = Storage::disk('public')->url($volunteerProfile->qr_code);
+            $qrCodeUrl = getimg($volunteerProfile->qr_code);
         }
 
         return [

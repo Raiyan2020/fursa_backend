@@ -11,7 +11,6 @@ use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Shared read payload helpers matching Django opportunity serializers.
@@ -24,7 +23,7 @@ trait ResolvesOpportunitySerializerFields
     {
         return collect($images)->map(fn ($img) => [
             'id' => $img->id,
-            'image' => $img->image ? Storage::disk('public')->url($img->image) : null,
+            'image' => $img->image ? getimg($img->image) : null,
             'is_after_completed' => (bool) $img->is_after_completed,
         ])->values()->all();
     }
@@ -37,7 +36,7 @@ trait ResolvesOpportunitySerializerFields
 
             if ($org?->user) {
                 if ($org->user->profile_pic) {
-                    $image = Storage::disk('public')->url($org->user->profile_pic);
+                    $image = getimg($org->user->profile_pic);
                 } elseif ($org->user->social_profile_pic_url) {
                     $image = $org->user->social_profile_pic_url;
                 }
@@ -184,7 +183,7 @@ trait ResolvesOpportunitySerializerFields
 
     protected function licenseImageUrl(?string $path): ?string
     {
-        return $path ? Storage::disk('public')->url($path) : null;
+        return $path ? getimg($path) : null;
     }
 
     protected function formatDateTime(mixed $value): ?string

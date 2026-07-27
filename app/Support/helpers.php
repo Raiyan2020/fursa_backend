@@ -66,6 +66,29 @@ if (! function_exists('uploadpath')) {
     }
 }
 
+if (! function_exists('normalize_storage_path')) {
+    /**
+     * Normalize a stored file path for the Laravel public disk.
+     *
+     * Legacy Django/GCS rows may include a leading "public/" segment even though
+     * files live under storage/app/public (served via public/storage symlink).
+     */
+    function normalize_storage_path(string $path): string
+    {
+        $path = ltrim($path, '/');
+
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+        }
+
+        if (str_starts_with($path, 'public/')) {
+            $path = substr($path, strlen('public/'));
+        }
+
+        return $path;
+    }
+}
+
 if (! function_exists('getimg')) {
     /**
      * Convert a stored path to a public asset URL (Nafas-compatible).
@@ -80,13 +103,7 @@ if (! function_exists('getimg')) {
             return $filename;
         }
 
-        // Already stored as "/storage/..."
-        if (str_starts_with($filename, '/storage/') || str_starts_with($filename, 'storage/')) {
-            return asset(ltrim($filename, '/'));
-        }
-
-        // Relative disk path e.g. "banners/x.png"
-        return asset('storage/'.ltrim($filename, '/'));
+        return asset('storage/'.normalize_storage_path($filename));
     }
 }
 
