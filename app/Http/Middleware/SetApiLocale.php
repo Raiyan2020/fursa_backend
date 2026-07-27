@@ -10,7 +10,9 @@ class SetApiLocale
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Frontend clients may send X-Lang; Postman/docs often use Lang.
         $locale = $request->header('Lang')
+            ?? $request->header('X-Lang')
             ?? $request->header('Accept-Language')
             ?? $request->query('lang')
             ?? 'ar';

@@ -19,7 +19,21 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    /*
+    | Keep "*" for API clients (Postman / ApiDog). Browsers calling from a
+    | frontend origin also work as long as the client does NOT send cookies
+    | with credentials: 'include' / withCredentials: true (that combination
+    | is rejected by browsers when Allow-Origin is "*").
+    | Override with CORS_ALLOWED_ORIGINS=http://localhost:3000,https://...
+    */
+    'allowed_origins' => array_values(array_filter(array_unique(
+        trim((string) env('CORS_ALLOWED_ORIGINS', '*')) === '*'
+            ? ['*']
+            : array_merge(
+                [env('FRONTEND_HOST', 'http://localhost:3000')],
+                array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', '')))
+            )
+    ))),
 
     'allowed_origins_patterns' => [],
 
@@ -27,8 +41,8 @@ return [
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    'max_age' => 60 * 60 * 24,
 
-    'supports_credentials' => false,
+    'supports_credentials' => (bool) env('CORS_SUPPORTS_CREDENTIALS', false),
 
 ];

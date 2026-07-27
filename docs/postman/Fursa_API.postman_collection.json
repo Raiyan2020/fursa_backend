@@ -18,87 +18,108 @@
     "variable": [
         {
             "key": "base_url",
-            "value": "http://fursa.test/api/"
+            "value": "https://portal.fursa.raiyan.cc/api/",
+            "description": "Base URL for the Fursa API, including the `/api/` prefix and trailing slash. Production/staging: https://portal.fursa.raiyan.cc/api/ — local: http://localhost:8000/api/"
         },
         {
             "key": "token",
-            "value": ""
+            "value": "",
+            "description": "Authentication token issued after a successful login or registration verification. It is automatically applied to protected requests as a Bearer token."
         },
         {
             "key": "reset_token",
-            "value": ""
+            "value": "",
+            "description": "Short-lived password-reset token returned after successful password OTP verification. Required by the change-password endpoint."
         },
         {
             "key": "email",
-            "value": "volunteer@fursa.local"
+            "value": "volunteer@fursa.local",
+            "description": "Email address of the volunteer account used by authentication, profile, registration, and account-management requests."
         },
         {
             "key": "password",
-            "value": "Password1"
+            "value": "Password1",
+            "description": "Password for the selected demo account. The default value satisfies the API requirement of at least eight characters, including an uppercase letter and a digit."
         },
         {
             "key": "org_email",
-            "value": "organization@fursa.local"
+            "value": "organization@fursa.local",
+            "description": "Email address of the organization account used for organization-only operations such as creating events and managing registrations."
         },
         {
             "key": "user_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a user record. Replace it with an ID returned by a user, profile, registration, or authentication response."
         },
         {
             "key": "choice_type",
-            "value": "gender"
+            "value": "gender",
+            "description": "Machine-readable master-choice category requested from the choices endpoint, such as `gender`, `nationality`, or another configured choice type."
         },
         {
             "key": "volunteer_uuid",
-            "value": "00000000-0000-0000-0000-000000000001"
+            "value": "00000000-0000-0000-0000-000000000001",
+            "description": "Public UUID assigned to a volunteer profile and used by the QR-code profile verification endpoint."
         },
         {
             "key": "otp",
-            "value": "123456"
+            "value": "123456",
+            "description": "One-time verification code delivered to the user for account activation or password recovery. Replace the example with the latest unexpired code."
         },
         {
             "key": "opportunity_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a volunteer or Learn & Serve opportunity. Use the ID returned by the corresponding create or list endpoint."
         },
         {
             "key": "event_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of an event. Use the ID returned by the event create or list endpoint."
         },
         {
             "key": "post_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a community post used by detail, update, reply, contact, like, and deletion requests."
         },
         {
             "key": "registration_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of an opportunity or event registration. Use the ID returned by the relevant registration endpoint."
         },
         {
             "key": "feedback_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of an opportunity or event feedback record used for detail, update, delete, and like operations."
         },
         {
             "key": "sponsor_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a sponsor application or approved sponsor record."
         },
         {
             "key": "contact_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a contact-us submission used by detail, update, and deletion requests."
         },
         {
             "key": "time_slot_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of an event or Learn & Serve time slot used for assignment and time-slot management."
         },
         {
             "key": "role_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a volunteer-opportunity role used when assigning a registered volunteer to a specific responsibility."
         },
         {
             "key": "team_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a volunteer-opportunity team used when grouping or assigning registered volunteers."
         },
         {
             "key": "reply_id",
-            "value": "1"
+            "value": "1",
+            "description": "Database identifier of a community reply used by detail, update, delete, nested-reply, and like requests."
         }
     ],
     "item": [
