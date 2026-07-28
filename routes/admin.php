@@ -133,7 +133,11 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
 
     // Sponsors
     Route::get('sponsors', [SponsorController::class, 'index'])->name('sponsors.index');
+    Route::get('sponsors/create', [SponsorController::class, 'create'])->name('sponsors.create');
+    Route::post('sponsors', [SponsorController::class, 'store'])->name('sponsors.store');
     Route::get('sponsors/{sponsor}', [SponsorController::class, 'show'])->name('sponsors.show');
+    Route::get('sponsors/{sponsor}/edit', [SponsorController::class, 'edit'])->name('sponsors.edit');
+    Route::put('sponsors/{sponsor}', [SponsorController::class, 'update'])->name('sponsors.update');
     Route::delete('sponsors/{sponsor}', [SponsorController::class, 'destroy'])->name('sponsors.destroy');
     Route::post('sponsors/{sponsor}/approve', [SponsorController::class, 'approve'])->name('sponsors.approve');
     Route::post('sponsors/{sponsor}/reject', [SponsorController::class, 'reject'])->name('sponsors.reject');

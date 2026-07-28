@@ -168,4 +168,54 @@ class AdminFlowTest extends TestCase
 
         $this->assertTrue((bool) $approval->fresh()->requires_approval);
     }
+
+    public function test_admin_sponsors_crud_flow(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        $this->get('/dashboard/sponsors/create')->assertOk();
+
+        $this->post('/dashboard/sponsors', [])
+            ->assertSessionHasErrors(['org_name', 'person_name', 'email', 'approval_status']);
+
+        $logo = UploadedFile::fake()->image('stc-logo.png', 200, 100);
+
+        $this->post('/dashboard/sponsors', [
+            'org_name' => 'STC',
+            'person_name' => 'Sponsor Contact',
+            'email' => 'sponsor@example.com',
+            'country_code' => '+965',
+            'phone_number' => '50000000',
+            'sponsorship_details' => 'Homepage sponsor',
+            'preferred_language' => 'en',
+            'approval_status' => 'approved',
+            'sponsor_logo' => $logo,
+        ])->assertRedirect(route('admin.sponsors.index'));
+
+        $sponsor = \App\Models\Sponsor::query()->where('email', 'sponsor@example.com')->firstOrFail();
+
+        $this->assertSame('approved', $sponsor->approval_status->value);
+        $this->assertNotEmpty($sponsor->sponsor_logo);
+        Storage::disk('public')->assertExists(normalize_storage_path($sponsor->sponsor_logo));
+
+        $this->get('/dashboard/sponsors/'.$sponsor->id)->assertOk();
+        $this->get('/dashboard/sponsors/'.$sponsor->id.'/edit')->assertOk();
+
+        $this->put('/dashboard/sponsors/'.$sponsor->id, [
+            'org_name' => 'STC Updated',
+            'person_name' => 'Updated Contact',
+            'email' => 'sponsor@example.com',
+            'preferred_language' => 'ar',
+            'approval_status' => 'pending',
+        ])->assertRedirect(route('admin.sponsors.index'));
+
+        $this->assertDatabaseHas('sponsors', [
+            'id' => $sponsor->id,
+            'org_name' => 'STC Updated',
+            'approval_status' => 'pending',
+        ]);
+
+        $this->delete('/dashboard/sponsors/'.$sponsor->id)->assertRedirect();
+        $this->assertTrue((bool) $sponsor->fresh()->is_deleted);
+    }
 }

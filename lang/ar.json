@@ -259,5 +259,9 @@
     "number of opportunities": "عدد الفرص",
     "time duration": "المدة الزمنية",
     "time unit": "وحدة الزمن",
-    "manual attendance threshold": "حد الحضور اليدوي"
+    "manual attendance threshold": "حد الحضور اليدوي",
+    "logo": "الشعار",
+    "no image": "لا توجد صورة",
+    "country_code": "رمز الدولة",
+    "Appears on the website sponsors section when approved": "يظهر في قسم الرعاة على الموقع عند الموافقة"
 }

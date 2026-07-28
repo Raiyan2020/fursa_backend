@@ -56,7 +56,7 @@ class RolePermissionSeeder extends Seeder
             'volunteer-opportunities.view', 'volunteer-opportunities.update', 'volunteer-opportunities.approve',
             'learn-serve-opportunities.view', 'learn-serve-opportunities.update', 'learn-serve-opportunities.approve',
             'events.view', 'events.update', 'events.approve',
-            'sponsors.view', 'sponsors.approve',
+            'sponsors.view', 'sponsors.create', 'sponsors.update', 'sponsors.approve',
             'fursa-friends.view', 'fursa-friends.create',
         ]);
 

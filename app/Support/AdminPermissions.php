@@ -26,7 +26,7 @@ class AdminPermissions
             'volunteer-opportunities.view', 'volunteer-opportunities.update', 'volunteer-opportunities.delete', 'volunteer-opportunities.approve',
             'learn-serve-opportunities.view', 'learn-serve-opportunities.update', 'learn-serve-opportunities.delete', 'learn-serve-opportunities.approve',
             'events.view', 'events.update', 'events.delete', 'events.approve',
-            'sponsors.view', 'sponsors.delete', 'sponsors.approve',
+            'sponsors.view', 'sponsors.create', 'sponsors.update', 'sponsors.delete', 'sponsors.approve',
             'fursa-friends.view', 'fursa-friends.create', 'fursa-friends.delete',
 
             // Content
