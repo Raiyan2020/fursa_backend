@@ -32,6 +32,7 @@ class SponsorController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        unset($data['sponsor_logo']);
         $data['approval_status'] = $data['approval_status'] ?? ApprovalStatus::APPROVED->value;
 
         if ($request->hasFile('sponsor_logo')) {
@@ -62,6 +63,7 @@ class SponsorController extends Controller
     public function update(Request $request, Sponsor $sponsor)
     {
         $data = $this->validated($request, updating: true);
+        unset($data['sponsor_logo']);
 
         if ($request->hasFile('sponsor_logo')) {
             $old = $sponsor->sponsor_logo;

@@ -183,7 +183,7 @@ class AdminFlowTest extends TestCase
         $this->post('/dashboard/sponsors', [
             'org_name' => 'STC',
             'person_name' => 'Sponsor Contact',
-            'email' => 'sponsor@example.com',
+            'email' => 'stc.sponsor@fursa.test',
             'country_code' => '+965',
             'phone_number' => '50000000',
             'sponsorship_details' => 'Homepage sponsor',
@@ -192,7 +192,7 @@ class AdminFlowTest extends TestCase
             'sponsor_logo' => $logo,
         ])->assertRedirect(route('admin.sponsors.index'));
 
-        $sponsor = \App\Models\Sponsor::query()->where('email', 'sponsor@example.com')->firstOrFail();
+        $sponsor = \App\Models\Sponsor::query()->where('email', 'stc.sponsor@fursa.test')->firstOrFail();
 
         $this->assertSame('approved', $sponsor->approval_status->value);
         $this->assertNotEmpty($sponsor->sponsor_logo);
@@ -204,7 +204,7 @@ class AdminFlowTest extends TestCase
         $this->put('/dashboard/sponsors/'.$sponsor->id, [
             'org_name' => 'STC Updated',
             'person_name' => 'Updated Contact',
-            'email' => 'sponsor@example.com',
+            'email' => 'stc.sponsor@fursa.test',
             'preferred_language' => 'ar',
             'approval_status' => 'pending',
         ])->assertRedirect(route('admin.sponsors.index'));
