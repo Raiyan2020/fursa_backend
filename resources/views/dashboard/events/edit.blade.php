@@ -6,7 +6,7 @@
             <div class="card">
                 <div class="card-header"><h4 class="card-title">{{ __('events') }} - {{ __('edit') }}</h4></div>
                 <div class="card-content"><div class="card-body">
-                    <form action="{{ route('admin.events.update', $event) }}" method="POST">
+                    <form action="{{ route('admin.events.update', $event) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
                         @include('dashboard.events.form')

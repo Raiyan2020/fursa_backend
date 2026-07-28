@@ -226,4 +226,80 @@ class AdminFlowTest extends TestCase
         $this->delete('/dashboard/sponsors/'.$sponsor->id)->assertRedirect();
         $this->assertTrue((bool) $sponsor->fresh()->is_deleted);
     }
+
+    public function test_admin_events_crud_flow(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        [$orgUser] = $this->createOrganizationActor('event-org@fursa.test');
+        $org = $orgUser->organizationProfile;
+
+        $this->get('/dashboard/events/create')->assertOk();
+
+        $this->post('/dashboard/events', [])
+            ->assertSessionHasErrors([
+                'created_by',
+                'title_en',
+                'title_ar',
+                'description_en',
+                'description_ar',
+                'start_date',
+                'end_date',
+                'approval_status',
+                'event_status',
+            ]);
+
+        $image = UploadedFile::fake()->image('yv-connect.png', 800, 400);
+
+        $this->post('/dashboard/events', [
+            'created_by' => $org->id,
+            'title_en' => 'YV CONNECT',
+            'title_ar' => 'YV CONNECT',
+            'description_en' => 'What is the idea?',
+            'description_ar' => 'شنو فكرته؟',
+            'start_date' => '2026-07-29',
+            'end_date' => '2026-07-29',
+            'start_time' => '16:00',
+            'end_time' => '22:00',
+            'location_en' => 'Kuwait National Library',
+            'location_ar' => 'مكتبة الكويت الوطنية',
+            'from_age' => 15,
+            'participants_needed' => 100,
+            'registration_required' => '1',
+            'preferred_language' => 'ar',
+            'primary_language' => 'ar',
+            'approval_status' => 'approved',
+            'event_status' => 'upcoming',
+            'images' => [$image],
+        ])->assertRedirect(route('admin.events.index'));
+
+        $event = \App\Models\Event::query()->where('title_en', 'YV CONNECT')->firstOrFail();
+        $this->assertSame('approved', $event->approval_status->value);
+        $this->assertSame($org->id, $event->created_by);
+        $this->assertTrue($event->images()->exists());
+
+        $this->get('/dashboard/events/'.$event->id)->assertOk();
+        $this->get('/dashboard/events/'.$event->id.'/edit')->assertOk();
+
+        $this->put('/dashboard/events/'.$event->id, [
+            'created_by' => $org->id,
+            'title_en' => 'YV CONNECT Updated',
+            'title_ar' => 'YV CONNECT',
+            'description_en' => 'Updated description',
+            'description_ar' => 'وصف محدث',
+            'start_date' => '2026-07-29',
+            'end_date' => '2026-07-29',
+            'from_age' => 15,
+            'approval_status' => 'approved',
+            'event_status' => 'upcoming',
+        ])->assertRedirect(route('admin.events.index'));
+
+        $this->assertDatabaseHas('events', [
+            'id' => $event->id,
+            'title_en' => 'YV CONNECT Updated',
+        ]);
+
+        $this->delete('/dashboard/events/'.$event->id)->assertRedirect();
+        $this->assertTrue((bool) $event->fresh()->is_deleted);
+    }
 }
