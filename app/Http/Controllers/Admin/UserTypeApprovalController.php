@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdatesUserTypeApprovalRequest;
 use App\Models\UserTypeApproval;
-use Illuminate\Http\Request;
 
 class UserTypeApprovalController extends Controller
 {
@@ -20,7 +20,7 @@ class UserTypeApprovalController extends Controller
         return view('dashboard.user-type-approvals.edit', compact('approval'));
     }
 
-    public function update(Request $request, UserTypeApproval $approval)
+    public function update(UpdatesUserTypeApprovalRequest $request, UserTypeApproval $approval)
     {
         $approval->update([
             'requires_approval' => $request->boolean('requires_approval'),

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdatesLicenseRequirementRequest;
 use App\Models\UserRoleLicenseRequirement;
-use Illuminate\Http\Request;
 
 class LicenseRequirementController extends Controller
 {
@@ -20,7 +20,7 @@ class LicenseRequirementController extends Controller
         return view('dashboard.license-requirements.edit', compact('requirement'));
     }
 
-    public function update(Request $request, UserRoleLicenseRequirement $requirement)
+    public function update(UpdatesLicenseRequirementRequest $request, UserRoleLicenseRequirement $requirement)
     {
         $requirement->update([
             'license_required' => $request->boolean('license_required'),

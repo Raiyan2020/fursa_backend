@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Models\UserRoleLicenseRequirement;
+use App\Models\UserTypeApproval;
 use App\Models\WhyFursaItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -119,5 +121,51 @@ class AdminFlowTest extends TestCase
 
         $this->delete('/dashboard/pages/'.$page->slug)->assertRedirect();
         $this->assertTrue($page->fresh()->is_deleted);
+    }
+
+    public function test_admin_license_requirement_update_validates_and_persists_checkbox_state(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        $requirement = UserRoleLicenseRequirement::query()->firstOrFail();
+        $requirement->update(['license_required' => true]);
+
+        $this->put('/dashboard/license-requirements/'.$requirement->id, [
+            'license_required' => 'invalid',
+        ])->assertSessionHasErrors('license_required');
+
+        $this->put('/dashboard/license-requirements/'.$requirement->id, [])
+            ->assertRedirect();
+
+        $this->assertFalse((bool) $requirement->fresh()->license_required);
+
+        $this->put('/dashboard/license-requirements/'.$requirement->id, [
+            'license_required' => '1',
+        ])->assertRedirect();
+
+        $this->assertTrue((bool) $requirement->fresh()->license_required);
+    }
+
+    public function test_admin_user_type_approval_update_validates_and_persists_checkbox_state(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        $approval = UserTypeApproval::query()->firstOrFail();
+        $approval->update(['requires_approval' => true]);
+
+        $this->put('/dashboard/user-type-approvals/'.$approval->id, [
+            'requires_approval' => 'invalid',
+        ])->assertSessionHasErrors('requires_approval');
+
+        $this->put('/dashboard/user-type-approvals/'.$approval->id, [])
+            ->assertRedirect();
+
+        $this->assertFalse((bool) $approval->fresh()->requires_approval);
+
+        $this->put('/dashboard/user-type-approvals/'.$approval->id, [
+            'requires_approval' => '1',
+        ])->assertRedirect();
+
+        $this->assertTrue((bool) $approval->fresh()->requires_approval);
     }
 }
