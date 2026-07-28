@@ -3,8 +3,15 @@
     $choiceLabel = fn ($choice) => $choice
         ? ($locale === 'ar' ? ($choice->value_ar ?: $choice->value_en) : ($choice->value_en ?: $choice->value_ar))
         : '';
-    $sponsorValue = fn ($field, $fallback = null) => old($field, optional($sponsor)->{$field} ?? $fallback);
-    $selected = fn ($field, $fallback = null) => (string) $sponsorValue($field, $fallback);
+    $sponsorValue = function ($field, $fallback = null) use ($sponsor) {
+        $value = old($field, optional($sponsor)->{$field} ?? $fallback);
+        if ($value instanceof \BackedEnum) {
+            return $value->value;
+        }
+
+        return $value;
+    };
+    $selected = fn ($field, $fallback = null) => (string) ($sponsorValue($field, $fallback) ?? '');
 @endphp
 <div class="row">
     <div class="col-md-6 mb-1">
