@@ -178,6 +178,14 @@ class AdminFlowTest extends TestCase
         $this->post('/dashboard/sponsors', [])
             ->assertSessionHasErrors(['org_name', 'person_name', 'email', 'approval_status']);
 
+        $this->post('/dashboard/sponsors', [
+            'org_name' => 'STC',
+            'person_name' => 'Sponsor Contact',
+            'email' => 'stc.sponsor@fursa.test',
+            'country_code' => 'Doloribus soluta ut',
+            'approval_status' => 'approved',
+        ])->assertSessionHasErrors('country_code');
+
         $logo = UploadedFile::fake()->image('stc-logo.png', 200, 100);
 
         $this->post('/dashboard/sponsors', [

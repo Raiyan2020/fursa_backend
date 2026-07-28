@@ -149,7 +149,7 @@ class SponsorController extends Controller
             'org_name' => ['required', 'string', 'max:255'],
             'person_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'country_code' => ['nullable', 'string', 'max:10'],
+            'country_code' => ['nullable', 'string', 'max:5'],
             'phone_number' => ['nullable', 'string', 'max:20'],
             'sponsor_type_id' => $choiceRule('sponsor_type'),
             'org_type_id' => $choiceRule('org_type'),
@@ -159,7 +159,7 @@ class SponsorController extends Controller
             'resources_expected' => ['nullable', 'string'],
             'preferred_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],
-            'sponsor_logo' => [$updating ? 'nullable' : 'nullable', 'image', 'max:5120'],
+            'sponsor_logo' => ['nullable', 'image', 'max:5120'],
         ], [], [
             'org_name' => __('admin.attributes.org_name'),
             'person_name' => __('admin.attributes.person_name'),
