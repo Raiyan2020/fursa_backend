@@ -179,7 +179,7 @@ class LearnServeOpportunityController extends Controller
         if ($typeId = $request->query('type')) {
             $choice = MasterChoice::query()
                 ->whereHas('choiceType', fn ($q) => $q->where('name', 'filter-type'))
-                ->find($typeId);
+                ->find(filter_int($typeId) ?? $typeId);
             if ($choice && $choice->value_en === 'Volunteer') {
                 $query->whereRaw('0 = 1');
             }
@@ -201,6 +201,57 @@ class LearnServeOpportunityController extends Controller
             if ($online) {
                 $query->where('format_id', $online);
             }
+        }
+
+        if ($startDate = $request->query('start_date')) {
+            $query->whereDate('start_date', '>=', to_western_digits($startDate));
+        }
+        if ($endDate = $request->query('end_date')) {
+            $query->whereDate('end_date', '<=', to_western_digits($endDate));
+        }
+
+        $tags = $request->query('tags', []);
+        if (! is_array($tags)) {
+            $tags = [$tags];
+        }
+        if ($tags) {
+            $query->whereHas('interests', function ($q) use ($tags) {
+                foreach ($tags as $tag) {
+                    $q->where(function ($iq) use ($tag) {
+                        $iq->where('name_en', 'like', "%{$tag}%")
+                            ->orWhere('name_ar', 'like', "%{$tag}%");
+                    });
+                }
+            });
+        }
+
+        if ($location = $request->query('location')) {
+            $query->where(function ($q) use ($location) {
+                $q->where('location_en', 'like', "%{$location}%")
+                    ->orWhere('location_ar', 'like', "%{$location}%");
+            });
+        }
+
+        $gender = $request->query('gender');
+        $genderId = filter_int($gender);
+        if ($gender && $gender !== 'all' && $genderId !== null) {
+            $query->where('gender_id', $genderId);
+        }
+
+        $minAge = filter_int($request->query('min_age'));
+        if ($minAge !== null) {
+            $query->where('from_age', '>=', $minAge);
+        }
+        $maxAge = filter_int($request->query('max_age'));
+        if ($maxAge !== null) {
+            $query->where('to_age', '<=', $maxAge);
+        }
+
+        $nationality = $request->query('opportunity_nationality');
+        if ($nationality === 'kuwaitis') {
+            $query->where('is_kuwaitis', true);
+        } elseif ($nationality === 'non-kuwaitis') {
+            $query->where('is_kuwaitis', false);
         }
 
         if ($status = $request->query('status')) {

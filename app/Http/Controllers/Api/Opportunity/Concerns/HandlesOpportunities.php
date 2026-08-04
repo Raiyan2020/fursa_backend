@@ -50,7 +50,7 @@ trait HandlesOpportunities
         if ($typeId) {
             $choice = MasterChoice::query()
                 ->whereHas('choiceType', fn ($q) => $q->where('name', 'filter-type'))
-                ->find($typeId);
+                ->find(filter_int($typeId) ?? $typeId);
 
             if ($choice && $choice->value_en !== 'Volunteer') {
                 return ApiResponse::success(
@@ -69,17 +69,19 @@ trait HandlesOpportunities
         }
 
         if ($startDate = $request->query('start_date')) {
-            $query->whereDate('start_date', '>=', $startDate);
+            $query->whereDate('start_date', '>=', to_western_digits($startDate));
         }
         if ($endDate = $request->query('end_date')) {
-            $query->whereDate('end_date', '<=', $endDate);
+            $query->whereDate('end_date', '<=', to_western_digits($endDate));
         }
 
-        if ($minHours = $request->query('min_hours')) {
-            $query->where('volunteer_hours_per_day', '>=', (float) $minHours);
+        $minHours = filter_float($request->query('min_hours'));
+        if ($minHours !== null) {
+            $query->where('volunteer_hours_per_day', '>=', $minHours);
         }
-        if ($maxHours = $request->query('max_hours')) {
-            $query->where('volunteer_hours_per_day', '<=', (float) $maxHours);
+        $maxHours = filter_float($request->query('max_hours'));
+        if ($maxHours !== null) {
+            $query->where('volunteer_hours_per_day', '<=', $maxHours);
         }
 
         $tags = $request->query('tags', []);
@@ -105,15 +107,18 @@ trait HandlesOpportunities
         }
 
         $gender = $request->query('gender');
-        if ($gender && $gender !== 'all' && is_numeric($gender)) {
-            $query->where('gender_id', (int) $gender);
+        $genderId = filter_int($gender);
+        if ($gender && $gender !== 'all' && $genderId !== null) {
+            $query->where('gender_id', $genderId);
         }
 
-        if ($minAge = $request->query('min_age')) {
-            $query->where('from_age', '>=', (int) $minAge);
+        $minAge = filter_int($request->query('min_age'));
+        if ($minAge !== null) {
+            $query->where('from_age', '>=', $minAge);
         }
-        if ($maxAge = $request->query('max_age')) {
-            $query->where('to_age', '<=', (int) $maxAge);
+        $maxAge = filter_int($request->query('max_age'));
+        if ($maxAge !== null) {
+            $query->where('to_age', '<=', $maxAge);
         }
 
         $nationality = $request->query('opportunity_nationality');
@@ -125,7 +130,10 @@ trait HandlesOpportunities
 
         foreach (['is_relief', 'is_urgent', 'is_supports_disabled'] as $boolField) {
             if ($request->has($boolField)) {
-                $query->where($boolField, filter_var($request->query($boolField), FILTER_VALIDATE_BOOLEAN));
+                $bool = filter_bool($request->query($boolField));
+                if ($bool !== null) {
+                    $query->where($boolField, $bool);
+                }
             }
         }
 

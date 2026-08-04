@@ -458,7 +458,7 @@ class VolunteerOpportunityController extends Controller
             });
         }
 
-        if ($status = $request->query('opportunity_status')) {
+        if ($status = $request->query('opportunity_status') ?: $request->query('status')) {
             $volunteerQuery->where('opportunity_status', $status);
             $learnQuery->where('opportunity_status', $status);
             $eventQuery->where('event_status', $status);

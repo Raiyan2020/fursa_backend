@@ -313,7 +313,15 @@ class AllEndpointsCompatibilityTest extends TestCase
                 ],
             ],
         ]);
-        $this->assertGreaterThanOrEqual(1, $response->json('data.statistics.volunteer_count'));
+        $volunteerCount = $response->json('data.statistics.volunteer_count');
+        $this->assertNotNull($volunteerCount);
+        // Locale defaults to ar → Eastern Arabic digits string (e.g. "١").
+        if (is_string($volunteerCount)) {
+            $this->assertMatchesRegularExpression('/^[٠-٩]+$/', $volunteerCount);
+            $this->assertNotSame('٠', $volunteerCount);
+        } else {
+            $this->assertGreaterThanOrEqual(1, $volunteerCount);
+        }
     }
 
     public function test_check_license_requirement_for_volunteer_and_organization(): void

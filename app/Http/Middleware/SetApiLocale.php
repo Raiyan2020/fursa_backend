@@ -10,11 +10,12 @@ class SetApiLocale
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Frontend clients may send X-Lang; Postman/docs often use Lang.
+        // Prefer explicit client language headers/query over browser Accept-Language,
+        // so UI language toggles (EN/AR) control digit localization correctly.
         $locale = $request->header('Lang')
             ?? $request->header('X-Lang')
-            ?? $request->header('Accept-Language')
             ?? $request->query('lang')
+            ?? $request->header('Accept-Language')
             ?? 'ar';
 
         // Accept-Language can be "ar-KW,ar;q=0.9"

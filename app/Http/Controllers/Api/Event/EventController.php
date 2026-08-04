@@ -177,17 +177,26 @@ class EventController extends Controller
         }
 
         if ($orgFilter = $request->query('organization')) {
-            $query->where('created_by', $orgFilter);
+            $orgId = filter_int($orgFilter);
+            if ($orgId !== null) {
+                $query->where('created_by', $orgId);
+            }
         }
 
         if ($eventType = $request->query('event')) {
-            $query->where('event_type_id', $eventType);
+            $eventTypeId = filter_int($eventType);
+            if ($eventTypeId !== null) {
+                $query->where('event_type_id', $eventTypeId);
+            }
         }
 
         if ($eventTypeName = $request->query('event_type')) {
             $choice = MasterChoice::query()
                 ->whereHas('choiceType', fn ($q) => $q->where('name', 'event_type'))
-                ->where('value_en', $eventTypeName)
+                ->where(function ($q) use ($eventTypeName) {
+                    $q->where('value_en', $eventTypeName)
+                        ->orWhere('value_ar', $eventTypeName);
+                })
                 ->first();
             if ($choice) {
                 $query->where('event_type_id', $choice->id);
@@ -202,10 +211,10 @@ class EventController extends Controller
         }
 
         if ($startDate = $request->query('start_date')) {
-            $query->whereDate('start_date', '>=', $startDate);
+            $query->whereDate('start_date', '>=', to_western_digits($startDate));
         }
         if ($endDate = $request->query('end_date')) {
-            $query->whereDate('end_date', '<=', $endDate);
+            $query->whereDate('end_date', '<=', to_western_digits($endDate));
         }
 
         if ($location = $request->query('location')) {
@@ -216,16 +225,19 @@ class EventController extends Controller
         }
 
         if ($gender = $request->query('gender')) {
-            if ($gender !== 'all' && is_numeric($gender)) {
-                $query->where('gender_id', (int) $gender);
+            $genderId = filter_int($gender);
+            if ($gender !== 'all' && $genderId !== null) {
+                $query->where('gender_id', $genderId);
             }
         }
 
-        if ($minAge = $request->query('min_age')) {
-            $query->where('from_age', '>=', (int) $minAge);
+        $minAge = filter_int($request->query('min_age'));
+        if ($minAge !== null) {
+            $query->where('from_age', '>=', $minAge);
         }
-        if ($maxAge = $request->query('max_age')) {
-            $query->where('to_age', '<=', (int) $maxAge);
+        $maxAge = filter_int($request->query('max_age'));
+        if ($maxAge !== null) {
+            $query->where('to_age', '<=', $maxAge);
         }
 
         if ($tags = $request->query('tags')) {
@@ -240,13 +252,16 @@ class EventController extends Controller
             });
         }
 
-        if ($request->query('free_event') === 'true') {
+        $freeEvent = filter_bool($request->query('free_event'));
+        if ($freeEvent === true) {
             $query->where('paid_registration', false);
         }
-        if ($request->query('paid_event') === 'true') {
+        $paidEvent = filter_bool($request->query('paid_event'));
+        if ($paidEvent === true) {
             $query->where('paid_registration', true);
         }
-        if ($request->query('free_event_with_registration') === 'true') {
+        $freeWithReg = filter_bool($request->query('free_event_with_registration'));
+        if ($freeWithReg === true) {
             $query->where('paid_registration', false)->where('registration_required', true);
         }
 
@@ -258,7 +273,10 @@ class EventController extends Controller
         }
 
         if ($participationType = $request->query('participation_type')) {
-            $query->where('participation_type_id', $participationType);
+            $participationTypeId = filter_int($participationType);
+            if ($participationTypeId !== null) {
+                $query->where('participation_type_id', $participationTypeId);
+            }
         }
 
         return $query->orderByRaw("CASE event_status WHEN 'upcoming' THEN 0 WHEN 'inprogress' THEN 1 WHEN 'completed' THEN 2 ELSE 3 END")

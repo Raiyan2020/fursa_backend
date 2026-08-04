@@ -103,9 +103,9 @@ class BaseController extends Controller
         }
 
         $statistics = [
-            'volunteer_count' => User::query()->where('user_type', UserType::VOLUNTEER)->where('is_deleted', false)->count(),
-            'volunteer_team_count' => $volunteerTeamCount,
-            'organization_count' => $organizationQuery->count(),
+            'volunteer_count' => ar_num(User::query()->where('user_type', UserType::VOLUNTEER)->where('is_deleted', false)->count()),
+            'volunteer_team_count' => ar_num($volunteerTeamCount),
+            'organization_count' => ar_num($organizationQuery->count()),
         ];
 
         return ApiResponse::success(

@@ -62,9 +62,9 @@ class WebsiteEventResource extends JsonResource
             'start_time' => $event->start_time,
             'end_time' => $event->end_time,
             'registration_required' => (bool) $event->registration_required,
-            'registered_volunteers_count' => $registeredCount,
-            'participants_needed' => $event->participants_needed,
-            'view_count' => $event->view_count,
+            'registered_volunteers_count' => ar_num($registeredCount),
+            'participants_needed' => ar_num($event->participants_needed),
+            'view_count' => ar_num($event->view_count),
             'location_en' => $event->location_en,
             'location_ar' => $event->location_ar,
             'event_images' => $this->websiteImageListWithIds($images),
@@ -84,12 +84,12 @@ class WebsiteEventResource extends JsonResource
                 'description_ar' => $event->description_ar,
                 'primary_language' => $event->primary_language?->value ?? $event->primary_language,
                 'paid_registration' => (bool) $event->paid_registration,
-                'registration_fee' => $event->registration_fee,
+                'registration_fee' => ar_num($event->registration_fee),
                 'registration_link' => $event->registration_link,
                 'latitude' => $event->latitude,
                 'longitude' => $event->longitude,
-                'from_age' => $event->from_age,
-                'to_age' => $event->to_age,
+                'from_age' => ar_num($event->from_age),
+                'to_age' => ar_num($event->to_age),
                 'attendance_type_display' => $this->websiteChoicePayload($event->attendanceType),
                 'gender_display' => $this->websiteChoicePayload($event->genderChoice),
                 'event_sponsor_images' => collect($event->sponsorImages ?? [])->map(fn ($image) => [
@@ -100,7 +100,7 @@ class WebsiteEventResource extends JsonResource
             ]);
 
             if ($event->registration_required && $event->participants_needed > 0) {
-                $payload['remaining_slots'] = max(0, $event->participants_needed - $registeredCount);
+                $payload['remaining_slots'] = ar_num(max(0, $event->participants_needed - $registeredCount));
             }
         }
 

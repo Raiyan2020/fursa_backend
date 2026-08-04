@@ -89,9 +89,9 @@ class HomeController extends Controller
         }
 
         return [
-            'volunteer_count' => User::query()->where('user_type', UserType::VOLUNTEER)->where('is_deleted', false)->count(),
-            'volunteer_team_count' => $volunteerTeamCount,
-            'organization_count' => $organizationQuery->count(),
+            'volunteer_count' => ar_num(User::query()->where('user_type', UserType::VOLUNTEER)->where('is_deleted', false)->count()),
+            'volunteer_team_count' => ar_num($volunteerTeamCount),
+            'organization_count' => ar_num($organizationQuery->count()),
         ];
     }
 
@@ -153,12 +153,12 @@ class HomeController extends Controller
                     'end_date' => optional($item->end_date)?->format('Y-m-d'),
                     'start_time' => $item->start_time,
                     'end_time' => $item->end_time,
-                    'from_age' => $item->from_age,
-                    'to_age' => $item->to_age,
+                    'from_age' => ar_num($item->from_age),
+                    'to_age' => ar_num($item->to_age),
                     'location_en' => $item->location_en,
                     'location_ar' => $item->location_ar,
-                    'registered_count' => $registered,
-                    'participants_needed' => $needed,
+                    'registered_count' => ar_num($registered),
+                    'participants_needed' => ar_num($needed),
                     'tags' => $item->interests?->map(fn ($i) => [
                         'id' => $i->id,
                         'name_en' => $i->name_en,
@@ -222,8 +222,8 @@ class HomeController extends Controller
                     'type_ar' => $item->learningType?->value_ar,
                     'format_en' => $item->format?->value_en,
                     'format_ar' => $item->format?->value_ar,
-                    'registered_count' => $registered,
-                    'participants_needed' => $needed,
+                    'registered_count' => ar_num($registered),
+                    'participants_needed' => ar_num($needed),
                     'tags' => $item->interests?->map(fn ($i) => [
                         'id' => $i->id,
                         'name_en' => $i->name_en,
@@ -257,7 +257,7 @@ class HomeController extends Controller
                     'end_date' => optional($event->end_date)?->format('Y-m-d'),
                     'start_time' => $event->start_time,
                     'end_time' => $event->end_time,
-                    'view_count' => (int) $event->view_count,
+                    'view_count' => ar_num((int) $event->view_count),
                     'event_type_en' => $event->eventType?->value_en,
                     'event_type_ar' => $event->eventType?->value_ar,
                     'location_en' => $event->location_en,
@@ -302,7 +302,7 @@ class HomeController extends Controller
                 'user_id' => $user->id,
                 'name' => $this->displayName($user),
                 'image' => $this->profileImage($user),
-                'total_hours' => $total,
+                'total_hours' => ar_num($total),
                 'badge' => $user->badge ? [
                     'id' => $user->badge->id,
                     'name' => $user->badge->name,
