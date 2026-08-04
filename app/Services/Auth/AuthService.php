@@ -142,10 +142,15 @@ class AuthService
             'otp' => $otp->otp,
         ]);
 
+        $expiry = (int) config('fursa.otp_or_link_expiry_time', 30);
         $sent = DynamicEmailService::send('account_activation_email', $user, [
             'otp' => $otp->otp,
+            'otp_code' => $otp->otp,
             'first_name' => $user->first_name ?: 'there',
-            'expiry_minutes' => (int) config('fursa.otp_or_link_expiry_time', 30),
+            'expiry_minutes' => $expiry,
+            'expiry_time' => $expiry,
+            'method' => 'OTP',
+            'title' => 'Welcome to Forsa',
         ]);
 
         Log::info('OTP dynamic template send result', [
@@ -190,10 +195,15 @@ class AuthService
             'otp' => $otp->otp,
         ]);
 
+        $expiry = (int) config('fursa.otp_or_link_expiry_time', 30);
         $sent = DynamicEmailService::send('forgot_password', $user, [
             'otp' => $otp->otp,
+            'otp_code' => $otp->otp,
             'first_name' => $user->first_name ?: 'there',
-            'expiry_minutes' => (int) config('fursa.otp_or_link_expiry_time', 30),
+            'expiry_minutes' => $expiry,
+            'expiry_time' => $expiry,
+            'method' => 'OTP',
+            'title' => 'Forgot Password',
         ]);
 
         Log::info('OTP dynamic template send result', [
