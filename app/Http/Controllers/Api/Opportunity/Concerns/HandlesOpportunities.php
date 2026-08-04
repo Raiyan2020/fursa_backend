@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Opportunity\Concerns;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
+use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
 use App\Models\User;
@@ -16,6 +17,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 trait HandlesOpportunities
 {
+    use AppliesAudienceFilters;
+
     protected function calculateAge(?int $birthYear): ?int
     {
         if (! $birthYear) {
@@ -106,20 +109,8 @@ trait HandlesOpportunities
             });
         }
 
-        $gender = $request->query('gender');
-        $genderId = filter_int($gender);
-        if ($gender && $gender !== 'all' && $genderId !== null) {
-            $query->where('gender_id', $genderId);
-        }
-
-        $minAge = filter_int($request->query('min_age'));
-        if ($minAge !== null) {
-            $query->where('from_age', '>=', $minAge);
-        }
-        $maxAge = filter_int($request->query('max_age'));
-        if ($maxAge !== null) {
-            $query->where('to_age', '<=', $maxAge);
-        }
+        $this->applyGenderAudienceFilter($query, $request);
+        $this->applyAgeAudienceFilter($query, $request);
 
         $nationality = $request->query('opportunity_nationality');
         if ($nationality === 'kuwaitis') {
@@ -185,6 +176,41 @@ trait HandlesOpportunities
         return round($hours, 2);
     }
 
+    /**
+     * Attach announcement images on create/update (is_after_completed=false), matching Django serializers.
+     */
+    protected function storeAnnouncementImagesFromRequest(Request $request, object $opportunity, string $foreignKey): void
+    {
+        foreach ($request->allFiles() as $key => $file) {
+            if (! is_object($file) || ! method_exists($file, 'store')) {
+                continue;
+            }
+
+            $isAfterCompleted = false;
+
+            if (str_starts_with($key, 'new_opportunity_images_')) {
+                $isAfterCompleted = false;
+            } elseif (str_starts_with($key, 'opportunity_images_')) {
+                $idx = substr($key, strrpos($key, '_') + 1);
+                $isAfterCompleted = filter_var(
+                    $request->input("opportunity_images_is_after_completed_{$idx}", false),
+                    FILTER_VALIDATE_BOOLEAN
+                );
+            } else {
+                continue;
+            }
+
+            OpportunityImage::query()->create([
+                $foreignKey => $opportunity->id,
+                'image' => $file->store('opportunity-images', 'public'),
+                'is_after_completed' => $isAfterCompleted,
+            ]);
+        }
+    }
+
+    /**
+     * Dedicated after-completion gallery upload endpoint (is_after_completed=true).
+     */
     protected function updateOpportunityImages(
         Request $request,
         object $opportunity,
@@ -201,6 +227,10 @@ trait HandlesOpportunities
         }
 
         foreach ($request->allFiles() as $key => $file) {
+            if (! is_object($file) || ! method_exists($file, 'store')) {
+                continue;
+            }
+
             if (str_starts_with($key, 'opportunity_images_') || str_starts_with($key, 'new_opportunity_images_')) {
                 OpportunityImage::query()->create([
                     $foreignKey => $opportunity->id,

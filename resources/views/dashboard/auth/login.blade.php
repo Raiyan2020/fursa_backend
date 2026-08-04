@@ -96,7 +96,7 @@
             <div class="modern-input-group">
                 <div class="input-icon-wrap">
                     <i class="fas fa-envelope field-icon field-icon-end"></i>
-                    <input type="email" id="email" class="modern-input" placeholder="{{ __('email') }}" name="email" value="{{ old('email') }}" required>
+                    <input type="email" id="email" class="modern-input" placeholder="{{ __('email') }}" name="email" value="{{ old('email') }}" required autocomplete="username">
                 </div>
             </div>
 
@@ -106,8 +106,15 @@
                     <button type="button" class="field-icon field-icon-start toggle-password" aria-label="Toggle password">
                         <i class="fas fa-eye" id="toggle-password-icon"></i>
                     </button>
-                    <input type="password" id="password" class="modern-input" name="password" placeholder="{{ __('password') }}" required>
+                    <input type="password" id="password" class="modern-input" name="password" placeholder="{{ __('password') }}" required autocomplete="current-password">
                 </div>
+            </div>
+
+            <div class="modern-input-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;">
+                <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;color:inherit;font-size:14px;">
+                    <input type="checkbox" name="remember" id="remember" value="1" {{ old('remember') ? 'checked' : '' }}>
+                    <span>{{ __('Remember me') }}</span>
+                </label>
             </div>
 
             <button type="submit" class="modern-btn submit_button">
@@ -190,6 +197,20 @@ function changeMode() {
     document.addEventListener('DOMContentLoaded', function () {
         initLoginTheme();
         initStarfield();
+        var emailInput = document.getElementById('email');
+        var rememberInput = document.getElementById('remember');
+        var savedEmail = localStorage.getItem('forsa_admin_email');
+        if (emailInput && savedEmail && !emailInput.value) {
+            emailInput.value = savedEmail;
+            if (rememberInput) rememberInput.checked = true;
+        }
+        document.getElementById('login-form').addEventListener('submit', function () {
+            if (rememberInput && rememberInput.checked && emailInput && emailInput.value) {
+                localStorage.setItem('forsa_admin_email', emailInput.value);
+            } else {
+                localStorage.removeItem('forsa_admin_email');
+            }
+        });
         document.getElementById('layout-mode-login').addEventListener('click', function (e) {
             e.preventDefault();
             if (typeof changeMode === 'function') changeMode();

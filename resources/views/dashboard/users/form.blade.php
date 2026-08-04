@@ -1,3 +1,20 @@
+@php
+    $accountType = old(
+        'account_type',
+        isset($user) ? $user->accountTypeKey() : 'volunteer'
+    );
+@endphp
+
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <ul class="mb-0">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 <div class="row">
     <div class="col-md-6 mb-1">
         <label>{{ __('first name') }} <span class="text-danger">*</span></label>
@@ -10,6 +27,7 @@
     <div class="col-md-6 mb-1">
         <label>{{ __('email') }} <span class="text-danger">*</span></label>
         <input type="email" name="email" class="form-control" value="{{ old('email', $user->email ?? '') }}" required>
+        <small class="text-muted">{{ __('Email can be changed when the user updates their personal email') }}</small>
     </div>
     <div class="col-md-6 mb-1">
         <label>{{ __('phone') }}</label>
@@ -21,11 +39,20 @@
     </div>
     <div class="col-md-6 mb-1">
         <label>{{ __('user type') }} <span class="text-danger">*</span></label>
-        <select name="user_type" class="form-control" required>
-            @foreach (\App\Enums\UserType::cases() as $type)
-                <option value="{{ $type->value }}" {{ old('user_type', $user->user_type?->value ?? '') === $type->value ? 'selected' : '' }}>{{ $type->label() }}</option>
-            @endforeach
+        <select name="account_type" id="account_type" class="form-control" required>
+            <option value="volunteer" {{ $accountType === 'volunteer' ? 'selected' : '' }}>{{ __('admin.user_types.volunteer') }}</option>
+            <option value="organization" {{ $accountType === 'organization' ? 'selected' : '' }}>{{ __('admin.user_types.organization') }}</option>
+            <option value="volunteer_team" {{ $accountType === 'volunteer_team' ? 'selected' : '' }}>{{ __('admin.user_types.volunteer_team') }}</option>
+            <option value="admin" {{ $accountType === 'admin' ? 'selected' : '' }}>{{ __('admin.user_types.admin') }}</option>
         </select>
+    </div>
+    <div class="col-md-6 mb-1 js-org-fields">
+        <label>{{ __('company name') }}</label>
+        <input type="text" name="company_name" class="form-control" value="{{ old('company_name', $user->organizationProfile->company_name ?? '') }}">
+    </div>
+    <div class="col-md-6 mb-1 js-org-fields">
+        <label>{{ __('nickname') }}</label>
+        <input type="text" name="nickname" class="form-control" value="{{ old('nickname', $user->organizationProfile->nickname ?? $user->volunteerProfile->nickname ?? '') }}">
     </div>
     <div class="col-md-6 mb-1">
         <label>{{ __('preferred language') }} <span class="text-danger">*</span></label>
@@ -34,6 +61,17 @@
             <option value="en" {{ $currentLang === 'en' ? 'selected' : '' }}>{{ __('en') }}</option>
             <option value="ar" {{ $currentLang === 'ar' ? 'selected' : '' }}>{{ __('ar') }}</option>
         </select>
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('password') }} @if (empty($user)) <span class="text-danger">*</span> @endif</label>
+        <input type="password" name="password" class="form-control" @if (empty($user)) required @endif autocomplete="new-password">
+        @if (! empty($user))
+            <small class="text-muted">{{ __('Leave blank to keep current password') }}</small>
+        @endif
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('password confirmation') }} @if (empty($user)) <span class="text-danger">*</span> @endif</label>
+        <input type="password" name="password_confirmation" class="form-control" @if (empty($user)) required @endif autocomplete="new-password">
     </div>
     <div class="col-md-6 mb-1">
         <label class="d-block">{{ __('status') }}</label>
@@ -47,3 +85,20 @@
     <button type="submit" class="btn btn-primary">{{ __('save') }}</button>
     <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">{{ __('back') }}</a>
 </div>
+
+@push('scripts')
+<script>
+(function () {
+    const select = document.getElementById('account_type');
+    const orgFields = document.querySelectorAll('.js-org-fields');
+    function toggle() {
+        const show = select && (select.value === 'organization' || select.value === 'volunteer_team');
+        orgFields.forEach((el) => { el.style.display = show ? '' : 'none'; });
+    }
+    if (select) {
+        select.addEventListener('change', toggle);
+        toggle();
+    }
+})();
+</script>
+@endpush

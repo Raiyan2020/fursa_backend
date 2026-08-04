@@ -25,6 +25,20 @@ class SiteSettingController extends Controller
             'copyright_en' => ['nullable', 'string', 'max:255'],
             'copyright_ar' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email', 'max:255'],
+            'contact_phone' => ['nullable', 'string', 'max:50'],
+            'contact_whatsapp' => ['nullable', 'string', 'max:50'],
+            'contact_address_en' => ['nullable', 'string', 'max:500'],
+            'contact_address_ar' => ['nullable', 'string', 'max:500'],
+            'contact_page_text_en' => ['nullable', 'string'],
+            'contact_page_text_ar' => ['nullable', 'string'],
+        ], [], [
+            'contact_email' => __('contact_email'),
+            'contact_phone' => __('contact_phone'),
+            'contact_whatsapp' => __('contact_whatsapp'),
+            'contact_address_en' => __('contact_address_en'),
+            'contact_address_ar' => __('contact_address_ar'),
+            'contact_page_text_en' => __('contact_page_text_en'),
+            'contact_page_text_ar' => __('contact_page_text_ar'),
         ]);
 
         SiteSetting::current()->update($data);

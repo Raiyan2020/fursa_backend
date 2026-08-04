@@ -40,7 +40,7 @@
                             </div>
                             <div class="col-md-6 mb-1">
                                 <label class="font-weight-bold">{{ __('user type') }}</label>
-                                <p>{{ $user->user_type?->label() ?? '-' }}</p>
+                                <p>{{ $user->accountTypeLabel() }}</p>
                             </div>
                             <div class="col-md-6 mb-1">
                                 <label class="font-weight-bold">{{ __('preferred language') }}</label>

@@ -24,7 +24,7 @@
             <div class="border rounded p-1 h-100">
                 <div class="d-flex align-items-center justify-content-between mb-1">
                     <strong>{{ __('admin.permission_modules.'.$module) !== 'admin.permission_modules.'.$module ? __('admin.permission_modules.'.$module) : $module }}</strong>
-                    <button type="button" class="btn btn-xs btn-light module-toggle" data-module="{{ $module }}">{{ __('Toggle') }}</button>
+                    <button type="button" class="btn btn-xs btn-light module-toggle" data-module="{{ $module }}" title="{{ __('Select or clear all permissions in this module') }}">{{ __('Toggle') }}</button>
                 </div>
                 @foreach ($permissions as $permission)
                     <div class="custom-control custom-checkbox mb-50">

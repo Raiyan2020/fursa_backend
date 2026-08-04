@@ -37,7 +37,7 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             'location_ar' => $opportunity->location_ar,
             'participants_needed' => ar_num($opportunity->participants_needed),
             'registered_volunteers_count' => ar_num($registrations->count()),
-            'opportunity_images' => $this->websiteImageList($images),
+            'opportunity_images' => $this->websiteImageList(opportunity_card_images($images)),
             'created_by' => $this->websiteCreatorId($opportunity->creator),
             'interest_display' => $this->websiteInterestDisplay($opportunity->interests ?? collect()),
             'is_supports_disabled' => (bool) $opportunity->is_supports_disabled,

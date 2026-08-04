@@ -9,6 +9,12 @@
                 </div>
                 <div class="card-content">
                     <div class="card-body card-dashboard">
+                        <a href="{{ route('admin.users.create') }}" class="btn btn-primary mb-2 waves-effect waves-light">
+                            <i class="fas fa-plus"></i>&nbsp; {{ __('add new') }}
+                        </a>
+                        <a href="{{ route('admin.users.export') }}" class="btn btn-success mb-2 waves-effect waves-light">
+                            <i class="fas fa-file-excel"></i>&nbsp; {{ __('export excel') }}
+                        </a>
                         <div class="table-responsive">
                             <table class="dataex-html5-selectors table">
                                 <thead>
@@ -29,7 +35,7 @@
                                             <td>{{ $u->first_name . ' ' . $u->last_name }}</td>
                                             <td>{{ $u->email }}</td>
                                             <td>{{ $u->phone_number }}</td>
-                                            <td>{{ $u->user_type?->label() ?? '-' }}</td>
+                                            <td>{{ $u->accountTypeLabel() }}</td>
                                             <td>
                                                 <span class="badge badge-light-{{ $u->is_banned ? 'danger' : 'success' }}">{{ $u->is_banned ? __('banned') : __('active') }}</span>
                                             </td>

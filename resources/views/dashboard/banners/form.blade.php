@@ -1,3 +1,8 @@
+@php
+    $startDate = old('start_date', optional(optional($bannerImage ?? null)->start_date)->format('Y-m-d'));
+    $endDate = old('end_date', optional(optional($bannerImage ?? null)->end_date)->format('Y-m-d'));
+@endphp
+
 <div class="row">
     <div class="col-md-6 mb-1">
         <label>{{ __('name') }} <span class="text-danger">*</span></label>
@@ -6,6 +11,16 @@
     <div class="col-md-6 mb-1">
         <label>{{ __('banner_url') }}</label>
         <input type="url" name="banner_url" class="form-control" value="{{ old('banner_url', $bannerImage->banner_url ?? '') }}">
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('start date') }}</label>
+        <input type="date" name="start_date" class="form-control" value="{{ $startDate }}">
+        <small class="text-muted">{{ __('Leave empty to show immediately') }}</small>
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('end date') }}</label>
+        <input type="date" name="end_date" class="form-control" value="{{ $endDate }}">
+        <small class="text-muted">{{ __('Leave empty to keep showing with no end date') }}</small>
     </div>
     <div class="col-md-12 mb-1">
         <label>{{ __('image') }}</label>

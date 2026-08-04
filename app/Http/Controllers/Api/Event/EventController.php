@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Event;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
+use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventResource;
@@ -21,6 +22,8 @@ use Illuminate\Support\Facades\DB;
 
 class EventController extends Controller
 {
+    use AppliesAudienceFilters;
+
     public function index(Request $request): JsonResponse
     {
         $query = $this->buildFilteredQuery($request);
@@ -224,21 +227,8 @@ class EventController extends Controller
             });
         }
 
-        if ($gender = $request->query('gender')) {
-            $genderId = filter_int($gender);
-            if ($gender !== 'all' && $genderId !== null) {
-                $query->where('gender_id', $genderId);
-            }
-        }
-
-        $minAge = filter_int($request->query('min_age'));
-        if ($minAge !== null) {
-            $query->where('from_age', '>=', $minAge);
-        }
-        $maxAge = filter_int($request->query('max_age'));
-        if ($maxAge !== null) {
-            $query->where('to_age', '<=', $maxAge);
-        }
+        $this->applyGenderAudienceFilter($query, $request);
+        $this->applyAgeAudienceFilter($query, $request);
 
         if ($tags = $request->query('tags')) {
             $tagList = is_array($tags) ? $tags : [$tags];

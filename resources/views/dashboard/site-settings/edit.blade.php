@@ -30,15 +30,50 @@
                     </div></div>
                 </div>
             </div>
+
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header"><h4 class="card-title">{{ __('footer') }}</h4></div>
+                    <div class="card-header"><h4 class="card-title">{{ __('contact us') }}</h4></div>
                     <div class="card-content"><div class="card-body">
                         <div class="row">
                             <div class="col-md-6 mb-1">
                                 <label>{{ __('contact_email') }}</label>
                                 <input type="email" name="contact_email" class="form-control" value="{{ old('contact_email', $settings->contact_email) }}">
                             </div>
+                            <div class="col-md-6 mb-1">
+                                <label>{{ __('contact_phone') }}</label>
+                                <input type="text" name="contact_phone" class="form-control" value="{{ old('contact_phone', $settings->contact_phone) }}">
+                            </div>
+                            <div class="col-md-6 mb-1">
+                                <label>{{ __('contact_whatsapp') }}</label>
+                                <input type="text" name="contact_whatsapp" class="form-control" value="{{ old('contact_whatsapp', $settings->contact_whatsapp) }}">
+                            </div>
+                            <div class="col-md-6 mb-1">
+                                <label>{{ __('contact_address_en') }}</label>
+                                <input type="text" name="contact_address_en" class="form-control" value="{{ old('contact_address_en', $settings->contact_address_en) }}">
+                            </div>
+                            <div class="col-md-6 mb-1">
+                                <label>{{ __('contact_address_ar') }}</label>
+                                <input type="text" name="contact_address_ar" class="form-control" value="{{ old('contact_address_ar', $settings->contact_address_ar) }}">
+                            </div>
+                            <div class="col-md-6 mb-1">
+                                <label>{{ __('contact_page_text_en') }}</label>
+                                <textarea name="contact_page_text_en" class="form-control" rows="4">{{ old('contact_page_text_en', $settings->contact_page_text_en) }}</textarea>
+                            </div>
+                            <div class="col-md-6 mb-1">
+                                <label>{{ __('contact_page_text_ar') }}</label>
+                                <textarea name="contact_page_text_ar" class="form-control" rows="4">{{ old('contact_page_text_ar', $settings->contact_page_text_ar) }}</textarea>
+                            </div>
+                        </div>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header"><h4 class="card-title">{{ __('footer') }}</h4></div>
+                    <div class="card-content"><div class="card-body">
+                        <div class="row">
                             <div class="col-md-6 mb-1">
                                 <label>{{ __('copyright_en') }}</label>
                                 <input type="text" name="copyright_en" class="form-control" value="{{ old('copyright_en', $settings->copyright_en) }}">

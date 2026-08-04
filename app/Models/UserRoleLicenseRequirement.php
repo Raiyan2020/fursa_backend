@@ -19,4 +19,14 @@ class UserRoleLicenseRequirement extends Model
     protected $casts = [
         'license_required' => 'boolean',
     ];
+
+    public function roleLabel(): string
+    {
+        return match ($this->user_role) {
+            'volunteer' => __('admin.user_types.volunteer'),
+            'organization' => __('admin.user_types.organization'),
+            'volunteer_team' => __('admin.user_types.volunteer_team'),
+            default => (string) $this->user_role,
+        };
+    }
 }

@@ -50,11 +50,11 @@ class RolePermissionSeeder extends Seeder
 
         $moderator = Role::findOrCreate('moderator', $guard);
         $moderator->syncPermissions([
-            'users.view', 'users.update',
+            'users.view', 'users.create', 'users.update',
             'volunteers.view', 'volunteers.update',
             'entities.view', 'entities.update', 'entities.approve',
-            'volunteer-opportunities.view', 'volunteer-opportunities.update', 'volunteer-opportunities.approve',
-            'learn-serve-opportunities.view', 'learn-serve-opportunities.update', 'learn-serve-opportunities.approve',
+            'volunteer-opportunities.view', 'volunteer-opportunities.create', 'volunteer-opportunities.update', 'volunteer-opportunities.approve',
+            'learn-serve-opportunities.view', 'learn-serve-opportunities.create', 'learn-serve-opportunities.update', 'learn-serve-opportunities.approve',
             'events.view', 'events.create', 'events.update', 'events.approve',
             'sponsors.view', 'sponsors.create', 'sponsors.update', 'sponsors.approve',
             'fursa-friends.view', 'fursa-friends.create',

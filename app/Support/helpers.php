@@ -114,6 +114,41 @@ if (! function_exists('getimg')) {
     }
 }
 
+if (! function_exists('opportunity_cover_image')) {
+    /**
+     * Prefer announcement image (is_after_completed=false) for cards; fallback to first active image.
+     *
+     * @param  iterable<mixed>|null  $images
+     */
+    function opportunity_cover_image(iterable|null $images): mixed
+    {
+        $active = collect($images)->filter(fn ($img) => ! ($img->is_deleted ?? false))->values();
+
+        return $active->first(fn ($img) => ! (bool) ($img->is_after_completed ?? false))
+            ?? $active->first();
+    }
+}
+
+if (! function_exists('opportunity_card_images')) {
+    /**
+     * Images shown on list/cards: announcement first; fallback to first image if none.
+     *
+     * @param  iterable<mixed>|null  $images
+     * @return \Illuminate\Support\Collection<int, mixed>
+     */
+    function opportunity_card_images(iterable|null $images): \Illuminate\Support\Collection
+    {
+        $active = collect($images)->filter(fn ($img) => ! ($img->is_deleted ?? false))->values();
+        $announcements = $active->filter(fn ($img) => ! (bool) ($img->is_after_completed ?? false))->values();
+
+        if ($announcements->isNotEmpty()) {
+            return $announcements;
+        }
+
+        return $active->take(1)->values();
+    }
+}
+
 if (! function_exists('uploader')) {
     /**
      * Store an uploaded file on the public disk and return the relative disk path.

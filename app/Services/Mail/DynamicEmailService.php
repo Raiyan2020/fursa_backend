@@ -62,7 +62,12 @@ class DynamicEmailService
             return false;
         }
 
-        $replacements = [];
+        $replacements = [
+            '{{ first_name }}' => (string) ($user->first_name ?: 'there'),
+            '{{first_name}}' => (string) ($user->first_name ?: 'there'),
+            '{{ expiry_minutes }}' => (string) ((int) config('fursa.otp_or_link_expiry_time', 30)),
+            '{{expiry_minutes}}' => (string) ((int) config('fursa.otp_or_link_expiry_time', 30)),
+        ];
         foreach ($context as $key => $value) {
             if (is_scalar($value) || $value === null) {
                 $replacements['{{ '.$key.' }}'] = (string) ($value ?? '');

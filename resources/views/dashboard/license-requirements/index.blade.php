@@ -23,7 +23,7 @@
                                     @foreach ($requirements as $requirement)
                                         <tr>
                                             <td>{{ $requirement->id }}</td>
-                                            <td>{{ $requirement->user_role }}</td>
+                                            <td>{{ $requirement->roleLabel() }}</td>
                                             <td>
                                                 <span class="badge badge-light-{{ $requirement->license_required ? 'success' : 'secondary' }}">
                                                     {{ $requirement->license_required ? __('yes') : __('no') }}

@@ -127,6 +127,32 @@ class User extends Authenticatable
         return $this->hasOne(OrganizationProfile::class);
     }
 
+    /**
+     * Admin/UI account bucket: volunteer | organization | volunteer_team | admin
+     */
+    public function accountTypeKey(): string
+    {
+        if ($this->user_type === UserType::ORGANIZATION) {
+            $this->loadMissing('organizationProfile.organizerType');
+            if ($this->organizationProfile?->organizerType?->value_en === 'Volunteer Team') {
+                return 'volunteer_team';
+            }
+        }
+
+        return $this->user_type?->value ?? '';
+    }
+
+    public function accountTypeLabel(): string
+    {
+        return match ($this->accountTypeKey()) {
+            'volunteer_team' => __('admin.user_types.volunteer_team'),
+            'volunteer' => __('admin.user_types.volunteer'),
+            'organization' => __('admin.user_types.organization'),
+            'admin' => __('admin.user_types.admin'),
+            default => $this->user_type?->label() ?? '-',
+        };
+    }
+
     public function expiringTokens(): HasMany
     {
         return $this->hasMany(ExpiringToken::class);

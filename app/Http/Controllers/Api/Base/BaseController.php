@@ -77,7 +77,7 @@ class BaseController extends Controller
 
     public function bannerImages(): JsonResponse
     {
-        $images = BannerImage::query()->notDeleted()->get()->map(fn (BannerImage $b) => [
+        $images = BannerImage::query()->notDeleted()->currentlyVisible()->get()->map(fn (BannerImage $b) => [
             'image' => ($path = $b->getRawImagePath()) ? getimg($path) : null,
             'banner_url' => $b->banner_url,
         ])->values();

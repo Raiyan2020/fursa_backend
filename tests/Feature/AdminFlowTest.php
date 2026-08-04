@@ -115,9 +115,18 @@ class AdminFlowTest extends TestCase
             'copyright_en' => 'Forsa rights',
             'copyright_ar' => 'حقوق فرصة',
             'contact_email' => 'contact@joinforsa.net',
+            'contact_phone' => '+96512345678',
+            'contact_whatsapp' => '+96512345678',
+            'contact_address_en' => 'Kuwait City',
+            'contact_address_ar' => 'مدينة الكويت',
+            'contact_page_text_en' => 'Reach the Forsa team anytime.',
+            'contact_page_text_ar' => 'تواصل مع فريق فرصة في أي وقت.',
         ])->assertRedirect();
 
-        $this->assertSame('contact@joinforsa.net', SiteSetting::current()->contact_email);
+        $settings = SiteSetting::current();
+        $this->assertSame('contact@joinforsa.net', $settings->contact_email);
+        $this->assertSame('+96512345678', $settings->contact_phone);
+        $this->assertSame('مدينة الكويت', $settings->contact_address_ar);
 
         $this->delete('/dashboard/pages/'.$page->slug)->assertRedirect();
         $this->assertTrue($page->fresh()->is_deleted);
@@ -301,5 +310,254 @@ class AdminFlowTest extends TestCase
 
         $this->delete('/dashboard/events/'.$event->id)->assertRedirect();
         $this->assertTrue((bool) $event->fresh()->is_deleted);
+    }
+
+    public function test_admin_volunteer_opportunities_crud_flow(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        [$orgUser] = $this->createOrganizationActor('volunteer-org@fursa.test');
+
+        $this->get('/dashboard/volunteer-opportunities/create')->assertOk();
+
+        $this->post('/dashboard/volunteer-opportunities', [])
+            ->assertSessionHasErrors([
+                'created_by',
+                'title_en',
+                'title_ar',
+                'description_en',
+                'description_ar',
+                'start_date',
+                'end_date',
+                'participants_needed',
+                'approval_status',
+                'opportunity_status',
+            ]);
+
+        $image = UploadedFile::fake()->image('volunteer.png', 800, 400);
+
+        $this->post('/dashboard/volunteer-opportunities', [
+            'created_by' => $orgUser->id,
+            'title_en' => 'Beach Cleanup',
+            'title_ar' => 'تنظيف الشاطئ',
+            'description_en' => 'Clean the beach',
+            'description_ar' => 'تنظيف الشاطئ',
+            'start_date' => '2026-08-01',
+            'end_date' => '2026-08-02',
+            'start_time' => '09:00',
+            'end_time' => '13:00',
+            'location_en' => 'Salmiya Beach',
+            'location_ar' => 'شاطئ السالمية',
+            'from_age' => 16,
+            'participants_needed' => 20,
+            'volunteer_hours_per_day' => 4,
+            'preferred_language' => 'ar',
+            'primary_language' => 'ar',
+            'approval_status' => 'approved',
+            'opportunity_status' => 'upcoming',
+            'is_public' => '1',
+            'images' => [$image],
+        ])->assertRedirect(route('admin.volunteer-opportunities.index'));
+
+        $opportunity = \App\Models\VolunteerOpportunity::query()->where('title_en', 'Beach Cleanup')->firstOrFail();
+        $this->assertSame('approved', $opportunity->approval_status->value);
+        $this->assertSame($orgUser->id, $opportunity->created_by);
+        $this->assertTrue($opportunity->images()->exists());
+
+        $this->get('/dashboard/volunteer-opportunities/'.$opportunity->id)->assertOk();
+        $this->get('/dashboard/volunteer-opportunities/'.$opportunity->id.'/edit')->assertOk();
+
+        $this->put('/dashboard/volunteer-opportunities/'.$opportunity->id, [
+            'created_by' => $orgUser->id,
+            'title_en' => 'Beach Cleanup Updated',
+            'title_ar' => 'تنظيف الشاطئ',
+            'description_en' => 'Updated description',
+            'description_ar' => 'وصف محدث',
+            'start_date' => '2026-08-01',
+            'end_date' => '2026-08-02',
+            'participants_needed' => 25,
+            'approval_status' => 'approved',
+            'opportunity_status' => 'upcoming',
+        ])->assertRedirect(route('admin.volunteer-opportunities.index'));
+
+        $this->assertDatabaseHas('volunteer_opportunities', [
+            'id' => $opportunity->id,
+            'title_en' => 'Beach Cleanup Updated',
+            'participants_needed' => 25,
+        ]);
+
+        $imageId = $opportunity->images()->firstOrFail()->id;
+        $this->delete('/dashboard/volunteer-opportunities/'.$opportunity->id.'/images/'.$imageId)->assertRedirect();
+        $this->assertTrue((bool) \App\Models\OpportunityImage::query()->findOrFail($imageId)->is_deleted);
+
+        $this->delete('/dashboard/volunteer-opportunities/'.$opportunity->id)->assertRedirect();
+        $this->assertTrue((bool) $opportunity->fresh()->is_deleted);
+    }
+
+    public function test_admin_learn_serve_opportunities_crud_flow(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        [$orgUser] = $this->createOrganizationActor('learn-org@fursa.test');
+
+        $this->get('/dashboard/learn-serve-opportunities/create')->assertOk();
+
+        $this->post('/dashboard/learn-serve-opportunities', [])
+            ->assertSessionHasErrors([
+                'created_by',
+                'title_en',
+                'title_ar',
+                'description_en',
+                'description_ar',
+                'start_date',
+                'end_date',
+                'participants_needed',
+                'approval_status',
+                'opportunity_status',
+            ]);
+
+        $image = UploadedFile::fake()->image('learn.png', 800, 400);
+
+        $this->post('/dashboard/learn-serve-opportunities', [
+            'created_by' => $orgUser->id,
+            'title_en' => 'First Aid Workshop',
+            'title_ar' => 'ورشة إسعافات أولية',
+            'description_en' => 'Learn first aid',
+            'description_ar' => 'تعلم الإسعافات الأولية',
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-09-01',
+            'start_time' => '10:00',
+            'end_time' => '14:00',
+            'location_en' => 'Training Center',
+            'location_ar' => 'مركز التدريب',
+            'from_age' => 18,
+            'participants_needed' => 30,
+            'preferred_language' => 'ar',
+            'primary_language' => 'ar',
+            'approval_status' => 'approved',
+            'opportunity_status' => 'upcoming',
+            'images' => [$image],
+        ])->assertRedirect(route('admin.learn-serve-opportunities.index'));
+
+        $opportunity = \App\Models\LearnServeOpportunity::query()->where('title_en', 'First Aid Workshop')->firstOrFail();
+        $this->assertSame('approved', $opportunity->approval_status->value);
+        $this->assertSame($orgUser->id, $opportunity->created_by);
+        $this->assertTrue($opportunity->images()->exists());
+
+        $this->get('/dashboard/learn-serve-opportunities/'.$opportunity->id)->assertOk();
+        $this->get('/dashboard/learn-serve-opportunities/'.$opportunity->id.'/edit')->assertOk();
+
+        $this->put('/dashboard/learn-serve-opportunities/'.$opportunity->id, [
+            'created_by' => $orgUser->id,
+            'title_en' => 'First Aid Workshop Updated',
+            'title_ar' => 'ورشة إسعافات أولية',
+            'description_en' => 'Updated description',
+            'description_ar' => 'وصف محدث',
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-09-01',
+            'participants_needed' => 35,
+            'approval_status' => 'approved',
+            'opportunity_status' => 'upcoming',
+        ])->assertRedirect(route('admin.learn-serve-opportunities.index'));
+
+        $this->assertDatabaseHas('learn_serve_opportunities', [
+            'id' => $opportunity->id,
+            'title_en' => 'First Aid Workshop Updated',
+            'participants_needed' => 35,
+        ]);
+
+        $imageId = $opportunity->images()->firstOrFail()->id;
+        $this->delete('/dashboard/learn-serve-opportunities/'.$opportunity->id.'/images/'.$imageId)->assertRedirect();
+        $this->assertTrue((bool) \App\Models\OpportunityImage::query()->findOrFail($imageId)->is_deleted);
+
+        $this->delete('/dashboard/learn-serve-opportunities/'.$opportunity->id)->assertRedirect();
+        $this->assertTrue((bool) $opportunity->fresh()->is_deleted);
+    }
+
+    public function test_admin_users_create_with_volunteer_team_and_email_update(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        $this->get('/dashboard/users/create')->assertOk();
+
+        $this->post('/dashboard/users', [])
+            ->assertSessionHasErrors(['first_name', 'last_name', 'email', 'password', 'account_type', 'preferred_language']);
+
+        $this->post('/dashboard/users', [
+            'first_name' => 'Team',
+            'last_name' => 'Leader',
+            'email' => 'volunteer-team@fursa.test',
+            'password' => 'Password1',
+            'password_confirmation' => 'Password1',
+            'account_type' => 'volunteer_team',
+            'preferred_language' => 'ar',
+            'company_name' => 'Youth Volunteer Team',
+            'nickname' => 'yv_team',
+            'is_active' => '1',
+        ])->assertRedirect(route('admin.users.index'));
+
+        $user = \App\Models\User::query()->where('email', 'volunteer-team@fursa.test')->firstOrFail();
+        $this->assertSame('organization', $user->user_type->value);
+        $this->assertTrue($user->is_active);
+        $this->assertNotNull($user->organizationProfile);
+        $this->assertSame('volunteer_team', $user->accountTypeKey());
+        $this->assertSame('Youth Volunteer Team', $user->organizationProfile->company_name);
+
+        $this->put('/dashboard/users/'.$user->id, [
+            'first_name' => 'Team',
+            'last_name' => 'Leader',
+            'email' => 'team-new-email@fursa.test',
+            'account_type' => 'volunteer_team',
+            'preferred_language' => 'ar',
+            'company_name' => 'Youth Volunteer Team',
+            'nickname' => 'yv_team',
+            'is_active' => '1',
+        ])->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'email' => 'team-new-email@fursa.test',
+        ]);
+    }
+
+    public function test_admin_users_excel_export_downloads(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+        $this->createOrganizationActor('export-org@fursa.test');
+
+        $this->get('/dashboard/users/export')
+            ->assertOk()
+            ->assertHeader('content-disposition');
+    }
+
+    public function test_admin_banner_schedule_dates_persist(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        $image = UploadedFile::fake()->image('banner.png', 800, 300);
+
+        $this->post('/dashboard/banners', [
+            'name' => 'Campaign Banner',
+            'banner_url' => 'https://example.com',
+            'start_date' => '2026-08-01',
+            'end_date' => '2026-08-31',
+            'image' => $image,
+        ])->assertRedirect(route('admin.banners.index'));
+
+        $banner = \App\Models\BannerImage::query()->where('name', 'Campaign Banner')->firstOrFail();
+        $this->assertSame('2026-08-01', $banner->start_date->format('Y-m-d'));
+        $this->assertSame('2026-08-31', $banner->end_date->format('Y-m-d'));
+    }
+
+    public function test_admin_login_remember_me_keeps_session(): void
+    {
+        $this->post('/dashboard/login', [
+            'email' => 'admin@fursa.local',
+            'password' => 'Password1',
+            'remember' => '1',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticated('admin');
+        $this->assertNotEmpty(auth('admin')->user()->getRememberToken());
     }
 }

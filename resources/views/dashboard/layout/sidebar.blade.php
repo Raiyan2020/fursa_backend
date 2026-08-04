@@ -118,7 +118,7 @@
                 </a>
             </li>
 
-            <li class="nav-item has-sub {{ request()->is('dashboard/tags*', 'dashboard/badges*', 'dashboard/banners*', 'dashboard/forbidden-words*') ? 'active open' : '' }}">
+            <li class="nav-item has-sub {{ request()->is('dashboard/tags*', 'dashboard/badges*', 'dashboard/banners*', 'dashboard/forbidden-words*', 'dashboard/faqs*', 'dashboard/pages*', 'dashboard/why-fursa*', 'dashboard/home-sections*', 'dashboard/site-settings*') ? 'active open' : '' }}">
                 <a href="#">
                     <i class="feather icon-layers"></i>
                     <span class="menu-title">{{ __('admin.sidebar.content') }}</span>
@@ -144,42 +144,32 @@
                             <span class="menu-item">{{ __('admin.sidebar.forbidden_words') }}</span>
                         </a>
                     </li>
+                    <li class="{{ request()->is('dashboard/faqs*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.faqs.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.faqs') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/pages*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.pages.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.pages') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/why-fursa*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.why-fursa.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.why_fursa') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/home-sections*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.home-sections.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.home_sections') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/site-settings*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.site-settings.edit') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.site_settings') }}</span>
+                        </a>
+                    </li>
                 </ul>
-            </li>
-
-            <li class="nav-item {{ request()->is('dashboard/faqs*') ? 'active' : '' }}">
-                <a href="{{ route('admin.faqs.index') }}">
-                    <i class="feather icon-help-circle"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.faqs') }}</span>
-                </a>
-            </li>
-
-            <li class="nav-item {{ request()->is('dashboard/pages*') ? 'active' : '' }}">
-                <a href="{{ route('admin.pages.index') }}">
-                    <i class="feather icon-file-text"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.pages') }}</span>
-                </a>
-            </li>
-
-            <li class="nav-item {{ request()->is('dashboard/why-fursa*') ? 'active' : '' }}">
-                <a href="{{ route('admin.why-fursa.index') }}">
-                    <i class="feather icon-star"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.why_fursa') }}</span>
-                </a>
-            </li>
-
-            <li class="nav-item {{ request()->is('dashboard/home-sections*') ? 'active' : '' }}">
-                <a href="{{ route('admin.home-sections.index') }}">
-                    <i class="feather icon-layout"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.home_sections') }}</span>
-                </a>
-            </li>
-
-            <li class="nav-item {{ request()->is('dashboard/site-settings*') ? 'active' : '' }}">
-                <a href="{{ route('admin.site-settings.edit') }}">
-                    <i class="feather icon-globe"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.site_settings') }}</span>
-                </a>
             </li>
 
             <li class="nav-item {{ request()->is('dashboard/email-templates*') ? 'active' : '' }}">

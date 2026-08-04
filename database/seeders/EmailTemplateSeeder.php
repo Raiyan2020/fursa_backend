@@ -9,9 +9,73 @@ class EmailTemplateSeeder extends Seeder
 {
     public function run(): void
     {
+        $brandedOtp = static function (string $introEn, string $introAr, string $actionEn, string $actionAr): array {
+            $en = <<<HTML
+<div style="font-family:Arial,sans-serif;background:#f5f5f5;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+    <div style="background:#4b1d6a;padding:28px;text-align:center;">
+      <div style="display:inline-block;background:#d4af37;color:#4b1d6a;font-weight:700;font-size:28px;padding:10px 22px;border-radius:8px;">فرصة</div>
+    </div>
+    <div style="padding:28px;color:#222;line-height:1.6;">
+      <p>Hi {{first_name}},</p>
+      <p>{$introEn}</p>
+      <p>{$actionEn}</p>
+      <p style="text-align:center;margin:28px 0;">
+        <span style="display:inline-block;background:#2563eb;color:#fff;font-size:28px;font-weight:700;letter-spacing:4px;padding:14px 28px;border-radius:8px;">{{otp}}</span>
+      </p>
+      <p>This otp is valid for {{expiry_minutes}} minutes.</p>
+      <p>If you didn't request this, please ignore this email.</p>
+    </div>
+    <div style="background:#4b1d6a;color:#fff;text-align:center;padding:16px;font-size:13px;">
+      © 2025 Forsa. All rights reserved.
+    </div>
+  </div>
+</div>
+HTML;
+
+            $ar = <<<HTML
+<div style="font-family:Arial,sans-serif;background:#f5f5f5;padding:24px;direction:rtl;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+    <div style="background:#4b1d6a;padding:28px;text-align:center;">
+      <div style="display:inline-block;background:#d4af37;color:#4b1d6a;font-weight:700;font-size:28px;padding:10px 22px;border-radius:8px;">فرصة</div>
+    </div>
+    <div style="padding:28px;color:#222;line-height:1.8;">
+      <p>مرحبًا {{first_name}}،</p>
+      <p>{$introAr}</p>
+      <p>{$actionAr}</p>
+      <p style="text-align:center;margin:28px 0;">
+        <span style="display:inline-block;background:#2563eb;color:#fff;font-size:28px;font-weight:700;letter-spacing:4px;padding:14px 28px;border-radius:8px;">{{otp}}</span>
+      </p>
+      <p>هذا الرمز صالح لمدة {{expiry_minutes}} دقيقة.</p>
+      <p>إذا لم تطلب ذلك، تجاهل هذا البريد.</p>
+    </div>
+    <div style="background:#4b1d6a;color:#fff;text-align:center;padding:16px;font-size:13px;">
+      © 2025 فرصة. جميع الحقوق محفوظة.
+    </div>
+  </div>
+</div>
+HTML;
+
+            return [$en, $ar];
+        };
+
+        [$activationEn, $activationAr] = $brandedOtp(
+            'You requested to activate your account.',
+            'لقد طلبت تفعيل حسابك.',
+            'Use the below OTP code to activate your account:',
+            'استخدم رمز OTP التالي لتفعيل حسابك:'
+        );
+
+        [$forgotEn, $forgotAr] = $brandedOtp(
+            'You requested to reset your password.',
+            'لقد طلبت إعادة تعيين كلمة المرور.',
+            'Use the below OTP code to reset your password:',
+            'استخدم رمز OTP التالي لإعادة تعيين كلمة المرور:'
+        );
+
         $templates = [
-            ['account_activation_email', 'Account Activation', 'تفعيل الحساب', 'Your OTP is: {{otp}}', 'رمز التفعيل الخاص بك: {{otp}}'],
-            ['forgot_password', 'Forgot Password', 'نسيان كلمة المرور', 'Your reset OTP is: {{otp}}', 'رمز إعادة التعيين: {{otp}}'],
+            ['account_activation_email', 'Account Activation', 'تفعيل الحساب', $activationEn, $activationAr],
+            ['forgot_password', 'Reset Your Password', 'إعادة تعيين كلمة المرور', $forgotEn, $forgotAr],
             ['contact_us_notification', 'New Contact Us Message', 'رسالة تواصل جديدة', 'A new contact message was received.', 'تم استلام رسالة تواصل جديدة.'],
             ['sponsor_approval_email', 'Sponsor Approved', 'تمت الموافقة على الراعي', 'Your sponsor request was approved.', 'تمت الموافقة على طلب الرعاية.'],
             ['sponsor_rejection_email', 'Sponsor Rejected', 'تم رفض الراعي', 'Your sponsor request was rejected.', 'تم رفض طلب الرعاية.'],
@@ -32,11 +96,17 @@ class EmailTemplateSeeder extends Seeder
         ];
 
         foreach ($templates as [$name, $subjectEn, $subjectAr, $contentEn, $contentAr]) {
-            EmailTemplate::query()->firstOrCreate(
+            $forceBranded = in_array($name, ['account_activation_email', 'forgot_password'], true);
+
+            EmailTemplate::query()->updateOrCreate(
                 ['name' => $name, 'language' => 'en'],
-                ['subject' => $subjectEn, 'content' => $contentEn]
+                $forceBranded
+                    ? ['subject' => $subjectEn, 'content' => $contentEn]
+                    : ['subject' => $subjectEn, 'content' => $contentEn]
             );
-            EmailTemplate::query()->firstOrCreate(
+
+            // For non-branded templates keep first-write semantics via updateOrCreate with same content.
+            EmailTemplate::query()->updateOrCreate(
                 ['name' => $name, 'language' => 'ar'],
                 ['subject' => $subjectAr, 'content' => $contentAr]
             );

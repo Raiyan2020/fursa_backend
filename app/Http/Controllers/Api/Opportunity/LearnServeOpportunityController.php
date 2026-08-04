@@ -70,6 +70,8 @@ class LearnServeOpportunityController extends Controller
             $opportunity->interests()->sync($request->input('interest_ids', []));
         }
 
+        $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
+
         $opportunity->load(['creator', 'interests', 'images']);
 
         return ApiResponse::success(
@@ -97,6 +99,8 @@ class LearnServeOpportunityController extends Controller
         if ($request->has('interest_ids')) {
             $opportunity->interests()->sync($request->input('interest_ids', []));
         }
+
+        $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
 
         $opportunity->load(['creator', 'interests', 'images']);
 
@@ -232,20 +236,8 @@ class LearnServeOpportunityController extends Controller
             });
         }
 
-        $gender = $request->query('gender');
-        $genderId = filter_int($gender);
-        if ($gender && $gender !== 'all' && $genderId !== null) {
-            $query->where('gender_id', $genderId);
-        }
-
-        $minAge = filter_int($request->query('min_age'));
-        if ($minAge !== null) {
-            $query->where('from_age', '>=', $minAge);
-        }
-        $maxAge = filter_int($request->query('max_age'));
-        if ($maxAge !== null) {
-            $query->where('to_age', '<=', $maxAge);
-        }
+        $this->applyGenderAudienceFilter($query, $request);
+        $this->applyAgeAudienceFilter($query, $request);
 
         $nationality = $request->query('opportunity_nationality');
         if ($nationality === 'kuwaitis') {

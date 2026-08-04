@@ -9,11 +9,15 @@
                 </div>
                 <div class="card-content">
                     <div class="card-body card-dashboard">
+                        <a href="{{ route('admin.learn-serve-opportunities.create') }}" class="btn btn-primary mb-2 waves-effect waves-light">
+                            <i class="fas fa-plus"></i>&nbsp; {{ __('add new') }}
+                        </a>
                         <div class="table-responsive">
                             <table class="dataex-html5-selectors table">
                                 <thead>
                                     <tr>
                                         <th>#</th>
+                                        <th>{{ __('image') }}</th>
                                         <th>{{ __('title') }}</th>
                                         <th>{{ __('creator') }}</th>
                                         <th>{{ __('approval status') }}</th>
@@ -23,8 +27,16 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($opportunities as $opportunity)
+                                        @php
+                                            $cover = opportunity_cover_image($opportunity->images);
+                                        @endphp
                                         <tr>
                                             <td>{{ $opportunity->id }}</td>
+                                            <td>
+                                                @if ($cover?->image)
+                                                    <img src="{{ getimg($cover->image) }}" width="60" height="60" alt="" style="object-fit:cover;border-radius:8px;">
+                                                @endif
+                                            </td>
                                             <td>{{ tr($opportunity->title_en, $opportunity->title_ar) }}</td>
                                             <td>{{ $opportunity->creator?->email }}</td>
                                             <td>@include('dashboard.partials.status-badge', ['status' => $opportunity->approval_status])</td>

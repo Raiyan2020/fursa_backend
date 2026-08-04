@@ -75,6 +75,9 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
 
     // Users
     Route::get('users', [UserController::class, 'index'])->name('users.index');
+    Route::get('users/create', [UserController::class, 'create'])->name('users.create');
+    Route::get('users/export', [UserController::class, 'export'])->name('users.export');
+    Route::post('users', [UserController::class, 'store'])->name('users.store');
     Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::get('users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
     Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
@@ -100,10 +103,13 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
 
     // Volunteer opportunities
     Route::get('volunteer-opportunities', [VolunteerOpportunityController::class, 'index'])->name('volunteer-opportunities.index');
+    Route::get('volunteer-opportunities/create', [VolunteerOpportunityController::class, 'create'])->name('volunteer-opportunities.create');
+    Route::post('volunteer-opportunities', [VolunteerOpportunityController::class, 'store'])->name('volunteer-opportunities.store');
     Route::get('volunteer-opportunities/{opportunity}', [VolunteerOpportunityController::class, 'show'])->name('volunteer-opportunities.show');
     Route::get('volunteer-opportunities/{opportunity}/edit', [VolunteerOpportunityController::class, 'edit'])->name('volunteer-opportunities.edit');
     Route::put('volunteer-opportunities/{opportunity}', [VolunteerOpportunityController::class, 'update'])->name('volunteer-opportunities.update');
     Route::delete('volunteer-opportunities/{opportunity}', [VolunteerOpportunityController::class, 'destroy'])->name('volunteer-opportunities.destroy');
+    Route::delete('volunteer-opportunities/{opportunity}/images/{image}', [VolunteerOpportunityController::class, 'destroyImage'])->name('volunteer-opportunities.images.destroy');
     Route::post('volunteer-opportunities/{opportunity}/approve', [VolunteerOpportunityController::class, 'approve'])->name('volunteer-opportunities.approve');
     Route::post('volunteer-opportunities/{opportunity}/reject', [VolunteerOpportunityController::class, 'reject'])->name('volunteer-opportunities.reject');
     Route::post('volunteer-opportunities/{opportunity}/approve-deletion', [VolunteerOpportunityController::class, 'approveDeletion'])->name('volunteer-opportunities.approve-deletion');
@@ -111,10 +117,13 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
 
     // Learn & Serve opportunities
     Route::get('learn-serve-opportunities', [LearnServeOpportunityController::class, 'index'])->name('learn-serve-opportunities.index');
+    Route::get('learn-serve-opportunities/create', [LearnServeOpportunityController::class, 'create'])->name('learn-serve-opportunities.create');
+    Route::post('learn-serve-opportunities', [LearnServeOpportunityController::class, 'store'])->name('learn-serve-opportunities.store');
     Route::get('learn-serve-opportunities/{opportunity}', [LearnServeOpportunityController::class, 'show'])->name('learn-serve-opportunities.show');
     Route::get('learn-serve-opportunities/{opportunity}/edit', [LearnServeOpportunityController::class, 'edit'])->name('learn-serve-opportunities.edit');
     Route::put('learn-serve-opportunities/{opportunity}', [LearnServeOpportunityController::class, 'update'])->name('learn-serve-opportunities.update');
     Route::delete('learn-serve-opportunities/{opportunity}', [LearnServeOpportunityController::class, 'destroy'])->name('learn-serve-opportunities.destroy');
+    Route::delete('learn-serve-opportunities/{opportunity}/images/{image}', [LearnServeOpportunityController::class, 'destroyImage'])->name('learn-serve-opportunities.images.destroy');
     Route::post('learn-serve-opportunities/{opportunity}/approve', [LearnServeOpportunityController::class, 'approve'])->name('learn-serve-opportunities.approve');
     Route::post('learn-serve-opportunities/{opportunity}/reject', [LearnServeOpportunityController::class, 'reject'])->name('learn-serve-opportunities.reject');
     Route::post('learn-serve-opportunities/{opportunity}/approve-deletion', [LearnServeOpportunityController::class, 'approveDeletion'])->name('learn-serve-opportunities.approve-deletion');

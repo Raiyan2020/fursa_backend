@@ -76,6 +76,7 @@ class VolunteerOpportunityController extends Controller
         ]));
 
         $this->syncInterests($opportunity, $request->input('interest_ids', []));
+        $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
 
         $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
 
@@ -104,6 +105,8 @@ class VolunteerOpportunityController extends Controller
         if ($request->has('interest_ids')) {
             $this->syncInterests($opportunity, $request->input('interest_ids', []));
         }
+
+        $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
 
         $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
 
@@ -463,5 +466,12 @@ class VolunteerOpportunityController extends Controller
             $learnQuery->where('opportunity_status', $status);
             $eventQuery->where('event_status', $status);
         }
+
+        $this->applyGenderAudienceFilter($volunteerQuery, $request);
+        $this->applyGenderAudienceFilter($learnQuery, $request);
+        $this->applyGenderAudienceFilter($eventQuery, $request);
+        $this->applyAgeAudienceFilter($volunteerQuery, $request);
+        $this->applyAgeAudienceFilter($learnQuery, $request);
+        $this->applyAgeAudienceFilter($eventQuery, $request);
     }
 }

@@ -12,7 +12,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-1">
                                 <label>{{ __('user role') }}</label>
-                                <input type="text" class="form-control" value="{{ $requirement->user_role }}" readonly>
+                                <input type="text" class="form-control" value="{{ $requirement->roleLabel() }}" readonly>
                             </div>
                             <div class="col-md-6 mb-1">
                                 <label class="d-block">{{ __('license required') }}</label>

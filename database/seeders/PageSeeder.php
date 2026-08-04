@@ -26,10 +26,17 @@ class PageSeeder extends Seeder
             ],
             [
                 'slug' => 'terms',
-                'title_en' => 'Terms of Use',
-                'title_ar' => 'شروط الاستخدام',
+                'title_en' => 'Terms & Conditions',
+                'title_ar' => 'الشروط والأحكام',
                 'content_en' => 'By using the Forsa platform, you agree to comply with applicable laws and community guidelines. Accounts may be suspended for misuse, harmful content, or violation of platform rules. Content and branding remain the property of their respective owners.',
                 'content_ar' => 'باستخدامك لمنصة فرصة فإنك توافق على الالتزام بالقوانين المعمول بها وإرشادات المجتمع. قد يتم إيقاف الحسابات في حال إساءة الاستخدام أو المحتوى الضار أو مخالفة قواعد المنصة. المحتوى والعلامات التجارية تظل ملكًا لأصحابها.',
+            ],
+            [
+                'slug' => 'contact',
+                'title_en' => 'Contact Us',
+                'title_ar' => 'اتصل بنا',
+                'content_en' => 'Get in touch with the Forsa team. You can reach us through the contact form or using the contact details shown on this page.',
+                'content_ar' => 'تواصل مع فريق فرصة. يمكنك مراسلتنا عبر نموذج التواصل أو باستخدام بيانات الاتصال الظاهرة في هذه الصفحة.',
             ],
         ];
 

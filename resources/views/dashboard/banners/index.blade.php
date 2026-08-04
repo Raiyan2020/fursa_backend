@@ -20,6 +20,8 @@
                                         <th>{{ __('name') }}</th>
                                         <th>{{ __('image') }}</th>
                                         <th>{{ __('banner_url') }}</th>
+                                        <th>{{ __('start date') }}</th>
+                                        <th>{{ __('end date') }}</th>
                                         <th>{{ __('actions') }}</th>
                                     </tr>
                                 </thead>
@@ -36,6 +38,8 @@
                                                 @endif
                                             </td>
                                             <td>{{ $row->banner_url }}</td>
+                                            <td>{{ optional($row->start_date)->format('Y-m-d') ?: '—' }}</td>
+                                            <td>{{ optional($row->end_date)->format('Y-m-d') ?: '—' }}</td>
                                             <td class="product-action">
                                                 <a class="btn btn-warning" href="{{ route('admin.banners.edit', $row) }}"><i class="feather icon-edit"></i></a>
                                                 <a class="btn btn-danger" data-href="{{ route('admin.banners.destroy', $row) }}" onclick="delete_form(this)"><i class="feather icon-trash"></i></a>

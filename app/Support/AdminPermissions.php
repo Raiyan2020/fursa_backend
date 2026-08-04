@@ -18,13 +18,13 @@ class AdminPermissions
             'admins.view', 'admins.create', 'admins.update', 'admins.delete',
 
             // Users
-            'users.view', 'users.update', 'users.delete',
+            'users.view', 'users.create', 'users.update', 'users.delete',
             'volunteers.view', 'volunteers.update', 'volunteers.delete',
             'entities.view', 'entities.update', 'entities.delete', 'entities.approve',
 
             // Opportunities & events
-            'volunteer-opportunities.view', 'volunteer-opportunities.update', 'volunteer-opportunities.delete', 'volunteer-opportunities.approve',
-            'learn-serve-opportunities.view', 'learn-serve-opportunities.update', 'learn-serve-opportunities.delete', 'learn-serve-opportunities.approve',
+            'volunteer-opportunities.view', 'volunteer-opportunities.create', 'volunteer-opportunities.update', 'volunteer-opportunities.delete', 'volunteer-opportunities.approve',
+            'learn-serve-opportunities.view', 'learn-serve-opportunities.create', 'learn-serve-opportunities.update', 'learn-serve-opportunities.delete', 'learn-serve-opportunities.approve',
             'events.view', 'events.create', 'events.update', 'events.delete', 'events.approve',
             'sponsors.view', 'sponsors.create', 'sponsors.update', 'sponsors.delete', 'sponsors.approve',
             'fursa-friends.view', 'fursa-friends.create', 'fursa-friends.delete',

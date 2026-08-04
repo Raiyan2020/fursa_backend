@@ -54,4 +54,25 @@ class StorageUrlHelperTest extends TestCase
 
         $this->assertSame($external, getimg($external));
     }
+
+    public function test_opportunity_cover_image_prefers_announcement(): void
+    {
+        $after = (object) ['image' => 'after.jpg', 'is_after_completed' => true, 'is_deleted' => false];
+        $announcement = (object) ['image' => 'card.jpg', 'is_after_completed' => false, 'is_deleted' => false];
+
+        $cover = opportunity_cover_image([$after, $announcement]);
+
+        $this->assertSame('card.jpg', $cover->image);
+        $this->assertCount(1, opportunity_card_images([$after, $announcement]));
+        $this->assertSame('card.jpg', opportunity_card_images([$after, $announcement])->first()->image);
+    }
+
+    public function test_opportunity_cover_image_falls_back_when_no_announcement(): void
+    {
+        $after = (object) ['image' => 'after.jpg', 'is_after_completed' => true, 'is_deleted' => false];
+
+        $cover = opportunity_cover_image([$after]);
+
+        $this->assertSame('after.jpg', $cover->image);
+    }
 }

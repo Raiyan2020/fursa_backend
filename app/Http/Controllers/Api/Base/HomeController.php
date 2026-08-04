@@ -61,7 +61,7 @@ class HomeController extends Controller
         return [
             'title_en' => $section['title_en'] ?? null,
             'title_ar' => $section['title_ar'] ?? null,
-            'banners' => BannerImage::query()->notDeleted()->latest()->get()->map(fn (BannerImage $b) => [
+            'banners' => BannerImage::query()->notDeleted()->currentlyVisible()->latest()->get()->map(fn (BannerImage $b) => [
                 'id' => $b->id,
                 'image' => $this->mediaUrl($b->image),
                 'banner_url' => $b->banner_url,
@@ -141,7 +141,7 @@ class HomeController extends Controller
             ->map(function (VolunteerOpportunity $item) {
                 $registered = (int) ($item->registrations_count ?? 0);
                 $needed = (int) ($item->participants_needed ?? 0);
-                $image = $item->images?->first(fn ($img) => ! $img->is_deleted);
+                $image = opportunity_cover_image($item->images);
 
                 return [
                     'id' => $item->id,
@@ -207,7 +207,7 @@ class HomeController extends Controller
             ->map(function (LearnServeOpportunity $item) {
                 $registered = (int) ($item->registrations_count ?? 0);
                 $needed = (int) ($item->participants_needed ?? 0);
-                $image = $item->images?->first(fn ($img) => ! $img->is_deleted);
+                $image = opportunity_cover_image($item->images);
 
                 return [
                     'id' => $item->id,
@@ -326,6 +326,15 @@ class HomeController extends Controller
                 'title_ar' => $p->title_ar,
             ])->values(),
             'contact_email' => $settings->contact_email,
+            'contact' => [
+                'email' => $settings->contact_email,
+                'phone' => $settings->contact_phone,
+                'whatsapp' => $settings->contact_whatsapp,
+                'address_en' => $settings->contact_address_en,
+                'address_ar' => $settings->contact_address_ar,
+                'page_text_en' => $settings->contact_page_text_en,
+                'page_text_ar' => $settings->contact_page_text_ar,
+            ],
             'social' => [
                 'tiktok' => $settings->tiktok_url,
                 'twitter' => $settings->twitter_url,

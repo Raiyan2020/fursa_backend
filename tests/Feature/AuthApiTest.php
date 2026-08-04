@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\OtpVerification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\AssertsDjangoApiEnvelope;
 use Tests\TestCase;
 
@@ -15,6 +16,7 @@ class AuthApiTest extends TestCase
 
     public function test_register_login_and_account_flow(): void
     {
+        config(['mail.default' => 'array']);
         $this->seed();
 
         $register = $this->postJson('/api/register/', [
@@ -28,6 +30,10 @@ class AuthApiTest extends TestCase
         ]);
 
         $this->assertSuccessEnvelope($register, 201, 'OTP has been sent to the email address.');
+        $this->assertGreaterThan(
+            0,
+            Mail::mailer('array')->getSymfonyTransport()->messages()->count()
+        );
 
         $otp = OtpVerification::query()->latest('id')->value('otp');
         $this->assertNotEmpty($otp);

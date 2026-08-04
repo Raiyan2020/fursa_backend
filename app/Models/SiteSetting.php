@@ -14,6 +14,12 @@ class SiteSetting extends Model
         'copyright_en',
         'copyright_ar',
         'contact_email',
+        'contact_phone',
+        'contact_whatsapp',
+        'contact_address_en',
+        'contact_address_ar',
+        'contact_page_text_en',
+        'contact_page_text_ar',
     ];
 
     public static function current(): self

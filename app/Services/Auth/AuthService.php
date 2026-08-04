@@ -144,6 +144,8 @@ class AuthService
 
         $sent = DynamicEmailService::send('account_activation_email', $user, [
             'otp' => $otp->otp,
+            'first_name' => $user->first_name ?: 'there',
+            'expiry_minutes' => (int) config('fursa.otp_or_link_expiry_time', 30),
         ]);
 
         Log::info('OTP dynamic template send result', [
@@ -190,6 +192,8 @@ class AuthService
 
         $sent = DynamicEmailService::send('forgot_password', $user, [
             'otp' => $otp->otp,
+            'first_name' => $user->first_name ?: 'there',
+            'expiry_minutes' => (int) config('fursa.otp_or_link_expiry_time', 30),
         ]);
 
         Log::info('OTP dynamic template send result', [

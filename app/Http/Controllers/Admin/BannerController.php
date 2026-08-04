@@ -23,16 +23,13 @@ class BannerController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'image' => ['required', 'image', 'max:5120'],
-            'banner_url' => ['nullable', 'url', 'max:255'],
-        ]);
+        $data = $this->validated($request);
 
-        // Pass UploadedFile — UploadTrait::setImageAttribute uploads & stores the disk path.
         BannerImage::create([
             'name' => $data['name'],
             'banner_url' => $data['banner_url'] ?? null,
+            'start_date' => $data['start_date'] ?? null,
+            'end_date' => $data['end_date'] ?? null,
             'image' => $request->file('image'),
         ]);
 
@@ -50,14 +47,12 @@ class BannerController extends Controller
 
     public function update(Request $request, BannerImage $banner)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'image' => ['nullable', 'image', 'max:5120'],
-            'banner_url' => ['nullable', 'url', 'max:255'],
-        ]);
+        $data = $this->validated($request, updating: true);
 
         $banner->name = $data['name'];
         $banner->banner_url = $data['banner_url'] ?? null;
+        $banner->start_date = $data['start_date'] ?? null;
+        $banner->end_date = $data['end_date'] ?? null;
 
         if ($request->hasFile('image')) {
             $old = $banner->getRawImagePath();
@@ -80,5 +75,22 @@ class BannerController extends Controller
         deleted();
 
         return back();
+    }
+
+    protected function validated(Request $request, bool $updating = false): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'image' => [$updating ? 'nullable' : 'required', 'image', 'max:5120'],
+            'banner_url' => ['nullable', 'url', 'max:255'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+        ], [], [
+            'name' => __('admin.attributes.name'),
+            'image' => __('admin.attributes.image'),
+            'banner_url' => __('admin.attributes.banner_url'),
+            'start_date' => __('admin.attributes.start_date'),
+            'end_date' => __('admin.attributes.end_date'),
+        ]);
     }
 }

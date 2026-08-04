@@ -32,7 +32,7 @@ class PublicAndCommunityFlowTest extends TestCase
 
         $pages = $this->getJson('/api/pages/');
         $this->assertSuccessEnvelope($pages);
-        foreach (['about', 'privacy', 'terms'] as $slug) {
+        foreach (['about', 'privacy', 'terms', 'contact'] as $slug) {
             $this->getJson('/api/pages/'.$slug.'/')
                 ->assertOk()
                 ->assertJsonPath('key', 'success')
