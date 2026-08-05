@@ -22,6 +22,7 @@
 
     <div class="shadow-bottom"></div>
     <div class="main-menu-content">
+        {{-- Sidebar mirrors Django Jazzmin order + kept CMS: Why Fursa, Pages, Site settings --}}
         <ul class="navigation navigation-main" id="main-menu-navigation" data-menu="menu-navigation">
             <li class="nav-item {{ request()->routeIs('admin.home') ? 'active' : '' }}">
                 <a href="{{ route('admin.home') }}">
@@ -30,54 +31,37 @@
                 </a>
             </li>
 
-            <li class="nav-item has-sub {{ request()->is('dashboard/admins*', 'dashboard/roles*', 'dashboard/permissions*') ? 'active open' : '' }}">
+            {{-- Django: base — Tags, Banners, General Settings, License Requirements --}}
+            <li class="nav-item has-sub {{ request()->is('dashboard/tags*', 'dashboard/banners*', 'dashboard/settings*', 'dashboard/license-requirements*') ? 'active open' : '' }}">
                 <a href="#">
-                    <i class="feather icon-user-check"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.access_control') }}</span>
+                    <i class="feather icon-grid"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.base') }}</span>
                 </a>
                 <ul class="menu-content">
-                    <li class="{{ request()->is('dashboard/admins*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.admins.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.admins') }}</span>
+                    <li class="{{ request()->is('dashboard/tags*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.tags.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.tags') }}</span>
                         </a>
                     </li>
-                    <li class="{{ request()->is('dashboard/roles*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.roles.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.roles') }}</span>
+                    <li class="{{ request()->is('dashboard/banners*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.banners.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.banners') }}</span>
                         </a>
                     </li>
-                    <li class="{{ request()->is('dashboard/permissions*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.permissions.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.permissions') }}</span>
+                    <li class="{{ request()->is('dashboard/settings*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.settings.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.general_settings') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/license-requirements*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.license-requirements.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.license_requirements') }}</span>
                         </a>
                     </li>
                 </ul>
             </li>
 
-            <li class="nav-item has-sub {{ request()->is('dashboard/users*', 'dashboard/volunteers*', 'dashboard/entities*') ? 'active open' : '' }}">
-                <a href="#">
-                    <i class="feather icon-users"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.users') }}</span>
-                </a>
-                <ul class="menu-content">
-                    <li class="{{ request()->is('dashboard/users*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.users.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.all_users') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/volunteers*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.volunteers.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.volunteers') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/entities*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.entities.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.entities') }}</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
+            {{-- Django: opportunity --}}
             <li class="nav-item has-sub {{ request()->is('dashboard/volunteer-opportunities*', 'dashboard/learn-serve-opportunities*') ? 'active open' : '' }}">
                 <a href="#">
                     <i class="feather icon-target"></i>
@@ -97,6 +81,7 @@
                 </ul>
             </li>
 
+            {{-- Django: event --}}
             <li class="nav-item {{ request()->is('dashboard/events*') ? 'active' : '' }}">
                 <a href="{{ route('admin.events.index') }}">
                     <i class="feather icon-calendar"></i>
@@ -104,29 +89,36 @@
                 </a>
             </li>
 
-            <li class="nav-item {{ request()->is('dashboard/sponsors*') ? 'active' : '' }}">
-                <a href="{{ route('admin.sponsors.index') }}">
-                    <i class="feather icon-award"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.sponsors') }}</span>
-                </a>
-            </li>
-
-            <li class="nav-item {{ request()->is('dashboard/fursa-friends*') ? 'active' : '' }}">
-                <a href="{{ route('admin.fursa-friends.index') }}">
-                    <i class="feather icon-heart"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.forsa_friends') }}</span>
-                </a>
-            </li>
-
-            <li class="nav-item has-sub {{ request()->is('dashboard/tags*', 'dashboard/badges*', 'dashboard/banners*', 'dashboard/forbidden-words*', 'dashboard/faqs*', 'dashboard/pages*', 'dashboard/why-fursa*', 'dashboard/home-sections*', 'dashboard/site-settings*') ? 'active open' : '' }}">
+            {{-- Django: authentication — Users, UserType Approval --}}
+            <li class="nav-item has-sub {{ request()->is('dashboard/users*', 'dashboard/user-type-approvals*') ? 'active open' : '' }}">
                 <a href="#">
-                    <i class="feather icon-layers"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.content') }}</span>
+                    <i class="feather icon-user"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.users') }}</span>
                 </a>
                 <ul class="menu-content">
-                    <li class="{{ request()->is('dashboard/tags*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.tags.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.tags') }}</span>
+                    <li class="{{ request()->is('dashboard/users*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.users.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.all_users') }}</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->is('dashboard/user-type-approvals*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.user-type-approvals.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.user_type_approvals') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            {{-- Django: volunteerprofile — Volunteer Profiles, Badges --}}
+            <li class="nav-item has-sub {{ request()->is('dashboard/volunteers*', 'dashboard/badges*') ? 'active open' : '' }}">
+                <a href="#">
+                    <i class="feather icon-users"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.volunteer_profile') }}</span>
+                </a>
+                <ul class="menu-content">
+                    <li class="{{ request()->is('dashboard/volunteers*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.volunteers.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.volunteers') }}</span>
                         </a>
                     </li>
                     <li class="{{ request()->is('dashboard/badges*') ? 'active' : '' }}">
@@ -134,44 +126,42 @@
                             <span class="menu-item">{{ __('admin.sidebar.badges') }}</span>
                         </a>
                     </li>
-                    <li class="{{ request()->is('dashboard/banners*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.banners.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.banners') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/forbidden-words*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.forbidden-words.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.forbidden_words') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/faqs*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.faqs.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.faqs') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/pages*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.pages.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.pages') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/why-fursa*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.why-fursa.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.why_fursa') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/home-sections*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.home-sections.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.home_sections') }}</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->is('dashboard/site-settings*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.site-settings.edit') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.site_settings') }}</span>
-                        </a>
-                    </li>
                 </ul>
             </li>
 
+            {{-- Django: organizationprofile --}}
+            <li class="nav-item {{ request()->is('dashboard/entities*') ? 'active' : '' }}">
+                <a href="{{ route('admin.entities.index') }}">
+                    <i class="feather icon-briefcase"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.entities') }}</span>
+                </a>
+            </li>
+
+            {{-- Django: sponsors --}}
+            <li class="nav-item {{ request()->is('dashboard/sponsors*') ? 'active' : '' }}">
+                <a href="{{ route('admin.sponsors.index') }}">
+                    <i class="feather icon-award"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.sponsors') }}</span>
+                </a>
+            </li>
+
+            {{-- Django: fursa_friend --}}
+            <li class="nav-item {{ request()->is('dashboard/fursa-friends*') ? 'active' : '' }}">
+                <a href="{{ route('admin.fursa-friends.index') }}">
+                    <i class="feather icon-heart"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.forsa_friends') }}</span>
+                </a>
+            </li>
+
+            {{-- Django: community — Forbidden Words --}}
+            <li class="nav-item {{ request()->is('dashboard/forbidden-words*') ? 'active' : '' }}">
+                <a href="{{ route('admin.forbidden-words.index') }}">
+                    <i class="feather icon-slash"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.forbidden_words') }}</span>
+                </a>
+            </li>
+
+            {{-- Django: email_template --}}
             <li class="nav-item {{ request()->is('dashboard/email-templates*') ? 'active' : '' }}">
                 <a href="{{ route('admin.email-templates.index') }}">
                     <i class="feather icon-mail"></i>
@@ -179,6 +169,15 @@
                 </a>
             </li>
 
+            {{-- Django: faq --}}
+            <li class="nav-item {{ request()->is('dashboard/faqs*') ? 'active' : '' }}">
+                <a href="{{ route('admin.faqs.index') }}">
+                    <i class="feather icon-help-circle"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.faqs') }}</span>
+                </a>
+            </li>
+
+            {{-- Django: notification --}}
             <li class="nav-item {{ request()->is('dashboard/notifications*') ? 'active' : '' }}">
                 <a href="{{ route('admin.notifications.index') }}">
                     <i class="feather icon-bell"></i>
@@ -186,25 +185,26 @@
                 </a>
             </li>
 
-            <li class="nav-item has-sub {{ request()->is('dashboard/settings*', 'dashboard/license-requirements*', 'dashboard/user-type-approvals*') ? 'active open' : '' }}">
+            {{-- Kept Laravel CMS extras (not in Django admin) --}}
+            <li class="nav-item has-sub {{ request()->is('dashboard/why-fursa*', 'dashboard/pages*', 'dashboard/site-settings*') ? 'active open' : '' }}">
                 <a href="#">
-                    <i class="feather icon-settings"></i>
-                    <span class="menu-title">{{ __('admin.sidebar.settings') }}</span>
+                    <i class="feather icon-layout"></i>
+                    <span class="menu-title">{{ __('admin.sidebar.website_cms') }}</span>
                 </a>
                 <ul class="menu-content">
-                    <li class="{{ request()->is('dashboard/settings*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.settings.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.general_settings') }}</span>
+                    <li class="{{ request()->is('dashboard/why-fursa*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.why-fursa.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.why_fursa') }}</span>
                         </a>
                     </li>
-                    <li class="{{ request()->is('dashboard/license-requirements*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.license-requirements.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.license_requirements') }}</span>
+                    <li class="{{ request()->is('dashboard/pages*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.pages.index') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.pages') }}</span>
                         </a>
                     </li>
-                    <li class="{{ request()->is('dashboard/user-type-approvals*') ? 'active' : '' }}">
-                        <a class="check-active" href="{{ route('admin.user-type-approvals.index') }}">
-                            <span class="menu-item">{{ __('admin.sidebar.user_type_approvals') }}</span>
+                    <li class="{{ request()->is('dashboard/site-settings*') ? 'active' : '' }}">
+                        <a class="check-active" href="{{ route('admin.site-settings.edit') }}">
+                            <span class="menu-item">{{ __('admin.sidebar.site_settings') }}</span>
                         </a>
                     </li>
                 </ul>
