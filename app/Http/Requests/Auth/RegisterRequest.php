@@ -6,6 +6,7 @@ use App\Enums\Nationality;
 use App\Enums\UserType;
 use App\Http\Requests\BaseRequest;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -99,6 +100,34 @@ class RegisterRequest extends BaseRequest
             $this->merge([
                 'nationality' => Nationality::normalize($this->input('nationality')),
             ]);
+        }
+
+        $this->normalizeDocumentUploads();
+    }
+
+    /**
+     * Multipart clients often append files as repeated "documents" / "certificates"
+     * keys without "[]". PHP then exposes a single UploadedFile, which fails the
+     * array rule. Normalize to a list, and accept "certificates" as an alias.
+     */
+    protected function normalizeDocumentUploads(): void
+    {
+        if (! $this->hasFile('documents') && $this->hasFile('certificates')) {
+            $certificates = $this->file('certificates');
+            $this->files->set(
+                'documents',
+                is_array($certificates) ? array_values($certificates) : [$certificates]
+            );
+        }
+
+        if (! $this->hasFile('documents')) {
+            return;
+        }
+
+        $documents = $this->file('documents');
+
+        if ($documents instanceof UploadedFile) {
+            $this->files->set('documents', [$documents]);
         }
     }
 }
