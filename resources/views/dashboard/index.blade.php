@@ -253,7 +253,7 @@
                 grid: {
                     borderColor: gridColor,
                     strokeDashArray: 4,
-                    padding: { left: 8, right: 8 },
+                    padding: { left: 8, right: 8, top: 8, bottom: 0 },
                 },
                 states: {
                     hover: { filter: { type: 'lighten', value: 0.04 } },
@@ -268,7 +268,7 @@
             if (document.querySelector('#chart-growth')) {
                 new ApexCharts(document.querySelector('#chart-growth'), {
                     ...baseChart,
-                    chart: { ...baseChart.chart, type: 'area', height: 340, stacked: false },
+                    chart: { ...baseChart.chart, type: 'area', height: 380, stacked: false },
                     colors: [colors.primary, colors.info, colors.teal, colors.warning],
                     series: charts.growth.series,
                     stroke: { curve: 'smooth', width: 2.5 },
@@ -284,7 +284,16 @@
                     markers: { size: 0, hover: { size: 5 } },
                     xaxis: {
                         categories: charts.growth.labels,
-                        labels: { style: { colors: labelColor, fontFamily: fontFamily } },
+                        tickPlacement: 'between',
+                        labels: {
+                            style: { colors: labelColor, fontFamily: fontFamily, fontSize: '11px' },
+                            rotate: -35,
+                            rotateAlways: true,
+                            hideOverlappingLabels: true,
+                            trim: false,
+                            offsetY: 2,
+                            maxHeight: 72,
+                        },
                         axisBorder: { show: false },
                         axisTicks: { show: false },
                     },
@@ -295,6 +304,15 @@
                         labels: {
                             style: { colors: labelColor, fontFamily: fontFamily },
                             formatter: (value) => Math.round(value),
+                        },
+                    },
+                    grid: {
+                        ...baseChart.grid,
+                        padding: {
+                            left: isRtl ? 12 : 8,
+                            right: isRtl ? 8 : 12,
+                            top: 12,
+                            bottom: 16,
                         },
                     },
                     legend: { ...baseChart.legend, position: 'top', horizontalAlign: isRtl ? 'right' : 'left' },
@@ -426,9 +444,17 @@
             }
 
             if (document.querySelector('#chart-overview')) {
+                const overviewCount = charts.overview.labels.length;
+                const overviewHeight = Math.max(380, overviewCount * 52);
+
                 new ApexCharts(document.querySelector('#chart-overview'), {
                     ...baseChart,
-                    chart: { ...baseChart.chart, type: 'bar', height: 360 },
+                    chart: {
+                        ...baseChart.chart,
+                        type: 'bar',
+                        height: overviewHeight,
+                        offsetX: isRtl ? -8 : 0,
+                    },
                     colors: [
                         colors.primary,
                         colors.info,
@@ -446,7 +472,7 @@
                         bar: {
                             horizontal: true,
                             borderRadius: 8,
-                            barHeight: '62%',
+                            barHeight: '48%',
                             distributed: true,
                         },
                     },
@@ -454,13 +480,31 @@
                         categories: charts.overview.labels,
                         labels: {
                             style: { colors: labelColor, fontFamily: fontFamily },
-                            formatter: (value) => Math.round(value),
+                            formatter: (value) => {
+                                const num = Number(value);
+                                return Number.isFinite(num) ? Math.round(num).toLocaleString() : value;
+                            },
                         },
                         axisBorder: { show: false },
                         axisTicks: { show: false },
                     },
                     yaxis: {
-                        labels: { style: { colors: labelColor, fontFamily: fontFamily, fontSize: '12px' } },
+                        opposite: isRtl,
+                        labels: {
+                            style: { colors: labelColor, fontFamily: fontFamily, fontSize: '12px' },
+                            maxWidth: 220,
+                            align: isRtl ? 'right' : 'left',
+                            offsetX: isRtl ? 6 : -4,
+                        },
+                    },
+                    grid: {
+                        ...baseChart.grid,
+                        padding: {
+                            left: isRtl ? 12 : 148,
+                            right: isRtl ? 148 : 12,
+                            top: 8,
+                            bottom: 8,
+                        },
                     },
                     legend: { show: false },
                     tooltip: {

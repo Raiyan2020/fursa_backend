@@ -512,6 +512,15 @@ body:not(.dark-layout) .dashboard-home .dash-stat-card__footer {
 
 .dashboard-home .dash-chart-body {
     padding: 8px 12px 18px;
+    overflow: hidden;
+}
+
+.dashboard-home #chart-growth .apexcharts-xaxis-texts-g text {
+    dominant-baseline: hanging;
+}
+
+.dashboard-home #chart-overview .apexcharts-yaxis-texts-g text {
+    font-weight: 600;
 }
 
 .dashboard-home .dash-chart-body .apexcharts-canvas {

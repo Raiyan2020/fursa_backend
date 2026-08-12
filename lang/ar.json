@@ -1,5 +1,12 @@
 {
     "main page": "الصفحة الرئيسية",
+    "basic information": "المعلومات الأساسية",
+    "date and time": "التاريخ والوقت",
+    "participant requirements": "متطلبات المشاركين",
+    "status and classification": "الحالة والتصنيف",
+    "options": "الخيارات",
+    "kuwaitis": "للكويتيين فقط",
+    "other": "غير كويتيين",
     "admins": "المشرفون",
     "roles": "الأدوار",
     "permissions": "الصلاحيات",

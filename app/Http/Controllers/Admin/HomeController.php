@@ -305,7 +305,7 @@ class HomeController extends Controller
 
         for ($i = 0; $i < $months; $i++) {
             $key = $cursor->format('Y-m');
-            $labels[] = $cursor->translatedFormat('M Y');
+            $labels[] = $cursor->translatedFormat('M y');
             $data[] = (int) ($rows[$key] ?? 0);
             $cursor->addMonth();
         }

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Admin;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class AdminSeeder extends Seeder
 {
@@ -20,7 +19,7 @@ class AdminSeeder extends Seeder
             'name' => 'Forsa Admin',
             'email' => 'admin@admin.com',
             'phone' => '591111111',
-            'password' => Hash::make('123456'),
+            'password' => 123456,
             'is_active' => true,
         ]);
     }

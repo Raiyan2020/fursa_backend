@@ -1,5 +1,12 @@
 {
     "main page": "Home",
+    "basic information": "Basic Information",
+    "date and time": "Date & Time",
+    "participant requirements": "Participant Requirements",
+    "status and classification": "Status & Classification",
+    "options": "Options",
+    "kuwaitis": "Kuwaitis only",
+    "other": "Other",
     "admins": "Admins",
     "roles": "Roles",
     "permissions": "Permissions",
