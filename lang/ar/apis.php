@@ -27,6 +27,7 @@ return [
     'resend_failed' => 'فشلت إعادة الإرسال',
     'activation_resent' => 'تم إعادة إرسال رابط التفعيل',
     'otp_resent' => 'تم إعادة إرسال رمز التحقق',
+    'account_not_activated' => 'الحساب غير مفعل. أدخل رمز OTP المرسل إلى بريدك الإلكتروني.',
     'user_check_completed' => 'تم التحقق من المستخدم',
     'account_retrieved' => 'تم جلب بيانات الحساب بنجاح',
     'account_updated' => 'تم تحديث الحساب بنجاح',

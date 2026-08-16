@@ -52,6 +52,11 @@
                             {{ $org->company_name ?: ($org->nickname ?: '#'.$org->id) }}
                         </option>
                     @endforeach
+                    @if (! empty(optional($opportunity)->created_by) && ! $organizations->contains('user_id', $opportunity->created_by))
+                        <option value="{{ $opportunity->created_by }}" selected>
+                            {{ optional($opportunity->creator)->email ?: '#'.$opportunity->created_by }}
+                        </option>
+                    @endif
                 </select>
                 @error('created_by') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
@@ -221,7 +226,7 @@
             </div>
             <div class="col-md-12 mb-1">
                 <label>{{ __('link') }}</label>
-                <input type="url" name="link" class="form-control{{ $invalid('link') }}" value="{{ $opportunityValue('link') }}">
+                <input type="text" name="link" class="form-control{{ $invalid('link') }}" value="{{ $opportunityValue('link') }}" placeholder="https://">
                 @error('link') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
         </div>
@@ -378,11 +383,10 @@
                         @foreach ($announcementImages as $image)
                             <div class="mr-2 mb-2 text-center">
                                 <img src="{{ getimg($image->image) }}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:8px;">
-                                <form action="{{ route('admin.volunteer-opportunities.images.destroy', [$opportunity, $image]) }}" method="POST" class="mt-50">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('{{ __('Are you sure?') }}')">{{ __('delete') }}</button>
-                                </form>
+                                @include('dashboard.partials.nested-delete-form', [
+                                    'formId' => 'delete-volunteer-image-'.$image->id,
+                                    'action' => route('admin.volunteer-opportunities.images.destroy', [$opportunity, $image]),
+                                ])
                             </div>
                         @endforeach
                     </div>
@@ -396,11 +400,10 @@
                         @foreach ($afterImages as $image)
                             <div class="mr-2 mb-2 text-center">
                                 <img src="{{ getimg($image->image) }}" alt="" style="width:90px;height:90px;object-fit:cover;border-radius:8px;">
-                                <form action="{{ route('admin.volunteer-opportunities.images.destroy', [$opportunity, $image]) }}" method="POST" class="mt-50">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('{{ __('Are you sure?') }}')">{{ __('delete') }}</button>
-                                </form>
+                                @include('dashboard.partials.nested-delete-form', [
+                                    'formId' => 'delete-volunteer-after-image-'.$image->id,
+                                    'action' => route('admin.volunteer-opportunities.images.destroy', [$opportunity, $image]),
+                                ])
                             </div>
                         @endforeach
                     </div>

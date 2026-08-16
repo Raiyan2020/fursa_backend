@@ -30,6 +30,15 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
+        $email = strtolower(trim((string) $request->input('email')));
+        $existing = User::query()->where('email', $email)->first();
+
+        if ($existing && ! $existing->is_active) {
+            $this->authService->sendAccountActivation($existing);
+
+            return $this->otpVerificationRequiredResponse($existing);
+        }
+
         try {
             $user = $this->authService->register($request->validated());
         } catch (ValidationException $e) {
@@ -39,6 +48,9 @@ class AuthController extends Controller
         }
 
         $payload = (new WebsiteRegisterUserResource($user))->resolve();
+        $payload['action'] = 'verify_otp';
+        $payload['otp_type'] = 'register';
+        $payload['is_active'] = false;
         if (config('fursa.expose_otp_in_response') && $user->getAttribute('debug_otp')) {
             $payload['otp'] = $user->getAttribute('debug_otp');
         }
@@ -72,12 +84,7 @@ class AuthController extends Controller
         if (! $user->is_active) {
             $this->authService->sendAccountActivation($user);
 
-            return ApiResponse::error('Login failed.', 'فشل تسجيل الدخول.', 400, [
-                'email' => [
-                    'en' => 'Account is inactive. Activation mail resent.',
-                    'ar' => 'الحساب غير مفعل. تم إعادة إرسال التفعيل.',
-                ],
-            ]);
+            return $this->otpVerificationRequiredResponse($user);
         }
 
         if ($user->is_social_login) {
@@ -241,7 +248,15 @@ class AuthController extends Controller
             $otp = $this->authService->sendForgotPassword($user);
         }
 
-        $payload = config('fursa.expose_otp_in_response') ? ['otp' => $otp] : null;
+        $payload = [
+            'action' => $data['type'] === 'register' ? 'verify_otp' : 'verify_password_otp',
+            'otp_type' => $data['type'],
+            'email' => $user->email,
+            'is_active' => (bool) $user->is_active,
+        ];
+        if (config('fursa.expose_otp_in_response')) {
+            $payload['otp'] = $otp;
+        }
 
         return ApiResponse::success(
             $payload,
@@ -268,8 +283,12 @@ class AuthController extends Controller
 
         $result = [];
         if (! empty($data['email'])) {
-            $exists = User::query()->where('email', strtolower(trim($data['email'])))->exists();
-            $result['email'] = ['is_new_user' => ! $exists];
+            $user = User::query()->where('email', strtolower(trim($data['email'])))->first();
+            $result['email'] = [
+                'is_new_user' => $user === null,
+                'is_active' => (bool) ($user?->is_active),
+                'needs_activation' => $user !== null && ! $user->is_active,
+            ];
         }
         if (! empty($data['nickname'])) {
             $volunteerExists = \App\Models\VolunteerProfile::query()
@@ -303,6 +322,25 @@ class AuthController extends Controller
                 'nationality' => \App\Enums\Nationality::normalize($request->input('nationality')),
             ]);
         }
+
+        $stringFields = [];
+        foreach ([
+            'phone_number',
+            'country_code',
+            'civil_id',
+            'emergency_contact_phone',
+            'emergency_contact_country_code',
+            'emergency_contact_civil_id',
+        ] as $field) {
+            $value = $request->input($field);
+            if (is_int($value) || is_float($value)) {
+                $stringFields[$field] = (string) $value;
+            }
+        }
+        if ($stringFields !== []) {
+            $request->merge($stringFields);
+        }
+
         $data = $request->validate([
             'profile_pic' => ['nullable', 'image'],
             'first_name' => ['nullable', 'string', 'max:150'],
@@ -333,6 +371,28 @@ class AuthController extends Controller
         if (array_key_exists('emergency_contact_relationship', $data)) {
             $user->emergency_contact_relationship_id = $data['emergency_contact_relationship'];
             unset($data['emergency_contact_relationship']);
+        }
+
+        $userPhone = preg_replace('/\D+/', '', (string) (($data['country_code'] ?? $user->country_code).($data['phone_number'] ?? $user->phone_number))) ?: '';
+        $emergencyPhone = preg_replace('/\D+/', '', (string) (($data['emergency_contact_country_code'] ?? $user->emergency_contact_country_code).($data['emergency_contact_phone'] ?? $user->emergency_contact_phone))) ?: '';
+        if ($userPhone !== '' && $userPhone === $emergencyPhone) {
+            return ApiResponse::error(
+                'Account update failed.',
+                'فشل تحديث الحساب.',
+                422,
+                ['emergency_contact_phone' => [__('The emergency contact phone must be different from the volunteer phone number.')]]
+            );
+        }
+
+        $civilId = preg_replace('/\D+/', '', (string) ($data['civil_id'] ?? $user->civil_id)) ?: '';
+        $emergencyCivilId = preg_replace('/\D+/', '', (string) ($data['emergency_contact_civil_id'] ?? $user->emergency_contact_civil_id)) ?: '';
+        if ($civilId !== '' && $civilId === $emergencyCivilId) {
+            return ApiResponse::error(
+                'Account update failed.',
+                'فشل تحديث الحساب.',
+                422,
+                ['emergency_contact_civil_id' => [__('The emergency contact civil ID must be different from the volunteer civil ID.')]]
+            );
         }
 
         $user->fill($data);
@@ -474,5 +534,32 @@ class AuthController extends Controller
         }
 
         return ApiResponse::success(new WebsitePublicProfileResource($user));
+    }
+
+    /**
+     * Machine-readable signal for the frontend to open the OTP screen.
+     */
+    protected function otpVerificationRequiredResponse(User $user): JsonResponse
+    {
+        $messageEn = trans('apis.account_not_activated', [], 'en');
+        $messageAr = trans('apis.account_not_activated', [], 'ar');
+
+        return ApiResponse::error(
+            $messageEn,
+            $messageAr,
+            403,
+            [
+                'email' => [
+                    'en' => $messageEn,
+                    'ar' => $messageAr,
+                ],
+            ],
+            [
+                'action' => 'verify_otp',
+                'otp_type' => 'register',
+                'email' => $user->email,
+                'is_active' => false,
+            ]
+        );
     }
 }

@@ -77,4 +77,23 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('service', 'fursa_backend')
             ->assertJsonPath('database', 'connected');
     }
+
+    public function test_register_rejects_duplicate_emergency_civil_id(): void
+    {
+        $this->seed();
+
+        $response = $this->postJson('/api/register/', [
+            'email' => 'dup.civil@test.com',
+            'password' => 'Password1',
+            'user_type' => 'volunteer',
+            'civil_id' => '232323232323',
+            'emergency_contact_civil_id' => '232323232323',
+            'birth_year' => 1995,
+        ]);
+
+        $this->assertErrorEnvelope($response, 422);
+        $this->assertNotEmpty(
+            $response->json('response_status.validation_errors.emergency_contact_civil_id')
+        );
+    }
 }

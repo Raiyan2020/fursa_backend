@@ -80,14 +80,25 @@
 
 <script>
     $(document).ready(function() {
-        $('.dropify').dropify({
-            messages: {
-                default: @json(__('Drag and drop a file here or click')),
-                replace: @json(__('Drag and drop a file here or click')),
-                remove: @json(__('Remove')),
-                error: @json(__('ooops, something wrong appended.'))
-            },
-            error: { fileSize: @json(__('Sorry, the file is too large')) }
+        $('.dropify').each(function () {
+            var $el = $(this);
+            var maxFileSize = $el.data('max-file-size') || '10M';
+            var sizeLabel = String(maxFileSize).toUpperCase();
+
+            $el.dropify({
+                maxFileSize: maxFileSize,
+                messages: {
+                    default: @json(__('Drag and drop a file here or click')),
+                    replace: @json(__('Drag and drop a file here or click')),
+                    remove: @json(__('Remove')),
+                    error: @json(__('Sorry, the file is too large'))
+                },
+                error: {
+                    fileSize: @json(__('Sorry, the file is too large. Maximum size is :size.')).replace(':size', sizeLabel),
+                    fileExtension: @json(__('This file type is not allowed.')),
+                    imageFormat: @json(__('This image format is not allowed.'))
+                }
+            });
         });
     });
 </script>

@@ -127,8 +127,10 @@
     <div class="col-md-12 mb-1">
         <label>{{ __('logo') }}</label>
         <input type="file" name="sponsor_logo" class="dropify{{ $invalid('sponsor_logo') }}" data-height="200" accept="image/*"
+            data-max-file-size="10M"
             {{ ! empty(optional($sponsor)->sponsor_logo) ? 'data-default-file='.getimg($sponsor->sponsor_logo) : '' }}>
-        <small class="text-muted">{{ __('Appears on the website sponsors section when approved') }}</small>
+        <small class="text-muted d-block">{{ __('Appears on the website sponsors section when approved') }}</small>
+        <small class="text-muted d-block">{{ __('Maximum file size is 10 MB') }}</small>
         @error('sponsor_logo') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 </div>
