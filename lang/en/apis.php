@@ -27,6 +27,7 @@ return [
     'resend_failed' => 'Resend failed',
     'activation_resent' => 'Activation link resent',
     'otp_resent' => 'OTP resent successfully',
+    'account_not_activated' => 'Account is not activated. Enter the OTP sent to your email.',
     'user_check_completed' => 'User check completed',
     'account_retrieved' => 'Account retrieved successfully',
     'account_updated' => 'Account updated successfully',

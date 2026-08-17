@@ -81,11 +81,16 @@ class BannerController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'image' => [$updating ? 'nullable' : 'required', 'image', 'max:5120'],
+            'image' => [$updating ? 'nullable' : 'required', 'image', 'max:1024'],
             'banner_url' => ['nullable', 'url', 'max:255'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-        ], [], [
+        ], [
+            'image.image' => __('The slider image must be an image (jpg, png, gif, or webp).'),
+            'image.max' => __('The slider image must not be greater than 1 MB.'),
+            'image.uploaded' => __('The slider image failed to upload because the file is too large. Please use an image smaller than 1 MB.'),
+            'image.required' => __('The slider image is required.'),
+        ], [
             'name' => __('admin.attributes.name'),
             'image' => __('admin.attributes.image'),
             'banner_url' => __('admin.attributes.banner_url'),

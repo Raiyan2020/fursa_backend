@@ -75,7 +75,7 @@ class LearnServeOpportunityController extends Controller
 
     public function edit(LearnServeOpportunity $opportunity)
     {
-        $opportunity->load(['interests', 'images']);
+        $opportunity->load(['interests', 'images', 'creator']);
 
         return view('dashboard.learn-serve-opportunities.edit', array_merge(
             compact('opportunity'),
@@ -292,7 +292,7 @@ class LearnServeOpportunityController extends Controller
             'format_id' => $choiceRule('learn_serve_format'),
             'certificate_type_id' => $choiceRule('learn_serve_certificate_type'),
             'participants_needed' => ['required', 'integer', 'min:1'],
-            'link' => ['nullable', 'url', 'max:500'],
+            'link' => ['nullable', 'string', 'max:500'],
             'opportunity_nationality' => ['nullable', 'string', 'max:100'],
             'primary_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],
@@ -305,10 +305,10 @@ class LearnServeOpportunityController extends Controller
                 Rule::exists('interests', 'id')->where(fn ($q) => $q->where('interest_type', InterestType::LEARNSHARE->value)),
             ],
             'images' => ['nullable', 'array'],
-            'images.*' => ['image', 'max:5120'],
+            'images.*' => ['image', 'max:10240'],
             'after_images' => ['nullable', 'array'],
-            'after_images.*' => ['image', 'max:5120'],
-            'license_image' => ['nullable', 'image', 'max:5120'],
+            'after_images.*' => ['image', 'max:10240'],
+            'license_image' => ['nullable', 'image', 'max:10240'],
         ], [], [
             'created_by' => __('admin.attributes.created_by'),
             'title_en' => __('admin.attributes.title_en'),

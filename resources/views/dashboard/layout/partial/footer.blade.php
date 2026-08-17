@@ -8,6 +8,7 @@
 <div class="drag-target"></div>
 
 @include('dashboard.layout.scripts')
+@stack('forms')
 @stack('scripts')
 
 <script>

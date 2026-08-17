@@ -49,6 +49,16 @@ class Handler extends ExceptionHandler
             }
         });
 
+        $this->renderable(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, $request) {
+            $message = __('The uploaded file is too large. Please upload an image smaller than 10 MB.');
+
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return ApiResponse::fail($message, 413);
+            }
+
+            return response()->view('errors.413', [], 413);
+        });
+
         $this->reportable(function (Throwable $e) {
             //
         });

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Event;
 use App\Models\Post;
 use App\Models\Sponsor;
+use App\Models\VolunteerOpportunity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\AssertsDjangoApiEnvelope;
 use Tests\Support\CreatesDomainFixtures;
@@ -106,6 +108,63 @@ class PublicAndCommunityFlowTest extends TestCase
         $this->api($token)->postJson('/api/likes/toggle/', [
             'post_id' => $postId,
         ])->assertNotFound()->assertJsonPath('key', 'fail');
+    }
+
+    public function test_list_all_opportunities_organized_events_returns_only_events(): void
+    {
+        [, $organizationToken] = $this->createOrganizationActor('organized.events.org@test.com');
+        [, $volunteerToken] = $this->createVolunteerActor('organized.events.vol@test.com');
+
+        $dates = [
+            'start_date' => now()->addDays(5)->toDateString(),
+            'end_date' => now()->addDays(7)->toDateString(),
+            'due_date' => now()->addDays(4)->toDateString(),
+        ];
+
+        $opportunity = $this->api($organizationToken)->postJson('/api/volunteer-opportunities/', array_merge($dates, [
+            'title_en' => 'Not An Event Opportunity',
+            'title_ar' => 'فرصة ليست فعالية',
+            'description_en' => 'Should not appear in organized_events',
+            'description_ar' => 'لا يجب أن تظهر',
+            'participants_needed' => 10,
+            'is_public' => true,
+        ]));
+        $this->assertSuccessEnvelope($opportunity, 201);
+        $opportunityId = (int) $opportunity->json('data.id');
+
+        $event = $this->api($organizationToken)->postJson('/api/events/', [
+            'title_en' => 'Real Organized Event',
+            'title_ar' => 'فعالية حقيقية',
+            'start_date' => $dates['start_date'],
+            'end_date' => $dates['start_date'],
+            'due_date' => now()->addDays(4)->toDateTimeString(),
+            'registration_required' => true,
+            'participants_needed' => 10,
+        ]);
+        $this->assertSuccessEnvelope($event, 201);
+        $eventId = (int) $event->json('data.id');
+
+        VolunteerOpportunity::query()->whereKey($opportunityId)->update(['approval_status' => 'approved']);
+        Event::query()->whereKey($eventId)->update(['approval_status' => 'approved']);
+
+        $list = $this->api($volunteerToken)->getJson('/api/list-all-opportunities/?filter_type=organized_events&page=1&limit=9');
+        $this->assertSuccessEnvelope($list);
+
+        $items = $list->json('data');
+        $this->assertIsArray($items);
+        $this->assertNotEmpty($items);
+        foreach ($items as $item) {
+            $this->assertSame('event', $item['opportunity_type'] ?? null);
+        }
+
+        $ids = array_column($items, 'id');
+        $this->assertContains($eventId, $ids);
+        $this->assertNotContains($opportunityId, $ids);
+
+        $this->getJson('/api/events/'.$eventId.'/')
+            ->assertOk()
+            ->assertJsonPath('key', 'success')
+            ->assertJsonPath('data.opportunity_type', 'event');
     }
 
     protected function api(string $token)

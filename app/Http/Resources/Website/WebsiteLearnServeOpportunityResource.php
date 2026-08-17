@@ -23,6 +23,7 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
 
         return [
             'id' => $opportunity->id,
+            'opportunity_type' => 'learn_serve_opportunity',
             'title_en' => $opportunity->title_en,
             'title_ar' => $opportunity->title_ar,
             'opportunity_status' => $opportunity->opportunity_status?->value ?? $opportunity->opportunity_status,

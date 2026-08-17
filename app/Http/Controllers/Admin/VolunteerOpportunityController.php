@@ -75,7 +75,7 @@ class VolunteerOpportunityController extends Controller
 
     public function edit(VolunteerOpportunity $opportunity)
     {
-        $opportunity->load(['interests', 'images']);
+        $opportunity->load(['interests', 'images', 'creator']);
 
         return view('dashboard.volunteer-opportunities.edit', array_merge(
             compact('opportunity'),
@@ -295,7 +295,7 @@ class VolunteerOpportunityController extends Controller
             'gender_id' => $choiceRule('opportunity_gender'),
             'participants_needed' => ['required', 'integer', 'min:1'],
             'volunteer_hours_per_day' => ['nullable', 'numeric', 'min:0'],
-            'link' => ['nullable', 'url', 'max:500'],
+            'link' => ['nullable', 'string', 'max:500'],
             'opportunity_nationality' => ['nullable', Rule::in(\App\Enums\Nationality::values())],
             'primary_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],

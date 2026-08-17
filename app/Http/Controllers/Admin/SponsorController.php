@@ -159,8 +159,12 @@ class SponsorController extends Controller
             'resources_expected' => ['nullable', 'string'],
             'preferred_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],
-            'sponsor_logo' => ['nullable', 'image', 'max:5120'],
-        ], [], [
+            'sponsor_logo' => ['nullable', 'image', 'max:10240'],
+        ], [
+            'sponsor_logo.image' => __('The logo must be an image (jpg, png, gif, or webp).'),
+            'sponsor_logo.max' => __('The logo must not be greater than 10 MB.'),
+            'sponsor_logo.uploaded' => __('The logo failed to upload because the file is too large. Please use an image smaller than 10 MB.'),
+        ], [
             'org_name' => __('admin.attributes.org_name'),
             'person_name' => __('admin.attributes.person_name'),
             'email' => __('admin.attributes.email'),

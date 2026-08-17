@@ -3,6 +3,16 @@
     $endDate = old('end_date', optional(optional($bannerImage ?? null)->end_date)->format('Y-m-d'));
 @endphp
 
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <ul class="mb-0">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 <div class="row">
     <div class="col-md-6 mb-1">
         <label>{{ __('name') }} <span class="text-danger">*</span></label>
@@ -23,9 +33,14 @@
         <small class="text-muted">{{ __('Leave empty to keep showing with no end date') }}</small>
     </div>
     <div class="col-md-12 mb-1">
-        <label>{{ __('image') }}</label>
-        <input type="file" name="image" class="dropify" data-height="200" accept="image/*"
-            {{ !empty($bannerImage->image) ? 'data-default-file='.$bannerImage->image : '' }}>
+        <label>{{ __('image') }} @if (empty(optional($bannerImage ?? null)->image))<span class="text-danger">*</span>@endif</label>
+        <input type="file" name="image" class="dropify{{ $errors->has('image') ? ' is-invalid' : '' }}"
+            data-height="200"
+            accept="image/*"
+            data-max-file-size="1M"
+            {{ ! empty(optional($bannerImage ?? null)->image) ? 'data-default-file='.getimg($bannerImage->image) : '' }}>
+        <small class="text-muted d-block">{{ __('Maximum slider image size is 1 MB') }}</small>
+        @error('image') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 </div>
 <div class="mt-1">

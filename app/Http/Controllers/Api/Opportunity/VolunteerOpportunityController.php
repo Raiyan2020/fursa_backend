@@ -431,7 +431,7 @@ class VolunteerOpportunityController extends Controller
             $volunteerQuery->where('created_by', $user->id);
             $learnQuery->where('created_by', $user->id);
             $eventQuery->whereRaw('0 = 1');
-        } elseif ($filterType === 'organized_events') {
+        } elseif (in_array($filterType, ['organized_events', 'events'], true)) {
             $volunteerQuery->whereRaw('0 = 1');
             $learnQuery->whereRaw('0 = 1');
             if ($orgId) {

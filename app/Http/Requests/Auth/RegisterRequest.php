@@ -20,7 +20,12 @@ class RegisterRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->where(fn ($query) => $query->where('is_active', true)),
+            ],
             'password' => ['nullable', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/'],
             'user_type' => ['nullable', Rule::in(UserType::values())],
             'first_name' => ['nullable', 'string', 'max:150'],
@@ -48,8 +53,34 @@ class RegisterRequest extends BaseRequest
             'emergency_contact_name' => ['nullable', 'string', 'max:100'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
             'emergency_contact_country_code' => ['nullable', 'string', 'max:10'],
-            'emergency_contact_civil_id' => ['nullable', 'string', 'max:12', 'regex:/^[23]\d{11}$/'],
+            'emergency_contact_civil_id' => [
+                'nullable',
+                'string',
+                'max:12',
+                'regex:/^[23]\d{11}$/',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $civilId = $this->normalizedCivilId($this->input('civil_id'));
+                    $emergencyCivilId = $this->normalizedCivilId($value);
+
+                    if ($civilId !== '' && $emergencyCivilId !== '' && $civilId === $emergencyCivilId) {
+                        $fail(__('The emergency contact civil ID must be different from the volunteer civil ID.'));
+                    }
+                },
+            ],
             'emergency_contact_relationship' => ['nullable', 'integer', 'exists:master_choices,id'],
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'phone_number' => __('validation.attributes.phone_number'),
+            'emergency_contact_phone' => __('validation.attributes.emergency_contact_phone'),
+            'emergency_contact_name' => __('validation.attributes.emergency_contact_name'),
+            'emergency_contact_country_code' => __('validation.attributes.emergency_contact_country_code'),
+            'emergency_contact_civil_id' => __('validation.attributes.emergency_contact_civil_id'),
+            'emergency_contact_relationship' => __('validation.attributes.emergency_contact_relationship'),
+            'civil_id' => __('validation.attributes.civil_id'),
         ];
     }
 
@@ -62,7 +93,10 @@ class RegisterRequest extends BaseRequest
             if ($userType === UserType::VOLUNTEER->value) {
                 if ($civilId === '') {
                     $validator->errors()->add('civil_id', __('validation.required', ['attribute' => 'civil_id']));
-                } elseif (User::query()->where('civil_id', $civilId)->exists()) {
+                } elseif (User::query()
+                    ->where('civil_id', $civilId)
+                    ->where('email', '!=', strtolower(trim((string) $this->input('email', ''))))
+                    ->exists()) {
                     $validator->errors()->add('civil_id', __('validation.unique', ['attribute' => 'civil_id']));
                 }
 
@@ -87,6 +121,8 @@ class RegisterRequest extends BaseRequest
                     }
                 }
             }
+
+            $this->rejectDuplicateEmergencyContact($validator);
         });
     }
 
@@ -102,7 +138,79 @@ class RegisterRequest extends BaseRequest
             ]);
         }
 
+        $this->stringifyNumericFields([
+            'phone_number',
+            'country_code',
+            'civil_id',
+            'emergency_contact_phone',
+            'emergency_contact_country_code',
+            'emergency_contact_civil_id',
+            'license_number',
+            'registration_number',
+            'nickname',
+        ]);
+
         $this->normalizeDocumentUploads();
+    }
+
+    protected function rejectDuplicateEmergencyContact(Validator $validator): void
+    {
+        $userPhone = $this->normalizedPhone(
+            $this->input('country_code'),
+            $this->input('phone_number')
+        );
+        $emergencyPhone = $this->normalizedPhone(
+            $this->input('emergency_contact_country_code'),
+            $this->input('emergency_contact_phone')
+        );
+        $userLocalPhone = $this->normalizedCivilId($this->input('phone_number'));
+        $emergencyLocalPhone = $this->normalizedCivilId($this->input('emergency_contact_phone'));
+
+        $sameFullPhone = $userPhone !== '' && $userPhone === $emergencyPhone;
+        $sameLocalPhone = $userLocalPhone !== '' && $userLocalPhone === $emergencyLocalPhone;
+
+        if ($sameFullPhone || $sameLocalPhone) {
+            $validator->errors()->add(
+                'emergency_contact_phone',
+                __('The emergency contact phone must be different from the volunteer phone number.')
+            );
+        }
+    }
+
+    protected function normalizedCivilId(mixed $value): string
+    {
+        return preg_replace('/\D+/', '', (string) $value) ?: '';
+    }
+
+    protected function normalizedPhone(mixed $countryCode, mixed $phoneNumber): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $countryCode.(string) $phoneNumber);
+
+        return $digits ?: '';
+    }
+
+    /**
+     * JSON clients often send phone / civil-id values as numbers.
+     * Laravel's "string" rule then fails with "must be a string".
+     */
+    protected function stringifyNumericFields(array $fields): void
+    {
+        $merged = [];
+
+        foreach ($fields as $field) {
+            if (! $this->exists($field)) {
+                continue;
+            }
+
+            $value = $this->input($field);
+            if (is_int($value) || is_float($value)) {
+                $merged[$field] = (string) $value;
+            }
+        }
+
+        if ($merged !== []) {
+            $this->merge($merged);
+        }
     }
 
     /**

@@ -53,6 +53,7 @@ class WebsiteEventResource extends JsonResource
 
         $payload = [
             'id' => $event->id,
+            'opportunity_type' => 'event',
             'title_en' => $event->title_en,
             'title_ar' => $event->title_ar,
             'event_status' => $event->event_status?->value ?? $event->event_status,
