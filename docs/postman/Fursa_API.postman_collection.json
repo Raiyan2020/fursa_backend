@@ -7469,7 +7469,7 @@
                                 }
                             ]
                         },
-                        "method": "PATCH",
+                        "method": "POST",
                         "header": [],
                         "url": {
                             "raw": "{{base_url}}notifications/mark-read/",
@@ -7481,7 +7481,7 @@
                                 "mark-read"
                             ]
                         },
-                        "description": "## Mark Notifications Read/Unread\nMarks specific notifications, or all of them, as read or unread. Provide exactly one of `notification_ids[]` / `mark_all`.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| notification_ids[] | One of | Specific `user_notifications.id` values |\n| mark_all | One of | `true` to affect every notification |\n| is_read | Yes | `true` to mark read, `false` to mark unread |",
+                        "description": "## Mark Notifications Read/Unread\nMarks specific notifications, or all of them, as read or unread. Provide exactly one of `notification_ids[]` / `mark_all`. `PATCH` is also accepted.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| notification_ids[] | One of | Specific `user_notifications.id` values |\n| mark_all | One of | `true` to affect every notification |\n| is_read | Yes | `true` to mark read, `false` to mark unread |",
                         "body": {
                             "mode": "formdata",
                             "formdata": [

@@ -2227,9 +2227,9 @@ $notifications = [
         ),
         req(
             'Mark Notifications Read/Unread',
-            'PATCH',
+            'POST',
             'notifications/mark-read/',
-            "## Mark Notifications Read/Unread\nMarks specific notifications, or all of them, as read or unread. Provide exactly one of `notification_ids[]` / `mark_all`.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| notification_ids[] | One of | Specific `user_notifications.id` values |\n| mark_all | One of | `true` to affect every notification |\n| is_read | Yes | `true` to mark read, `false` to mark unread |",
+            "## Mark Notifications Read/Unread\nMarks specific notifications, or all of them, as read or unread. Provide exactly one of `notification_ids[]` / `mark_all`. `PATCH` is also accepted.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| notification_ids[] | One of | Specific `user_notifications.id` values |\n| mark_all | One of | `true` to affect every notification |\n| is_read | Yes | `true` to mark read, `false` to mark unread |",
             true,
             [
                 ['key' => 'notification_ids[0]', 'value' => '1', 'description' => 'user_notifications.id to mark (provide this or mark_all).'],

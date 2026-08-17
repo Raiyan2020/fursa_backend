@@ -250,7 +250,7 @@ Route::middleware('auth:api')->group(function () {
 
     // Notifications
     Route::get('notifications/', [NotificationController::class, 'index']);
-    Route::patch('notifications/mark-read/', [NotificationController::class, 'markRead']);
+    Route::match(['post', 'patch'], 'notifications/mark-read/', [NotificationController::class, 'markRead']);
     Route::delete('notifications/delete/', [NotificationController::class, 'destroy']);
 
     // Calendar
