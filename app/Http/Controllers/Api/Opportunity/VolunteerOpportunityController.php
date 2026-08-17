@@ -311,6 +311,8 @@ class VolunteerOpportunityController extends Controller
             $learnQuery->whereHas('registrations', function ($q) use ($user) {
                 $q->notDeleted()->where('user_id', $user->id)->where('is_attended', true);
             })->where('opportunity_status', OpportunityStatus::COMPLETED);
+        } elseif ($filterType === 'sponsored') {
+            $this->applySponsoredOpportunityFilters($volunteerQuery, $learnQuery, $this->organizationProfileIdFor($user));
         }
 
         $opportunityType = strtolower((string) $request->query('opportunity_type', ''));
@@ -423,10 +425,27 @@ class VolunteerOpportunityController extends Controller
     protected function applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, Request $request, User $user): void
     {
         $filterType = strtolower((string) $request->query('filter_type', ''));
+        $orgId = $this->organizationProfileIdFor($user);
+
         if ($filterType === 'organized') {
             $volunteerQuery->where('created_by', $user->id);
             $learnQuery->where('created_by', $user->id);
             $eventQuery->whereRaw('0 = 1');
+        } elseif ($filterType === 'organized_events') {
+            $volunteerQuery->whereRaw('0 = 1');
+            $learnQuery->whereRaw('0 = 1');
+            if ($orgId) {
+                $eventQuery->where('created_by', $orgId);
+            } else {
+                $eventQuery->whereRaw('0 = 1');
+            }
+        } elseif ($filterType === 'sponsored') {
+            $eventQuery->whereRaw('0 = 1');
+            $this->applySponsoredOpportunityFilters($volunteerQuery, $learnQuery, $orgId);
+        } elseif ($filterType === 'sponsored_events') {
+            $volunteerQuery->whereRaw('0 = 1');
+            $learnQuery->whereRaw('0 = 1');
+            $this->applySponsoredEventFilters($eventQuery, $orgId);
         } elseif ($filterType === 'volunteer') {
             $volunteerQuery->whereHas('registrations', fn ($q) => $q->notDeleted()->where('user_id', $user->id));
             $learnQuery->whereRaw('0 = 1');
@@ -473,5 +492,43 @@ class VolunteerOpportunityController extends Controller
         $this->applyAgeAudienceFilter($volunteerQuery, $request);
         $this->applyAgeAudienceFilter($learnQuery, $request);
         $this->applyAgeAudienceFilter($eventQuery, $request);
+    }
+
+    protected function organizationProfileIdFor(User $user): ?int
+    {
+        $user->loadMissing('organizationProfile');
+
+        return $user->organizationProfile?->id;
+    }
+
+    protected function applySponsoredOpportunityFilters($volunteerQuery, $learnQuery, ?int $organizationProfileId): void
+    {
+        if (! $organizationProfileId) {
+            $volunteerQuery->whereRaw('0 = 1');
+            $learnQuery->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $constraint = fn ($query) => $query
+            ->notDeleted()
+            ->where('organization_id', $organizationProfileId);
+
+        $volunteerQuery->whereHas('sponsorImages', $constraint);
+        $learnQuery->whereHas('sponsorImages', $constraint);
+    }
+
+    protected function applySponsoredEventFilters($eventQuery, ?int $organizationProfileId): void
+    {
+        if (! $organizationProfileId) {
+            $eventQuery->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $eventQuery->whereHas(
+            'sponsorImages',
+            fn ($query) => $query->notDeleted()->where('organization_id', $organizationProfileId)
+        );
     }
 }
