@@ -34,11 +34,24 @@ class NotifyFursaFriendsBackupCommand extends Command
         }
 
         $friends = FursaFriend::query()->notDeleted()->with('user')->get();
-        if ($friends->isEmpty()) {
-            $this->info('No Forsa Friends available to notify.');
+        $friendUserIds = $friends->pluck('user_id')->filter()->all();
+
+        $volunteerIds = \App\Models\User::query()
+            ->where('user_type', \App\Enums\UserType::VOLUNTEER)
+            ->where('is_deleted', false)
+            ->where('is_banned', false)
+            ->where('is_active', true)
+            ->pluck('id')
+            ->all();
+
+        $recipientIds = array_values(array_unique(array_merge($friendUserIds, $volunteerIds)));
+        if ($recipientIds === []) {
+            $this->info('No individual volunteers available to notify.');
 
             return self::SUCCESS;
         }
+
+        $recipients = \App\Models\User::query()->whereIn('id', $recipientIds)->get();
 
         $notified = 0;
 
@@ -57,21 +70,18 @@ class NotifyFursaFriendsBackupCommand extends Command
                 continue;
             }
 
-            $friendIds = $friends->pluck('user_id')->filter()->all();
+            $friendIds = $recipientIds;
 
             NotificationService::createForUsers(
                 "Volunteer Backup Needed: {$opp->title_en}",
                 "مطلوب دعم تطوعي: {$opp->title_ar}",
-                "Volunteer opportunity '{$opp->title_en}' scheduled for {$opp->start_date} (3 days from now) needs {$needed} more volunteers. As a Forsa Friend, your support is requested regardless of skills or interests.",
-                "الفرصة التطوعية '{$opp->title_ar}' المقررة في {$opp->start_date} (بعد 3 أيام) تحتاج إلى {$needed} متطوعين إضافيين. كصديق فرصة، نطلب دعمك بغض النظر عن المهارات أو الاهتمامات.",
+                "Volunteer opportunity '{$opp->title_en}' scheduled for {$opp->start_date} (3 days from now) needs {$needed} more volunteers.",
+                "الفرصة التطوعية '{$opp->title_ar}' المقررة في {$opp->start_date} (بعد 3 أيام) تحتاج إلى {$needed} متطوعين إضافيين.",
                 $friendIds
             );
 
-            foreach ($friends as $friend) {
-                if (! $friend->user) {
-                    continue;
-                }
-                DynamicEmailService::send('fursa_friend_backup_notification', $friend->user, [
+            foreach ($recipients as $user) {
+                DynamicEmailService::send('fursa_friend_backup_notification', $user, [
                     'volunteers_needed' => $needed,
                     'days_until_start' => 3,
                     'title' => "Volunteer Backup Needed: {$opp->title_en}",

@@ -75,7 +75,13 @@ class VolunteerOpportunityResource extends JsonResource
             'total_roles' => $this->roles?->filter(fn ($r) => ! $r->is_deleted)->count() ?? 0,
             'all_registered_user' => $this->allRegisteredUsersPayload($registrations),
             'has_scan_permission' => $this->hasScanPermission($this->resource, $request),
-            'manual_tracking' => $this->manualTracking($this->participants_needed),
+            'manual_tracking' => true,
+            'qr_attendance_enabled' => true,
+            'manual_attendance_enabled' => true,
+            'location_url' => $this->location_url ?: $this->link,
+            'is_registration_closed' => (bool) $this->is_registration_closed,
+            'is_registration_open' => $this->isRegistrationOpen(),
+            'preparation_valid_until' => optional($this->preparationValidUntil())?->toDateString(),
         ];
     }
 }

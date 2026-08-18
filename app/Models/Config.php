@@ -20,6 +20,8 @@ class Config extends Model
         'time_duration',
         'time_unit',
         'manual_attendance_threshold',
+        'economic_impact_rate_kwd',
+        'preparation_validity_days',
         'is_deleted',
         'deleted_at',
     ];

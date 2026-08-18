@@ -137,6 +137,11 @@
         <input type="text" name="location_ar" class="form-control{{ $invalid('location_ar') }}" value="{{ $eventValue('location_ar') }}">
         @error('location_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
+    <div class="col-md-12 mb-1">
+        <label>{{ __('location url') }}</label>
+        <input type="text" name="location_url" class="form-control{{ $invalid('location_url') }}" value="{{ $eventValue('location_url') }}" placeholder="https://maps.google.com/...">
+        @error('location_url') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+    </div>
     <div class="col-md-6 mb-1">
         <label>{{ __('latitude') }}</label>
         <input type="number" step="any" name="latitude" class="form-control{{ $invalid('latitude') }}" value="{{ $eventValue('latitude') }}">

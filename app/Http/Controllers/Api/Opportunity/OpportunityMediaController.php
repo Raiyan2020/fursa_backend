@@ -105,13 +105,28 @@ class OpportunityMediaController extends Controller
         $opportunity = $registration->opportunity;
         $creator = $opportunity?->creator;
 
+        $user = $registration->user;
+        $locale = app()->getLocale();
+        $fullName = trim(($user?->first_name ?? '').' '.($user?->last_name ?? ''));
+        $course = $locale === 'ar'
+            ? ($opportunity?->title_ar ?: $opportunity?->title_en)
+            : ($opportunity?->title_en ?: $opportunity?->title_ar);
+        $instructor = trim(($creator?->first_name ?? '').' '.($creator?->last_name ?? ''));
+        $organization = $locale === 'ar'
+            ? ($creator?->organizationProfile?->company_name ?: $instructor)
+            : ($creator?->organizationProfile?->company_name ?: $instructor);
+
         return ApiResponse::success([
-            'name' => trim(($registration->user?->first_name ?? '').' '.($registration->user?->last_name ?? '')),
-            'course' => $opportunity?->title_en,
+            'name' => $fullName,
+            'name_en' => $fullName,
+            'name_ar' => $fullName,
+            'course' => $course,
+            'course_en' => $opportunity?->title_en,
+            'course_ar' => $opportunity?->title_ar,
             'start_date' => optional($opportunity?->start_date)?->toDateString(),
             'end_date' => optional($opportunity?->end_date)?->toDateString(),
-            'instructor' => trim(($creator?->first_name ?? '').' '.($creator?->last_name ?? '')),
-            'organization_name' => $creator?->organizationProfile?->company_name,
+            'instructor' => $instructor,
+            'organization_name' => $organization,
         ], 'Certificate preview data retrieved successfully.', 'تم استرجاع بيانات معاينة الشهادة بنجاح.');
     }
 

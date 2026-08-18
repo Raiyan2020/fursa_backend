@@ -11,6 +11,7 @@ use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
 use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
+use App\Services\Opportunity\OpportunityChangeNotifier;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -100,7 +101,9 @@ class LearnServeOpportunityController extends Controller
         }
 
         $data = $this->validatePayload($request, partial: true);
+        $before = $this->opportunitySnapshot($opportunity);
         $opportunity->update($data);
+        OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
 
         if ($request->has('interest_ids')) {
             $opportunity->interests()->sync($request->input('interest_ids', []));
@@ -114,6 +117,29 @@ class LearnServeOpportunityController extends Controller
             new LearnServeOpportunityResource($opportunity),
             'Opportunity updated successfully.',
             'تم تحديث الفرصة بنجاح.'
+        );
+    }
+
+    public function closeRegistration(Request $request, int $id): JsonResponse
+    {
+        $opportunity = LearnServeOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        $before = $this->opportunitySnapshot($opportunity);
+        $opportunity->update(['is_registration_closed' => true]);
+        OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
+        $opportunity->load(['creator', 'interests', 'images']);
+
+        return ApiResponse::success(
+            new LearnServeOpportunityResource($opportunity),
+            'Registration closed successfully.',
+            'تم إغلاق التسجيل بنجاح.'
         );
     }
 
@@ -277,6 +303,8 @@ class LearnServeOpportunityController extends Controller
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
             'link' => ['nullable', 'url'],
+            'location_url' => ['nullable', 'url'],
+            'is_registration_closed' => ['nullable', 'boolean'],
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'is_kuwaitis' => ['nullable', 'boolean'],

@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Models\Concerns\HasRegistrationWindow;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VolunteerOpportunity extends Model
 {
+    use HasRegistrationWindow;
     use HasSoftFlags;
 
     protected $fillable = [
@@ -25,7 +27,7 @@ class VolunteerOpportunity extends Model
         'deletion_status', 'deletion_rejected_reason', 'is_kuwaitis', 'created_by',
         'volunteer_hours_per_day', 'gender_id', 'is_public', 'license_image',
         'is_relief', 'is_interview_needed', 'is_urgent', 'is_supports_disabled',
-        'generated_link', 'is_deleted', 'deleted_at',
+        'generated_link', 'location_url', 'is_registration_closed', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
@@ -43,6 +45,7 @@ class VolunteerOpportunity extends Model
         'is_interview_needed' => 'boolean',
         'is_urgent' => 'boolean',
         'is_supports_disabled' => 'boolean',
+        'is_registration_closed' => 'boolean',
     ];
 
     public function creator(): BelongsTo

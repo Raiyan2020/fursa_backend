@@ -33,6 +33,10 @@ class LearnServeRegistrationController extends Controller
             return ApiResponse::error('Opportunity does not exist.', 'الفرصة غير موجودة.', 404);
         }
 
+        if ($closed = $this->rejectIfRegistrationClosed($opportunity)) {
+            return $closed;
+        }
+
         if (LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('opportunity_id', $opportunity->id)
@@ -175,6 +179,14 @@ class LearnServeRegistrationController extends Controller
         $opportunity = LearnServeOpportunity::query()->notDeleted()->find($opportunity_id);
         if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
             return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
+
+        if ($opportunity->preparationValidUntil() && now()->gt($opportunity->preparationValidUntil())) {
+            return ApiResponse::error(
+                'Attendance can only be updated during the opportunity or within one week after the end date.',
+                'يمكن تحديث الحضور خلال الفرصة أو خلال أسبوع بعد تاريخ النهاية فقط.',
+                400
+            );
         }
 
         $query = LearnServeOpportunityRegistration::query()->notDeleted()->where('opportunity_id', $opportunity_id);

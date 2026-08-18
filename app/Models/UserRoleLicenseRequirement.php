@@ -26,6 +26,7 @@ class UserRoleLicenseRequirement extends Model
             'volunteer' => __('admin.user_types.volunteer'),
             'organization' => __('admin.user_types.organization'),
             'volunteer_team' => __('admin.user_types.volunteer_team'),
+            'community' => 'Community',
             default => (string) $this->user_role,
         };
     }

@@ -307,6 +307,8 @@ class EventController extends Controller
             'longitude' => ['nullable', 'numeric'],
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
+            'location_url' => ['nullable', 'url'],
+            'is_registration_closed' => ['nullable', 'boolean'],
             'from_age' => ['nullable', 'integer'],
             'to_age' => ['nullable', 'integer'],
             'gender_id' => ['nullable', 'integer', 'exists:master_choices,id'],

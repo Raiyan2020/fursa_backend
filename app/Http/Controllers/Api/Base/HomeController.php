@@ -21,6 +21,7 @@ use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerStatistic;
 use App\Models\WhyFursaItem;
 use App\Support\ApiResponse;
+use App\Support\RankingCycle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -274,11 +275,12 @@ class HomeController extends Controller
 
     protected function achievements(): array
     {
-        $currentYear = (int) now()->format('Y');
+        $cycle = RankingCycle::currentQuarter();
 
         $rows = VolunteerStatistic::query()
             ->whereNotNull('month')
-            ->where('year', $currentYear)
+            ->where('year', $cycle['start']->year)
+            ->whereBetween('month', [$cycle['start']->month, $cycle['end']->month])
             ->selectRaw('user_id, SUM(volunteer_hours) as total_hours, SUM(opportunities_organized) as total_organizing')
             ->groupBy('user_id')
             ->orderByDesc('total_hours')
@@ -311,6 +313,13 @@ class HomeController extends Controller
         })->filter()->values();
 
         return [
+            'cycle' => [
+                'type' => $cycle['type'],
+                'label_en' => $cycle['label_en'],
+                'label_ar' => $cycle['label_ar'],
+                'start' => $cycle['start']->toDateString(),
+                'end' => $cycle['end']->toDateString(),
+            ],
             'individuals' => $individuals,
         ];
     }

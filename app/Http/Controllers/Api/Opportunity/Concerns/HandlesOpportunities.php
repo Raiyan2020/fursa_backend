@@ -259,4 +259,30 @@ trait HandlesOpportunities
             'تم تحديث صور الفرصة بنجاح.'
         );
     }
+
+    protected function rejectIfRegistrationClosed(object $opportunity): ?JsonResponse
+    {
+        if (method_exists($opportunity, 'isRegistrationOpen') && ! $opportunity->isRegistrationOpen()) {
+            return ApiResponse::error(
+                'Registration is closed for this opportunity.',
+                'التسجيل مغلق لهذه الفرصة.',
+                400
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function opportunitySnapshot(object $opportunity): array
+    {
+        return $opportunity->only([
+            'title_en', 'title_ar', 'description_en', 'description_ar',
+            'start_date', 'end_date', 'due_date', 'start_time', 'end_time',
+            'location_en', 'location_ar', 'location_url', 'participants_needed',
+            'from_age', 'to_age', 'link', 'is_registration_closed',
+        ]);
+    }
 }

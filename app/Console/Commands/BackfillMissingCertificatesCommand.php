@@ -50,12 +50,13 @@ class BackfillMissingCertificatesCommand extends Command
 
             try {
                 $path = 'certificates/registration_'.$registration->id.'.txt';
-                $content = implode("\n", [
-                    'Fursa Certificate',
-                    'Name: '.trim(($registration->user?->first_name ?? '').' '.($registration->user?->last_name ?? '')),
-                    'Course: '.($opportunity->title_en ?? ''),
-                    'Start: '.optional($opportunity->start_date)->toDateString(),
-                    'End: '.optional($opportunity->end_date)->toDateString(),
+                $fullName = trim(($registration->user?->first_name ?? '').' '.($registration->user?->last_name ?? ''));
+                $content = "\u{FEFF}".implode("\n", [
+                    'شهادة فرصة / Fursa Certificate',
+                    'الاسم / Name: '.$fullName,
+                    'الدورة / Course: '.($opportunity->title_ar ?? '').' / '.($opportunity->title_en ?? ''),
+                    'البداية / Start: '.optional($opportunity->start_date)->toDateString(),
+                    'النهاية / End: '.optional($opportunity->end_date)->toDateString(),
                     'Generated: '.now()->toDateTimeString(),
                 ]);
 
