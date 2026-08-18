@@ -36,6 +36,7 @@ return [
     'linkedin_profile_failed' => 'LinkedIn profile fetch failed',
     'linkedin_success' => 'LinkedIn profile retrieved successfully',
     'user_not_found' => 'User not found',
+    'email_not_registered' => 'This email is not registered. Please create an account first.',
     'public_profile_retrieved' => 'Public profile retrieved successfully',
 
     'choices_not_found' => 'No choices found for the given choice type',

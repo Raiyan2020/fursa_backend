@@ -63,7 +63,7 @@ class RegisterRequest extends BaseRequest
                     $emergencyCivilId = $this->normalizedCivilId($value);
 
                     if ($civilId !== '' && $emergencyCivilId !== '' && $civilId === $emergencyCivilId) {
-                        $fail(__('The emergency contact civil ID must be different from the volunteer civil ID.'));
+                        $fail(__('validation.custom.emergency_contact_civil_id.different'));
                     }
                 },
             ],
@@ -73,15 +73,11 @@ class RegisterRequest extends BaseRequest
 
     public function attributes(): array
     {
-        return [
-            'phone_number' => __('validation.attributes.phone_number'),
-            'emergency_contact_phone' => __('validation.attributes.emergency_contact_phone'),
-            'emergency_contact_name' => __('validation.attributes.emergency_contact_name'),
-            'emergency_contact_country_code' => __('validation.attributes.emergency_contact_country_code'),
-            'emergency_contact_civil_id' => __('validation.attributes.emergency_contact_civil_id'),
-            'emergency_contact_relationship' => __('validation.attributes.emergency_contact_relationship'),
-            'civil_id' => __('validation.attributes.civil_id'),
-        ];
+        $keys = array_keys($this->rules());
+
+        return collect($keys)
+            ->mapWithKeys(fn (string $key) => [$key => $this->attributeLabel($key)])
+            ->all();
     }
 
     public function withValidator(Validator $validator): void
@@ -92,12 +88,18 @@ class RegisterRequest extends BaseRequest
 
             if ($userType === UserType::VOLUNTEER->value) {
                 if ($civilId === '') {
-                    $validator->errors()->add('civil_id', __('validation.required', ['attribute' => 'civil_id']));
+                    $validator->errors()->add(
+                        'civil_id',
+                        __('validation.required', ['attribute' => $this->attributeLabel('civil_id')])
+                    );
                 } elseif (User::query()
                     ->where('civil_id', $civilId)
                     ->where('email', '!=', strtolower(trim((string) $this->input('email', ''))))
                     ->exists()) {
-                    $validator->errors()->add('civil_id', __('validation.unique', ['attribute' => 'civil_id']));
+                    $validator->errors()->add(
+                        'civil_id',
+                        __('validation.unique', ['attribute' => $this->attributeLabel('civil_id')])
+                    );
                 }
 
                 $age = null;
@@ -116,7 +118,10 @@ class RegisterRequest extends BaseRequest
                         'emergency_contact_relationship',
                     ] as $field) {
                         if (! $this->filled($field)) {
-                            $validator->errors()->add($field, __('validation.required', ['attribute' => $field]));
+                            $validator->errors()->add(
+                                $field,
+                                __('validation.required', ['attribute' => $this->attributeLabel($field)])
+                            );
                         }
                     }
                 }
@@ -172,7 +177,7 @@ class RegisterRequest extends BaseRequest
         if ($sameFullPhone || $sameLocalPhone) {
             $validator->errors()->add(
                 'emergency_contact_phone',
-                __('The emergency contact phone must be different from the volunteer phone number.')
+                __('validation.custom.emergency_contact_phone.different')
             );
         }
     }

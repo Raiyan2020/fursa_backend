@@ -128,9 +128,17 @@ class AuthController extends Controller
         $user = User::query()->where('email', strtolower(trim($data['email'])))->first();
 
         if (! $user) {
-            return ApiResponse::error('Forgot password failed.', 'فشل استعادة كلمة المرور.', 400, [
-                'email' => ['en' => 'User not found.', 'ar' => 'المستخدم غير موجود.'],
-            ]);
+            return ApiResponse::error(
+                __('apis.email_not_registered', [], 'en'),
+                __('apis.email_not_registered', [], 'ar'),
+                404,
+                [
+                    'email' => [
+                        'en' => __('apis.email_not_registered', [], 'en'),
+                        'ar' => __('apis.email_not_registered', [], 'ar'),
+                    ],
+                ]
+            );
         }
 
         if ($user->is_social_login) {
@@ -380,7 +388,7 @@ class AuthController extends Controller
                 'Account update failed.',
                 'فشل تحديث الحساب.',
                 422,
-                ['emergency_contact_phone' => [__('The emergency contact phone must be different from the volunteer phone number.')]]
+                ['emergency_contact_phone' => [__('validation.custom.emergency_contact_phone.different')]]
             );
         }
 
@@ -391,7 +399,7 @@ class AuthController extends Controller
                 'Account update failed.',
                 'فشل تحديث الحساب.',
                 422,
-                ['emergency_contact_civil_id' => [__('The emergency contact civil ID must be different from the volunteer civil ID.')]]
+                ['emergency_contact_civil_id' => [__('validation.custom.emergency_contact_civil_id.different')]]
             );
         }
 
@@ -438,7 +446,7 @@ class AuthController extends Controller
             $userType = UserType::from($data['user_type'] ?? UserType::VOLUNTEER->value);
             if ($userType === UserType::VOLUNTEER && empty($data['civil_id'])) {
                 return ApiResponse::error('Social auth failed.', 'فشل الدخول الاجتماعي.', 400, [
-                    'civil_id' => ['en' => 'Civil ID is required', 'ar' => 'الرقم المدني مطلوب'],
+                    'civil_id' => [__('validation.required', ['attribute' => __('validation.attributes.civil_id')])],
                 ]);
             }
 

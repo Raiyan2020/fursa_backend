@@ -139,6 +139,15 @@ return [
     [
       'rule-name' => 'custom-message',
     ],
+    'emergency_contact_civil_id' => 
+    [
+      'different' => 'The emergency contact civil ID must be different from the volunteer civil ID.',
+      'regex' => 'The emergency contact civil ID must be 12 digits and start with 2 or 3.',
+    ],
+    'emergency_contact_phone' => 
+    [
+      'different' => 'The emergency contact phone must be different from the volunteer phone number.',
+    ],
   ],
   'attributes' => 
   [
@@ -189,6 +198,25 @@ return [
     'emergency_contact_civil_id' => 'Emergency contact civil ID',
     'emergency_contact_relationship' => 'Emergency contact relationship',
     'civil_id' => 'Civil ID',
+    'gender' => 'Gender',
+    'dob' => 'Date of birth',
+    'birth_date' => 'Date of birth',
+    'birth_year' => 'Birth year',
+    'nationality' => 'Nationality',
+    'profile_pic' => 'Profile picture',
+    'documents' => 'Documents',
+    'documents.*' => 'Document',
+    'certificates' => 'Certificates',
+    'certificates.*' => 'Certificate',
+    'organization_id' => 'Organization',
+    'organizer_type' => 'Organizer type',
+    'volunteer_is_verified' => 'Volunteer verification',
+    'social_media_provider' => 'Social login provider',
+    'social_media_id' => 'Social account ID',
+    'social_profile_pic_url' => 'Social profile picture URL',
+    'rememberMe' => 'Remember me',
+    'otp' => 'Verification code',
+    'redirect_uri' => 'Redirect URI',
     'is_active' => 'Status',
     'first_name' => 'First name',
     'last_name' => 'Last name',

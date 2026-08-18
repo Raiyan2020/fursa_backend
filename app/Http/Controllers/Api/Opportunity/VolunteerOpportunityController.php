@@ -237,7 +237,10 @@ class VolunteerOpportunityController extends Controller
             $eventQuery->where('approval_status', ApprovalStatus::APPROVED);
         }
 
-        $this->applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, $request, $user);
+        $filterResult = $this->applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, $request, $user);
+        if ($filterResult instanceof JsonResponse) {
+            return $filterResult;
+        }
 
         $combined = collect()
             ->merge(WebsiteVolunteerOpportunityResource::collection(
@@ -332,11 +335,10 @@ class VolunteerOpportunityController extends Controller
         }
 
         if ($status = $request->query('opportunity_status')) {
-            if (! in_array($status, OpportunityStatus::values(), true)) {
+            if ($this->applyOpportunityStatusFilter($volunteerQuery, $status) === null) {
                 return $this->invalidStatusResponse($status);
             }
-            $volunteerQuery->where('opportunity_status', $status);
-            $learnQuery->where('opportunity_status', $status);
+            $this->applyOpportunityStatusFilter($learnQuery, $status);
         }
 
         $combined = collect()
@@ -422,7 +424,7 @@ class VolunteerOpportunityController extends Controller
         return $request->user();
     }
 
-    protected function applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, Request $request, User $user): void
+    protected function applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, Request $request, User $user): ?JsonResponse
     {
         $filterType = strtolower((string) $request->query('filter_type', ''));
         $orgId = $this->organizationProfileIdFor($user);
@@ -481,9 +483,11 @@ class VolunteerOpportunityController extends Controller
         }
 
         if ($status = $request->query('opportunity_status') ?: $request->query('status')) {
-            $volunteerQuery->where('opportunity_status', $status);
-            $learnQuery->where('opportunity_status', $status);
-            $eventQuery->where('event_status', $status);
+            if ($this->applyOpportunityStatusFilter($volunteerQuery, $status) === null) {
+                return $this->invalidStatusResponse($status);
+            }
+            $this->applyOpportunityStatusFilter($learnQuery, $status);
+            $this->applyOpportunityStatusFilter($eventQuery, $status, 'event_status');
         }
 
         $this->applyGenderAudienceFilter($volunteerQuery, $request);
@@ -492,6 +496,8 @@ class VolunteerOpportunityController extends Controller
         $this->applyAgeAudienceFilter($volunteerQuery, $request);
         $this->applyAgeAudienceFilter($learnQuery, $request);
         $this->applyAgeAudienceFilter($eventQuery, $request);
+
+        return null;
     }
 
     protected function organizationProfileIdFor(User $user): ?int

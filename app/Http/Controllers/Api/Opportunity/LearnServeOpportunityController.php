@@ -22,6 +22,12 @@ class LearnServeOpportunityController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        if ($status = $request->query('status')) {
+            if ($this->normalizeOpportunityStatusFilter($status) === null) {
+                return $this->invalidStatusResponse($status);
+            }
+        }
+
         $query = $this->baseQuery($request)
             ->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])
             ->latest();
@@ -247,7 +253,7 @@ class LearnServeOpportunityController extends Controller
         }
 
         if ($status = $request->query('status')) {
-            $query->where('opportunity_status', $status);
+            $this->applyOpportunityStatusFilter($query, $status);
         }
 
         return $query;

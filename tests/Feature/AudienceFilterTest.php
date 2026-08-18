@@ -70,6 +70,77 @@ class AudienceFilterTest extends TestCase
         $this->assertTrue($ids->contains($openAge->id));
     }
 
+    public function test_status_filter_uses_dates_not_stale_db_column(): void
+    {
+        [$orgUser] = $this->createOrganizationActor('status-org@fursa.test');
+
+        $future = VolunteerOpportunity::query()->create([
+            'created_by' => $orgUser->id,
+            'title_en' => 'Future Opportunity',
+            'title_ar' => 'فرصة مستقبلية',
+            'description_en' => 'desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(12)->toDateString(),
+            'participants_needed' => 10,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::COMPLETED,
+            'is_public' => true,
+        ]);
+
+        $past = VolunteerOpportunity::query()->create([
+            'created_by' => $orgUser->id,
+            'title_en' => 'Past Opportunity',
+            'title_ar' => 'فرصة منتهية',
+            'description_en' => 'desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->subDays(10)->toDateString(),
+            'end_date' => now()->subDays(5)->toDateString(),
+            'participants_needed' => 10,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::UPCOMING,
+            'is_public' => true,
+        ]);
+
+        $upcomingIds = collect($this->getJson('/api/list-volunteer-opportunities/?status=upcoming')
+            ->assertOk()
+            ->json('data'))->pluck('id');
+
+        $this->assertTrue($upcomingIds->contains($future->id));
+        $this->assertFalse($upcomingIds->contains($past->id));
+
+        $closedIds = collect($this->getJson('/api/list-volunteer-opportunities/?status=closed')
+            ->assertOk()
+            ->json('data'))->pluck('id');
+
+        $this->assertFalse($closedIds->contains($future->id));
+        $this->assertTrue($closedIds->contains($past->id));
+    }
+
+    public function test_status_filter_returns_empty_when_no_matches(): void
+    {
+        [$orgUser] = $this->createOrganizationActor('empty-status@fursa.test');
+
+        VolunteerOpportunity::query()->create([
+            'created_by' => $orgUser->id,
+            'title_en' => 'Only Past',
+            'title_ar' => 'منتهية فقط',
+            'description_en' => 'desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->subDays(10)->toDateString(),
+            'end_date' => now()->subDays(5)->toDateString(),
+            'participants_needed' => 10,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::COMPLETED,
+            'is_public' => true,
+        ]);
+
+        $response = $this->getJson('/api/list-volunteer-opportunities/?status=upcoming');
+
+        $response->assertOk()->assertJsonPath('key', 'success');
+        $this->assertSame([], $response->json('data'));
+    }
+
     protected function makeOpportunity(
         int $createdBy,
         string $title,
