@@ -263,6 +263,7 @@ class EventController extends Controller
             'due_date' => ['nullable', 'date'],
             'location_en' => ['nullable', 'string', 'max:255'],
             'location_ar' => ['nullable', 'string', 'max:255'],
+            'location_url' => ['nullable', 'url', 'max:500'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'from_age' => ['nullable', 'integer', 'min:0', 'max:120'],

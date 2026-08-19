@@ -21,6 +21,7 @@ class ChoiceTypeSeeder extends Seeder
                 ['Class', 'درس'],
                 ['Consultation', 'استشارة'],
                 ['Internship', 'تدريب عملي'],
+                ['Workshop', 'ورشة'],
                 ['internship', 'تدريب'],
                 ['course', 'دورة'],
             ],
@@ -40,6 +41,7 @@ class ChoiceTypeSeeder extends Seeder
                 ['Volunteer Team', 'فريق تطوعي'],
                 ['Private', 'خاص'],
                 ['Public', 'عام'],
+                ['Community', 'مجتمعي'],
                 ['Company', 'شركة'],
                 ['NGO', 'منظمة غير ربحية'],
                 ['Government', 'حكومي'],
@@ -130,7 +132,7 @@ class ChoiceTypeSeeder extends Seeder
                 ['Kids', 'أطفال'],
                 ['Health', 'الصحة'],
                 ['Environment', 'البيئة'],
-                ['Relief', 'إغاثي'],
+                ['Relief', 'خارج الكويت'],
                 ['Retirees', 'متقاعدين'],
                 ['Sports', 'رياضي'],
                 ['Animal Care', 'حيوانات'],
@@ -261,5 +263,10 @@ class ChoiceTypeSeeder extends Seeder
                 );
             }
         }
+
+        MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'volunteer_opportunity_interest'))
+            ->where('value_en', 'Relief')
+            ->update(['value_ar' => 'خارج الكويت']);
     }
 }

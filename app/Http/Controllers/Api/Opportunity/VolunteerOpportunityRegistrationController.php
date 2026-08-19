@@ -71,6 +71,10 @@ class VolunteerOpportunityRegistrationController extends Controller
             return ApiResponse::error('Opportunity does not exist.', 'الفرصة غير موجودة.', 404);
         }
 
+        if ($closed = $this->rejectIfRegistrationClosed($opportunity)) {
+            return $closed;
+        }
+
         if (VolunteerOpportunityRegistration::query()
             ->notDeleted()
             ->where('opportunity_id', $opportunity->id)

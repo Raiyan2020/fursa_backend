@@ -5,6 +5,7 @@ namespace App\Services\Opportunity;
 use App\Enums\OpportunityStatus;
 use App\Models\Badge;
 use App\Models\LearnServeOpportunity;
+use App\Models\LearnServeOpportunityRegistration;
 use App\Models\OrganizationProfile;
 use App\Models\OrganizationStatistic;
 use App\Models\OpportunitySponsorImage;
@@ -151,12 +152,25 @@ class SyncService
                 ->distinct()
                 ->count('volunteer_opportunities.id');
 
+            $totalCertificates = LearnServeOpportunityRegistration::query()
+                ->where('user_id', $user->id)
+                ->where('is_deleted', false)
+                ->where(function ($q) {
+                    $q->where('is_certified', true)
+                        ->orWhere(function ($inner) {
+                            $inner->whereNotNull('certificate_image')
+                                ->where('certificate_image', '!=', '');
+                        });
+                })
+                ->count();
+
             $badge = self::getBadgeForHours($currentYearHours);
 
             $volunteer->update([
                 'current_year_hours' => $currentYearHours,
                 'total_volunteer_hours' => $totalHoursAllTime,
                 'total_opportunities' => $strictTotalOpportunities,
+                'total_certificates' => $totalCertificates,
                 'current_badge_id' => $badge?->id,
             ]);
 
@@ -179,6 +193,7 @@ class SyncService
                     [
                         'volunteer_hours' => (float) ($agg->total_hours ?? 0),
                         'opportunities_participated' => (int) ($agg->total_opps ?? 0),
+                        'certificates_earned' => $totalCertificates,
                         'badge_id' => $yearBadge?->id,
                     ]
                 );
@@ -241,15 +256,28 @@ class SyncService
             }
 
             $learnOpps = LearnServeOpportunity::query()
-                ->where('created_by', operator: $user->id)
+                ->where('created_by', $user->id)
                 ->whereNotNull('end_date')
                 ->where('opportunity_status', OpportunityStatus::COMPLETED)
                 ->where('is_deleted', false)
-                ->whereHas('registrations', fn ($q) => $q->where('is_attended', true)->where('is_deleted', false))
-                ->whereHas('learningType', fn ($q) => $q->whereIn('value_en', ['Course', 'Internship']))
+                ->with('learningType')
                 ->get();
 
             foreach ($learnOpps as $opp) {
+                $learningType = strtolower(trim((string) ($opp->learningType?->value_en ?? '')));
+                $countsWithoutAttendance = in_array($learningType, ['class', 'workshop', 'consultation'], true);
+
+                if (! $countsWithoutAttendance) {
+                    $hasAttendance = LearnServeOpportunityRegistration::query()
+                        ->where('opportunity_id', $opp->id)
+                        ->where('is_attended', true)
+                        ->where('is_deleted', false)
+                        ->exists();
+                    if (! $hasAttendance) {
+                        continue;
+                    }
+                }
+
                 $y = $opp->end_date->year;
                 $m = $opp->end_date->month;
                 $learnCounts["{$y}-{$m}"] = ($learnCounts["{$y}-{$m}"] ?? 0) + 1;

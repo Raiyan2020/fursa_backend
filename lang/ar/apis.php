@@ -36,6 +36,7 @@ return [
     'linkedin_profile_failed' => 'فشل جلب بيانات LinkedIn',
     'linkedin_success' => 'تم جلب بيانات LinkedIn بنجاح',
     'user_not_found' => 'المستخدم غير موجود',
+    'email_not_registered' => 'البريد الإلكتروني غير مسجل لدينا. يرجى إنشاء حساب جديد.',
     'public_profile_retrieved' => 'تم جلب الملف العام بنجاح',
 
     'choices_not_found' => 'لم يتم العثور على أي خيارات لنوع الاختيار المحدد',

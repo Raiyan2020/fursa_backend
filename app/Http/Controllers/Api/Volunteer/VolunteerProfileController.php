@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Volunteer\VolunteerProfileResource;
 use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
 use App\Http\Resources\Volunteer\VolunteerVerificationResource;
+use App\Models\Interest;
+use App\Models\MasterChoice;
+use App\Models\User;
 use App\Models\VolunteerProfile;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +26,7 @@ class VolunteerProfileController extends Controller
             'user.interests',
             'user.masterInterests.choiceType',
             'user.badge',
+            'user.emergencyContactRelationship.choiceType',
         ])->first();
 
         if (! $profile) {
@@ -51,7 +55,27 @@ class VolunteerProfileController extends Controller
             ]);
         }
 
+        // Coerce numeric phone fields to strings (frontend may send ints)
+        $stringFields = [];
+        foreach (['phone_number', 'country_code', 'emergency_contact_phone', 'emergency_contact_country_code', 'emergency_contact_civil_id'] as $field) {
+            $value = $request->input($field);
+            if (is_int($value) || is_float($value)) {
+                $stringFields[$field] = (string) $value;
+            }
+        }
+        if ($stringFields !== []) {
+            $request->merge($stringFields);
+        }
+
+        $interestIds = $this->extractProfileInterestIds($request);
+        if ($interestIds !== null) {
+            $request->merge(['interest_ids' => $interestIds]);
+        }
+
         $data = $request->validate([
+            'profile_pic' => ['nullable', 'image'],
+            'first_name' => ['nullable', 'string', 'max:150'],
+            'last_name' => ['nullable', 'string', 'max:150'],
             'nickname' => ['nullable', 'string', 'max:50'],
             'occupation' => ['nullable', 'string', 'max:100'],
             'experience' => ['nullable', 'string'],
@@ -69,8 +93,15 @@ class VolunteerProfileController extends Controller
             'linkedin_link' => ['nullable', 'url'],
             'facebook_link' => ['nullable', 'url'],
             'twitter_link' => ['nullable', 'url'],
+            'phone_number' => ['nullable', 'string', 'max:15'],
+            'country_code' => ['nullable', 'string', 'max:5'],
+            'emergency_contact_name' => ['nullable', 'string', 'max:100'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
+            'emergency_contact_country_code' => ['nullable', 'string', 'max:10'],
+            'emergency_contact_civil_id' => ['nullable', 'string', 'max:12'],
+            'emergency_contact_relationship' => ['nullable', 'integer', 'exists:master_choices,id'],
             'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => ['integer', 'exists:interests,id'],
+            'interest_ids.*' => ['integer'],
         ]);
 
         if (array_key_exists('nationality', $data)) {
@@ -88,12 +119,37 @@ class VolunteerProfileController extends Controller
         ]);
         $profile->save();
 
+        if (! empty($data['profile_pic'])) {
+            $user->profile_pic = $data['profile_pic']->store(config('fursa.storage_path').'/profile_pics', 'public');
+        }
+        unset($data['profile_pic']);
+
+        $userPhone = preg_replace('/\D+/', '', (string) (($data['country_code'] ?? $user->country_code).($data['phone_number'] ?? $user->phone_number))) ?: '';
+        $emergencyPhone = preg_replace('/\D+/', '', (string) (($data['emergency_contact_country_code'] ?? $user->emergency_contact_country_code).($data['emergency_contact_phone'] ?? $user->emergency_contact_phone))) ?: '';
+        if ($userPhone !== '' && $userPhone === $emergencyPhone) {
+            return ApiResponse::error(
+                'Profile update failed.',
+                'فشل تحديث الملف الشخصي.',
+                422,
+                ['emergency_contact_phone' => [__('validation.custom.emergency_contact_phone.different')]]
+            );
+        }
+
         $user->fill([
+            'first_name' => $data['first_name'] ?? $user->first_name,
+            'last_name' => $data['last_name'] ?? $user->last_name,
             'civil_id' => $data['civil_id'],
             'email' => $data['email'] ?? $user->email,
             'nationality' => $data['nationality'] ?? $user->nationality,
             'dob' => $data['dob'] ?? $user->dob,
             'birth_year' => $data['birth_year'] ?? $user->birth_year,
+            'phone_number' => array_key_exists('phone_number', $data) ? $data['phone_number'] : $user->phone_number,
+            'country_code' => array_key_exists('country_code', $data) ? $data['country_code'] : $user->country_code,
+            'emergency_contact_name' => array_key_exists('emergency_contact_name', $data) ? $data['emergency_contact_name'] : $user->emergency_contact_name,
+            'emergency_contact_phone' => array_key_exists('emergency_contact_phone', $data) ? $data['emergency_contact_phone'] : $user->emergency_contact_phone,
+            'emergency_contact_country_code' => array_key_exists('emergency_contact_country_code', $data) ? $data['emergency_contact_country_code'] : $user->emergency_contact_country_code,
+            'emergency_contact_civil_id' => array_key_exists('emergency_contact_civil_id', $data) ? $data['emergency_contact_civil_id'] : $user->emergency_contact_civil_id,
+            'emergency_contact_relationship_id' => array_key_exists('emergency_contact_relationship', $data) ? $data['emergency_contact_relationship'] : $user->emergency_contact_relationship_id,
             'instagram_link' => $data['instagram_link'] ?? $user->instagram_link,
             'whatsapp_link' => $data['whatsapp_link'] ?? $user->whatsapp_link,
             'linkedin_link' => $data['linkedin_link'] ?? $user->linkedin_link,
@@ -102,8 +158,11 @@ class VolunteerProfileController extends Controller
         ]);
         $user->save();
 
-        if (isset($data['interest_ids'])) {
-            $user->interests()->sync($data['interest_ids']);
+        if (array_key_exists('interest_ids', $data)) {
+            $interestError = $this->syncProfileInterests($user, $data['interest_ids']);
+            if ($interestError) {
+                return $interestError;
+            }
         }
 
         $profile = $profile->fresh([
@@ -112,6 +171,7 @@ class VolunteerProfileController extends Controller
             'user.interests',
             'user.masterInterests.choiceType',
             'user.badge',
+            'user.emergencyContactRelationship.choiceType',
         ]);
 
         return ApiResponse::success(
@@ -197,5 +257,77 @@ class VolunteerProfileController extends Controller
             'message' => 'Verification successful.',
             'volunteer' => (new VolunteerVerificationResource($profile))->resolve(),
         ]);
+    }
+
+    /**
+     * Profile tags come from master_choices (user_interest). The frontend may send
+     * interest_ids, interests, or tags — all with master choice IDs.
+     *
+     * @return list<int>|null
+     */
+    private function extractProfileInterestIds(Request $request): ?array
+    {
+        $raw = null;
+
+        foreach (['interest_ids', 'interests', 'tags', 'master_interest_ids'] as $field) {
+            if ($request->has($field)) {
+                $raw = $request->input($field);
+                break;
+            }
+        }
+
+        if ($raw === null) {
+            return null;
+        }
+
+        if (! is_array($raw)) {
+            $raw = [$raw];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($id) => filter_int($id),
+            $raw
+        ), static fn ($id) => $id !== null));
+    }
+
+    /**
+     * @param  list<int>  $ids
+     */
+    private function syncProfileInterests(User $user, array $ids): ?JsonResponse
+    {
+        $ids = array_values(array_unique($ids));
+
+        if ($ids === []) {
+            $user->masterInterests()->sync([]);
+            $user->interests()->sync([]);
+
+            return null;
+        }
+
+        $masterIds = MasterChoice::query()
+            ->notDeleted()
+            ->whereHas('choiceType', fn ($query) => $query->where('name', 'user_interest')->notDeleted())
+            ->whereIn('id', $ids)
+            ->pluck('id');
+
+        if ($masterIds->count() === count($ids)) {
+            $user->masterInterests()->sync($masterIds);
+
+            return null;
+        }
+
+        $legacyInterestIds = Interest::query()->whereIn('id', $ids)->pluck('id');
+        if ($legacyInterestIds->count() === count($ids)) {
+            $user->interests()->sync($legacyInterestIds);
+
+            return null;
+        }
+
+        return ApiResponse::error(
+            'One or more interests are invalid.',
+            'واحد أو أكثر من الاهتمامات غير صالح.',
+            422,
+            ['interest_ids' => ['One or more selected interests are invalid.']]
+        );
     }
 }

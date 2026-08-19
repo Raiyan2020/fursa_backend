@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Models\Concerns\HasRegistrationWindow;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LearnServeOpportunity extends Model
 {
+    use HasRegistrationWindow;
     use HasSoftFlags;
 
     protected $fillable = [
@@ -24,7 +26,7 @@ class LearnServeOpportunity extends Model
         'rejected_reason', 'location_en', 'location_ar', 'opportunity_nationality',
         'deletion_status', 'deletion_rejected_reason', 'is_kuwaitis', 'created_by',
         'learning_type_id', 'gender_id', 'format_id', 'certificate_type_id',
-        'license_image', 'is_deleted', 'deleted_at',
+        'license_image', 'location_url', 'is_registration_closed', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
@@ -37,6 +39,7 @@ class LearnServeOpportunity extends Model
         'end_date' => 'date',
         'is_calendar' => 'boolean',
         'is_kuwaitis' => 'boolean',
+        'is_registration_closed' => 'boolean',
     ];
 
     public function creator(): BelongsTo

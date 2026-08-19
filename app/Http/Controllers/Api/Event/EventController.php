@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
+use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
 use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventResource;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 class EventController extends Controller
 {
     use AppliesAudienceFilters;
+    use AppliesOpportunityStatusFilter;
 
     public function index(Request $request): JsonResponse
     {
@@ -207,10 +209,9 @@ class EventController extends Controller
         }
 
         if ($status = $request->query('status')) {
-            if (! in_array($status, OpportunityStatus::values(), true)) {
+            if ($this->applyOpportunityStatusFilter($query, $status, 'event_status') === null) {
                 return ApiResponse::error("Invalid status value: {$status}.", "قيمة الحالة غير صالحة: {$status}.", 400);
             }
-            $query->where('event_status', $status);
         }
 
         if ($startDate = $request->query('start_date')) {
@@ -306,6 +307,8 @@ class EventController extends Controller
             'longitude' => ['nullable', 'numeric'],
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
+            'location_url' => ['nullable', 'url'],
+            'is_registration_closed' => ['nullable', 'boolean'],
             'from_age' => ['nullable', 'integer'],
             'to_age' => ['nullable', 'integer'],
             'gender_id' => ['nullable', 'integer', 'exists:master_choices,id'],

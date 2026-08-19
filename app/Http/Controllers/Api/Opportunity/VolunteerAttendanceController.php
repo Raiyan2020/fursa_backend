@@ -61,22 +61,12 @@ class VolunteerAttendanceController extends Controller
             return ApiResponse::error('Opportunity does not exist.', 'الفرصة غير موجودة.', 404);
         }
 
-        if (empty($data['attendance_date'])) {
-            if ($opportunity->start_date && $opportunity->end_date) {
-                if ($attendanceDate < $opportunity->start_date->toDateString() || $attendanceDate > $opportunity->end_date->toDateString()) {
-                    return ApiResponse::error(
-                        'You cannot record attendance before or after the opportunity dates.',
-                        'لا يمكنك تسجيل الحضور قبل أو بعد تواريخ الفرصة.',
-                        400
-                    );
-                }
-            } elseif ($opportunity->start_date && $attendanceDate !== $opportunity->start_date->toDateString()) {
-                return ApiResponse::error(
-                    'Attendance can only be recorded on the scheduled date.',
-                    'يمكن تسجيل الحضور فقط في التاريخ المحدد.',
-                    400
-                );
-            }
+        if (! $opportunity->isWithinPreparationWindow($attendanceDate)) {
+            return ApiResponse::error(
+                'You cannot record attendance outside the opportunity dates or more than one week after the end date.',
+                'لا يمكنك تسجيل الحضور خارج تواريخ الفرصة أو بعد أكثر من أسبوع من تاريخ النهاية.',
+                400
+            );
         }
 
         $hasPermission = $opportunity->created_by === $request->user()->id

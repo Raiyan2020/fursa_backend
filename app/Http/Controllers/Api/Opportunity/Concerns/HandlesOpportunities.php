@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Opportunity\Concerns;
 use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
+use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
 use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
 use App\Models\User;
@@ -18,6 +19,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 trait HandlesOpportunities
 {
     use AppliesAudienceFilters;
+    use AppliesOpportunityStatusFilter;
 
     protected function calculateAge(?int $birthYear): ?int
     {
@@ -138,10 +140,9 @@ trait HandlesOpportunities
         }
 
         if ($status = $request->query('status')) {
-            if (! in_array($status, OpportunityStatus::values(), true)) {
+            if ($this->applyOpportunityStatusFilter($query, $status) === null) {
                 return $this->invalidStatusResponse($status);
             }
-            $query->where('opportunity_status', $status);
         }
 
         return $query;
@@ -257,5 +258,31 @@ trait HandlesOpportunities
             'Opportunity images updated successfully.',
             'تم تحديث صور الفرصة بنجاح.'
         );
+    }
+
+    protected function rejectIfRegistrationClosed(object $opportunity): ?JsonResponse
+    {
+        if (method_exists($opportunity, 'isRegistrationOpen') && ! $opportunity->isRegistrationOpen()) {
+            return ApiResponse::error(
+                'Registration is closed for this opportunity.',
+                'التسجيل مغلق لهذه الفرصة.',
+                400
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function opportunitySnapshot(object $opportunity): array
+    {
+        return $opportunity->only([
+            'title_en', 'title_ar', 'description_en', 'description_ar',
+            'start_date', 'end_date', 'due_date', 'start_time', 'end_time',
+            'location_en', 'location_ar', 'location_url', 'participants_needed',
+            'from_age', 'to_age', 'link', 'is_registration_closed',
+        ]);
     }
 }

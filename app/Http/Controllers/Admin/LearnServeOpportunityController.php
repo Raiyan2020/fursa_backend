@@ -13,6 +13,7 @@ use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
 use App\Models\OrganizationProfile;
+use App\Services\Opportunity\OpportunityAudienceNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -136,6 +137,8 @@ class LearnServeOpportunityController extends Controller
         $opportunity->approval_status = ApprovalStatus::APPROVED;
         $opportunity->rejected_reason = null;
         $opportunity->save();
+
+        OpportunityAudienceNotifier::notifyEligibleVolunteers($opportunity);
 
         approvedFlash();
 
@@ -293,6 +296,7 @@ class LearnServeOpportunityController extends Controller
             'certificate_type_id' => $choiceRule('learn_serve_certificate_type'),
             'participants_needed' => ['required', 'integer', 'min:1'],
             'link' => ['nullable', 'string', 'max:500'],
+            'location_url' => ['nullable', 'url', 'max:500'],
             'opportunity_nationality' => ['nullable', 'string', 'max:100'],
             'primary_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],

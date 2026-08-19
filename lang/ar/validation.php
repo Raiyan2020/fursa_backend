@@ -148,6 +148,15 @@ return [
     [
       'after' => 'يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء.',
     ],
+    'emergency_contact_civil_id' => 
+    [
+      'different' => 'يجب أن يكون الرقم المدني لجهة اتصال الطوارئ مختلفًا عن الرقم المدني للمتطوع.',
+      'regex' => 'يجب أن يكون الرقم المدني لجهة اتصال الطوارئ 12 رقمًا ويبدأ بـ 2 أو 3.',
+    ],
+    'emergency_contact_phone' => 
+    [
+      'different' => 'يجب أن يكون هاتف جهة اتصال الطوارئ مختلفًا عن رقم هاتف المتطوع.',
+    ],
   ],
   'attributes' => 
   [
@@ -236,6 +245,25 @@ return [
     'emergency_contact_civil_id' => 'الرقم المدني لجهة اتصال الطوارئ',
     'emergency_contact_relationship' => 'صلة القرابة لجهة اتصال الطوارئ',
     'civil_id' => 'الرقم المدني',
+    'gender' => 'الجنس',
+    'dob' => 'تاريخ الميلاد',
+    'birth_date' => 'تاريخ الميلاد',
+    'birth_year' => 'سنة الميلاد',
+    'nationality' => 'الجنسية',
+    'profile_pic' => 'صورة الملف الشخصي',
+    'documents' => 'المستندات',
+    'documents.*' => 'المستند',
+    'certificates' => 'الشهادات',
+    'certificates.*' => 'الشهادة',
+    'organization_id' => 'الجهة',
+    'organizer_type' => 'نوع المنظم',
+    'volunteer_is_verified' => 'توثيق المتطوع',
+    'social_media_provider' => 'مزود التسجيل الاجتماعي',
+    'social_media_id' => 'معرّف الحساب الاجتماعي',
+    'social_profile_pic_url' => 'صورة الملف الشخصي الاجتماعية',
+    'rememberMe' => 'تذكرني',
+    'otp' => 'رمز التحقق',
+    'redirect_uri' => 'رابط إعادة التوجيه',
     'is_active' => 'الحالة',
     'first_name' => 'الاسم الأول',
     'last_name' => 'اسم العائلة',

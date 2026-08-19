@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\Volunteer;
 
+use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
+use App\Models\Config;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\MasterChoice;
@@ -15,6 +17,7 @@ use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerProfile;
 use App\Models\VolunteerStatistic;
 use App\Support\ApiResponse;
+use App\Support\RankingCycle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -56,42 +59,49 @@ class VolunteerStatisticsController extends Controller
             ->count();
 
         $reliefTrips = VolunteerOpportunity::query()->notDeleted()->where('is_relief', true)->count();
+        $rate = (float) (Config::query()->value('economic_impact_rate_kwd') ?: 6);
+        $economicImpact = round($grandTotal * $rate, 2);
 
         return ApiResponse::success([
             'yearly_hours' => $yearList,
             'grand_total_hours' => $grandTotal,
             'volunteer_opportunities_completed' => $volunteerCompleted,
             'learn_serve_opportunities_completed' => $learnCompleted,
+            'development_opportunities_completed' => $learnCompleted,
             'relief_trips' => $reliefTrips,
+            'outside_kuwait_trips' => $reliefTrips,
+            'economic_impact_kwd' => $economicImpact,
+            'economic_impact_rate_kwd' => $rate,
         ], 'Yearly volunteer hours summary retrieved successfully.', 'تم استرجاع ملخص ساعات التطوع السنوي بنجاح.');
     }
 
     public function topVolunteers(Request $request): JsonResponse
     {
-        $currentYear = (int) now()->format('Y');
+        $cycle = RankingCycle::current();
+        $config = Config::query()->first();
 
         $individuals = VolunteerStatistic::query()
             ->whereNotNull('month')
-            ->where('year', $currentYear)
-            ->selectRaw('user_id, SUM(volunteer_hours) as total_hours, SUM(opportunities_organized) as total_organizing, MIN(created_at) as earliest_created')
+            ->where('year', $cycle['start']->year)
+            ->whereBetween('month', [$cycle['start']->month, $cycle['end']->month])
+            ->selectRaw('user_id, SUM(volunteer_hours) as volunteer_hours, SUM(opportunities_organized) as organizing_hours')
             ->groupBy('user_id')
-            ->orderByDesc('total_hours')
+            ->orderByDesc('volunteer_hours')
             ->limit(10)
             ->get();
 
-        $userIds = $individuals->pluck('user_id');
         $profiles = VolunteerProfile::query()
-            ->whereIn('user_id', $userIds)
-            ->with(['user.badge', 'currentBadge'])
+            ->whereIn('user_id', $individuals->pluck('user_id'))
+            ->with(['user.badge', 'currentBadge', 'gender.choiceType'])
             ->get()
             ->keyBy('user_id');
 
-        $individualsData = $individuals->map(function ($row) use ($profiles) {
+        $topIndividuals = $individuals->map(function ($row) use ($profiles) {
             $profile = $profiles->get($row->user_id);
             $user = $profile?->user;
-            $volHours = (int) ($row->total_hours ?? 0);
-            $orgHours = (int) ($row->total_organizing ?? 0);
-            $total = $volHours + $orgHours;
+            $volunteerHours = (float) ($row->volunteer_hours ?? 0);
+            $organizingHours = (int) ($row->organizing_hours ?? 0);
+            $total = (int) round($volunteerHours + $organizingHours);
             if ($total <= 0) {
                 return null;
             }
@@ -100,8 +110,13 @@ class VolunteerStatisticsController extends Controller
                 'user_id' => $row->user_id,
                 'name' => trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')),
                 'nickname' => $profile?->nickname,
-                'profile_pic' => getimg($user?->profile_pic),
+                'volunteer_hours' => $volunteerHours,
+                'organizing_hours' => $organizingHours,
+                'profile_pic' => $this->userProfilePic($user),
                 'total_hours' => $total,
+                'gender_display' => $this->genderDisplay($profile?->gender),
+                'is_public' => (bool) ($profile?->is_public ?? false),
+                'user_type' => $user?->user_type?->value ?? $user?->user_type ?? 'volunteer',
                 'badge_info' => $this->badgeInfo($user),
             ];
         })->filter()->values();
@@ -111,47 +126,70 @@ class VolunteerStatisticsController extends Controller
             ->where('value_en', 'Volunteer Team')
             ->first();
 
-        $teamData = collect();
-        if ($teamType) {
-            $teams = OrganizationProfile::query()
-                ->notDeleted()
-                ->where('organizer_type_id', $teamType->id)
-                ->where('organization_status', 'approved')
-                ->with('user')
-                ->get();
+        $orgQuery = OrganizationProfile::query()
+            ->notDeleted()
+            ->where('organization_status', ApprovalStatus::APPROVED)
+            ->with(['user.badge']);
 
-            $teamStats = OrganizationStatistic::query()
-                ->whereNotNull('month')
-                ->where('year', $currentYear)
-                ->whereIn('user_id', $teams->pluck('user_id'))
-                ->selectRaw('user_id, SUM(vol_opportunity_organized) as total_vol, SUM(learn_opportunity_organized) as total_learn, MIN(created_at) as earliest')
-                ->groupBy('user_id')
-                ->get()
-                ->keyBy('user_id');
+        $teams = $teamType
+            ? (clone $orgQuery)->where('organizer_type_id', $teamType->id)->get()
+            : collect();
+        $companies = $teamType
+            ? (clone $orgQuery)->where('organizer_type_id', '!=', $teamType->id)->get()
+            : (clone $orgQuery)->get();
 
-            $teamData = $teams->map(function ($team) use ($teamStats) {
-                $stats = $teamStats->get($team->user_id);
-                if (! $stats) {
-                    return null;
-                }
-                $total = (int) (($stats->total_vol ?? 0) + ($stats->total_learn ?? 0));
-                if ($total <= 0) {
-                    return null;
-                }
+        $cycleStats = OrganizationStatistic::query()
+            ->whereNotNull('month')
+            ->where('year', $cycle['start']->year)
+            ->whereBetween('month', [$cycle['start']->month, $cycle['end']->month])
+            ->selectRaw('user_id, SUM(vol_opportunity_organized) as total_vol, SUM(learn_opportunity_organized) as total_learn, SUM(sponsored) as total_sponsored')
+            ->groupBy('user_id')
+            ->get()
+            ->keyBy('user_id');
 
-                return [
-                    'organization_id' => $team->user_id,
-                    'organization_name' => $team->company_name ?: trim(($team->user->first_name ?? '').' '.($team->user->last_name ?? '')),
-                    'executed_opportunities' => $total,
-                    'badge_info' => $this->badgeInfo($team->user),
-                ];
-            })->filter()->sortByDesc('executed_opportunities')->values()->take(10);
-        }
+        $topVolunteerTeams = $teams->map(function (OrganizationProfile $team) use ($cycleStats) {
+            $stats = $cycleStats->get($team->user_id);
+            $executed = (int) (($stats->total_vol ?? 0) + ($stats->total_learn ?? 0));
+            if ($executed <= 0) {
+                return null;
+            }
+
+            return [
+                'organization_id' => $team->user_id,
+                'organization_name' => $team->company_name ?: trim(($team->user?->first_name ?? '').' '.($team->user?->last_name ?? '')),
+                'executed_opportunities' => $executed,
+                'profile_pic' => $this->userProfilePic($team->user),
+                'user_type' => $team->user?->user_type?->value ?? $team->user?->user_type ?? 'organization',
+                'badge_info' => $this->badgeInfo($team->user),
+            ];
+        })->filter()->sortByDesc('executed_opportunities')->values()->take(10);
+
+        $topCompanies = $companies->map(function (OrganizationProfile $org) use ($cycleStats) {
+            $stats = $cycleStats->get($org->user_id);
+            $sponsored = (int) ($stats->total_sponsored ?? 0);
+            if ($sponsored <= 0) {
+                return null;
+            }
+
+            return [
+                'organization_id' => $org->user_id,
+                'organization_name' => $org->company_name ?: trim(($org->user?->first_name ?? '').' '.($org->user?->last_name ?? '')),
+                'sponsored_count' => $sponsored,
+                'profile_pic' => $this->userProfilePic($org->user),
+                'user_type' => $org->user?->user_type?->value ?? $org->user?->user_type ?? 'organization',
+                'badge_info' => $this->badgeInfo($org->user),
+            ];
+        })->filter()->sortByDesc('sponsored_count')->values()->take(10);
 
         return ApiResponse::success([
-            'individuals' => $individualsData,
-            'teams' => $teamData,
-        ], 'Top volunteers retrieved successfully.', 'تم استرجاع أفضل المتطوعين بنجاح.');
+            'top_individuals' => $topIndividuals,
+            'top_volunteer_teams' => $topVolunteerTeams,
+            'top_companies_and_government' => $topCompanies,
+            'cycle_type' => $cycle['type'],
+            'cycle_scope' => $config?->cycle_scope ?: 'current',
+            'start_date' => $cycle['start']->toDateString(),
+            'end_date' => $cycle['end']->toDateString(),
+        ], 'Top statistics retrieved successfully.', 'تم استرجاع أفضل الإحصائيات بنجاح.');
     }
 
     public function availableVolunteers(Request $request): JsonResponse
@@ -256,9 +294,13 @@ class VolunteerStatisticsController extends Controller
         $certificates = LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('user_id', $profile->user_id)
-            ->where('is_certified', true)
-            ->whereNotNull('certificate_image')
-            ->where('certificate_image', '!=', '')
+            ->where(function ($q) {
+                $q->where('is_certified', true)
+                    ->orWhere(function ($inner) {
+                        $inner->whereNotNull('certificate_image')
+                            ->where('certificate_image', '!=', '');
+                    });
+            })
             ->with('opportunity')
             ->get()
             ->map(fn ($row) => [
@@ -295,7 +337,13 @@ class VolunteerStatisticsController extends Controller
         $coursesQuery = LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('user_id', $request->user()->id)
-            ->where('is_certified', true)
+            ->where(function ($q) {
+                $q->where('is_certified', true)
+                    ->orWhere(function ($inner) {
+                        $inner->whereNotNull('certificate_image')
+                            ->where('certificate_image', '!=', '');
+                    });
+            })
             ->with('opportunity')
             ->latest();
 
@@ -315,6 +363,8 @@ class VolunteerStatisticsController extends Controller
             'total_volunteer_hours' => $profile->total_volunteer_hours,
             'total_opportunities' => $profile->total_opportunities,
             'total_certificates' => $profile->total_certificates,
+            'civil_id' => $request->user()->civil_id,
+            'full_name' => trim(($request->user()->first_name ?? '').' '.($request->user()->last_name ?? '')),
             'opportunities' => [
                 'data' => $courses,
                 'meta' => [
@@ -402,5 +452,38 @@ class VolunteerStatisticsController extends Controller
         }
 
         return null;
+    }
+
+    protected function userProfilePic($user): ?string
+    {
+        if (! $user) {
+            return null;
+        }
+
+        if ($user->profile_pic) {
+            return getimg($user->profile_pic);
+        }
+
+        if ($user->is_social_login && $user->social_profile_pic_url) {
+            return $user->social_profile_pic_url;
+        }
+
+        return null;
+    }
+
+    protected function genderDisplay($gender): ?array
+    {
+        if (! $gender) {
+            return null;
+        }
+
+        $gender->loadMissing('choiceType');
+
+        return [
+            'id' => $gender->id,
+            'choice_type' => $gender->choiceType?->name,
+            'value_en' => $gender->value_en,
+            'value_ar' => $gender->value_ar,
+        ];
     }
 }

@@ -138,8 +138,17 @@ class BaseController extends Controller
                 $userRoleType = 'volunteer_team';
                 $userRoleDisplay = 'Volunteer Team';
             } else {
-                $userRoleType = 'organization';
-                $userRoleDisplay = 'Organization';
+                $communityType = MasterChoice::query()
+                    ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+                    ->where('value_en', 'Community')
+                    ->first();
+                if ($communityType && $org?->organizer_type_id === $communityType->id) {
+                    $userRoleType = 'community';
+                    $userRoleDisplay = 'Community';
+                } else {
+                    $userRoleType = 'organization';
+                    $userRoleDisplay = 'Organization';
+                }
             }
         } else {
             $userRoleDisplay = $user->user_type?->value ?? 'admin';

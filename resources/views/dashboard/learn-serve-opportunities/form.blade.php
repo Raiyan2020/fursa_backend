@@ -204,10 +204,15 @@
         @error('due_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 
-    <div class="col-md-12 mb-1">
+    <div class="col-md-6 mb-1">
         <label>{{ __('link') }}</label>
         <input type="text" name="link" class="form-control{{ $invalid('link') }}" value="{{ $opportunityValue('link') }}" placeholder="https://">
         @error('link') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('location url') }}</label>
+        <input type="text" name="location_url" class="form-control{{ $invalid('location_url') }}" value="{{ $opportunityValue('location_url') }}" placeholder="https://maps.google.com/...">
+        @error('location_url') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 
     <div class="col-md-6 mb-1">

@@ -16,6 +16,7 @@ use App\Models\Event;
 use App\Models\LearnServeOpportunity;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
+use App\Services\Opportunity\OpportunityChangeNotifier;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -100,7 +101,9 @@ class VolunteerOpportunityController extends Controller
         }
 
         $data = $this->validateVolunteerPayload($request, partial: true);
+        $before = $this->opportunitySnapshot($opportunity);
         $opportunity->update($data);
+        OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
 
         if ($request->has('interest_ids')) {
             $this->syncInterests($opportunity, $request->input('interest_ids', []));
@@ -114,6 +117,29 @@ class VolunteerOpportunityController extends Controller
             new VolunteerOpportunityResource($opportunity),
             'Opportunity updated successfully.',
             'تم تحديث الفرصة بنجاح.'
+        );
+    }
+
+    public function closeRegistration(Request $request, int $id): JsonResponse
+    {
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        $before = $this->opportunitySnapshot($opportunity);
+        $opportunity->update(['is_registration_closed' => true]);
+        OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
+        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
+
+        return ApiResponse::success(
+            new VolunteerOpportunityResource($opportunity),
+            'Registration closed successfully.',
+            'تم إغلاق التسجيل بنجاح.'
         );
     }
 
@@ -237,7 +263,10 @@ class VolunteerOpportunityController extends Controller
             $eventQuery->where('approval_status', ApprovalStatus::APPROVED);
         }
 
-        $this->applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, $request, $user);
+        $filterResult = $this->applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, $request, $user);
+        if ($filterResult instanceof JsonResponse) {
+            return $filterResult;
+        }
 
         $combined = collect()
             ->merge(WebsiteVolunteerOpportunityResource::collection(
@@ -332,11 +361,10 @@ class VolunteerOpportunityController extends Controller
         }
 
         if ($status = $request->query('opportunity_status')) {
-            if (! in_array($status, OpportunityStatus::values(), true)) {
+            if ($this->applyOpportunityStatusFilter($volunteerQuery, $status) === null) {
                 return $this->invalidStatusResponse($status);
             }
-            $volunteerQuery->where('opportunity_status', $status);
-            $learnQuery->where('opportunity_status', $status);
+            $this->applyOpportunityStatusFilter($learnQuery, $status);
         }
 
         $combined = collect()
@@ -375,6 +403,8 @@ class VolunteerOpportunityController extends Controller
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
             'link' => ['nullable', 'url'],
+            'location_url' => ['nullable', 'url'],
+            'is_registration_closed' => ['nullable', 'boolean'],
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'is_public' => ['nullable', 'boolean'],
@@ -422,7 +452,7 @@ class VolunteerOpportunityController extends Controller
         return $request->user();
     }
 
-    protected function applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, Request $request, User $user): void
+    protected function applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, Request $request, User $user): ?JsonResponse
     {
         $filterType = strtolower((string) $request->query('filter_type', ''));
         $orgId = $this->organizationProfileIdFor($user);
@@ -481,9 +511,11 @@ class VolunteerOpportunityController extends Controller
         }
 
         if ($status = $request->query('opportunity_status') ?: $request->query('status')) {
-            $volunteerQuery->where('opportunity_status', $status);
-            $learnQuery->where('opportunity_status', $status);
-            $eventQuery->where('event_status', $status);
+            if ($this->applyOpportunityStatusFilter($volunteerQuery, $status) === null) {
+                return $this->invalidStatusResponse($status);
+            }
+            $this->applyOpportunityStatusFilter($learnQuery, $status);
+            $this->applyOpportunityStatusFilter($eventQuery, $status, 'event_status');
         }
 
         $this->applyGenderAudienceFilter($volunteerQuery, $request);
@@ -492,6 +524,8 @@ class VolunteerOpportunityController extends Controller
         $this->applyAgeAudienceFilter($volunteerQuery, $request);
         $this->applyAgeAudienceFilter($learnQuery, $request);
         $this->applyAgeAudienceFilter($eventQuery, $request);
+
+        return null;
     }
 
     protected function organizationProfileIdFor(User $user): ?int

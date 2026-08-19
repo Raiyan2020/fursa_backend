@@ -104,10 +104,10 @@ class EventRegistrationController extends Controller
             return ApiResponse::error('Event not found.', 'الحدث غير موجود.', 404);
         }
 
-        if ($event->due_date && now()->gt($event->due_date)) {
+        if (! $event->isRegistrationOpen()) {
             return ApiResponse::fail('Registration closed.', 400, [], [
                 'event' => ['id' => $event->id, 'title' => $event->title_en ?: $event->title_ar],
-                'due_date' => $event->due_date?->toIso8601String(),
+                'due_date' => optional($event->registrationClosesAt())?->toIso8601String(),
             ]);
         }
 

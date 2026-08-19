@@ -14,12 +14,14 @@ class ConfigSeeder extends Seeder
         }
 
         Config::query()->create([
-            'cycle_type' => 'monthly',
+            'cycle_type' => 'quarterly',
             'cycle_scope' => 'current',
             'number_of_opportunities' => 5,
             'time_duration' => 7,
             'time_unit' => 'days',
             'manual_attendance_threshold' => 100,
+            'economic_impact_rate_kwd' => 6,
+            'preparation_validity_days' => 7,
         ]);
     }
 }

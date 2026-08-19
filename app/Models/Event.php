@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Models\Concerns\HasRegistrationWindow;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
 {
+    use HasRegistrationWindow;
     use HasSoftFlags;
 
     protected $fillable = [
@@ -24,7 +26,7 @@ class Event extends Model
         'paid_registration', 'registration_fee', 'latitude', 'longitude',
         'location_en', 'location_ar', 'description_en', 'description_ar',
         'participation_type_id', 'registration_link', 'created_by', 'license_image',
-        'view_count', 'primary_language', 'is_deleted', 'deleted_at',
+        'view_count', 'primary_language', 'location_url', 'is_registration_closed', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
@@ -38,6 +40,7 @@ class Event extends Model
         'registration_required' => 'boolean',
         'paid_registration' => 'boolean',
         'registration_fee' => 'decimal:2',
+        'is_registration_closed' => 'boolean',
     ];
 
     public function organization(): BelongsTo

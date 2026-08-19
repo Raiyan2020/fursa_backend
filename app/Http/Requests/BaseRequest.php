@@ -11,6 +11,15 @@ abstract class BaseRequest extends FormRequest
 {
     use ResponseTrait;
 
+    protected function attributeLabel(string $key): string
+    {
+        $label = __('validation.attributes.'.$key);
+
+        return $label !== 'validation.attributes.'.$key
+            ? $label
+            : str_replace('_', ' ', $key);
+    }
+
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(

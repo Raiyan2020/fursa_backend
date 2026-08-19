@@ -76,6 +76,14 @@ class VolunteerProfileResource extends JsonResource
             'dob' => optional($user?->dob)?->format('Y-m-d'),
             'email' => $user?->email,
             'civil_id' => $user?->civil_id,
+            'phone_number' => $user?->phone_number,
+            'country_code' => $user?->country_code,
+            'emergency_contact_name' => $user?->emergency_contact_name,
+            'emergency_contact_phone' => $user?->emergency_contact_phone,
+            'emergency_contact_country_code' => $user?->emergency_contact_country_code,
+            'emergency_contact_civil_id' => $user?->emergency_contact_civil_id,
+            'emergency_contact_relationship' => $user?->emergency_contact_relationship_id,
+            'emergency_contact_relationship_display' => $this->masterChoicePayload($user?->emergencyContactRelationship),
         ];
     }
 

@@ -17,7 +17,7 @@ class WebsiteEventFeedbackResource extends JsonResource
         /** @var EventFeedback $feedback */
         $feedback = $this->resource;
 
-        $feedback->loadMissing(['user.volunteerProfile', 'user.organizationProfile']);
+        $feedback->loadMissing(['user.volunteerProfile', 'user.organizationProfile', 'likes']);
 
         return [
             'id' => $feedback->id,

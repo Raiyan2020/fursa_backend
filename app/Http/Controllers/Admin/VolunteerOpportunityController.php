@@ -13,6 +13,7 @@ use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
 use App\Models\OrganizationProfile;
 use App\Models\VolunteerOpportunity;
+use App\Services\Opportunity\OpportunityAudienceNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -136,6 +137,8 @@ class VolunteerOpportunityController extends Controller
         $opportunity->approval_status = ApprovalStatus::APPROVED;
         $opportunity->rejected_reason = null;
         $opportunity->save();
+
+        OpportunityAudienceNotifier::notifyEligibleVolunteers($opportunity);
 
         approvedFlash();
 
@@ -296,6 +299,7 @@ class VolunteerOpportunityController extends Controller
             'participants_needed' => ['required', 'integer', 'min:1'],
             'volunteer_hours_per_day' => ['nullable', 'numeric', 'min:0'],
             'link' => ['nullable', 'string', 'max:500'],
+            'location_url' => ['nullable', 'url', 'max:500'],
             'opportunity_nationality' => ['nullable', Rule::in(\App\Enums\Nationality::values())],
             'primary_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],
