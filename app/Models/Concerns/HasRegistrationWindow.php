@@ -40,9 +40,53 @@ trait HasRegistrationWindow
             return null;
         }
 
-        $days = (int) (Config::query()->value('preparation_validity_days') ?: 7);
+        // An admin can push the window past its natural close; that wins when later.
+        $reopenedUntil = ($this->preparation_reopened_until ?? null)
+            ? Carbon::parse($this->preparation_reopened_until)
+            : null;
+
+        $natural = $this->naturalPreparationValidUntil();
+
+        if ($reopenedUntil && (! $natural || $reopenedUntil->gt($natural))) {
+            return $reopenedUntil;
+        }
+
+        return $natural;
+    }
+
+    /**
+     * The window as configured, ignoring any manual admin reopen.
+     *
+     * Hours take precedence over the legacy day-based setting so the client's
+     * 72-hour default is expressible exactly.
+     */
+    public function naturalPreparationValidUntil(): ?Carbon
+    {
+        if (! $this->end_date) {
+            return null;
+        }
+
+        $config = Config::query()->first();
+
+        $hours = (int) ($config?->preparation_validity_hours ?? 0);
+        if ($hours > 0) {
+            return Carbon::parse($this->end_date)->endOfDay()->addHours($hours);
+        }
+
+        // Falls back to the legacy day setting, then to the 72-hour default.
+        $days = (int) ($config?->preparation_validity_days ?? 0) ?: 3;
 
         return Carbon::parse($this->end_date)->addDays($days)->endOfDay();
+    }
+
+    /**
+     * True when the window has already closed and only an admin can reopen it.
+     */
+    public function isPreparationWindowClosed(): bool
+    {
+        $until = $this->preparationValidUntil();
+
+        return $until !== null && now()->gt($until);
     }
 
     public function isWithinPreparationWindow(?string $date = null): bool
@@ -54,10 +98,15 @@ trait HasRegistrationWindow
         }
 
         $until = $this->preparationValidUntil();
-        if ($until && $check->gt($until->copy()->startOfDay())) {
+        if (! $until) {
+            return true;
+        }
+
+        if ($check->gt($until->copy()->startOfDay())) {
             return false;
         }
 
-        return true;
+        // Beyond the per-day check above, the window itself must still be open.
+        return now()->lte($until);
     }
 }

@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Notifications\AdminResetPasswordNotification;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-class Admin extends Authenticatable
+class Admin extends Authenticatable implements CanResetPasswordContract
 {
     use HasFactory, HasRoles, Notifiable;
 
@@ -39,5 +41,13 @@ class Admin extends Authenticatable
     public function scopeWithoutSuperAdmin($query)
     {
         return $query->where('id', '!=', 1);
+    }
+
+    /**
+     * Reset links point at the dashboard, not the public site.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new AdminResetPasswordNotification($token));
     }
 }

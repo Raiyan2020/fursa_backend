@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Enums\VolunteerCategory;
 use App\Models\Concerns\HasRegistrationWindow;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,8 @@ class VolunteerOpportunity extends Model
         'volunteer_hours_per_day', 'gender_id', 'is_public', 'license_image',
         'is_relief', 'is_interview_needed', 'is_urgent', 'is_supports_disabled',
         'generated_link', 'location_url', 'is_registration_closed', 'is_deleted', 'deleted_at',
+        'is_emergency', 'volunteer_category', 'beneficiaries_count',
+        'preparation_reopened_until', 'preparation_reminder_sent_at', 'backup_alert_sent_at',
     ];
 
     protected $casts = [
@@ -46,6 +49,12 @@ class VolunteerOpportunity extends Model
         'is_urgent' => 'boolean',
         'is_supports_disabled' => 'boolean',
         'is_registration_closed' => 'boolean',
+        'is_emergency' => 'boolean',
+        'volunteer_category' => VolunteerCategory::class,
+        'beneficiaries_count' => 'integer',
+        'preparation_reopened_until' => 'datetime',
+        'preparation_reminder_sent_at' => 'datetime',
+        'backup_alert_sent_at' => 'datetime',
     ];
 
     public function creator(): BelongsTo

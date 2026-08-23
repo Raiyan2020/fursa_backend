@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Volunteer;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
+use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
 use App\Models\Config;
@@ -62,6 +63,22 @@ class VolunteerStatisticsController extends Controller
         $rate = (float) (Config::query()->value('economic_impact_rate_kwd') ?: 6);
         $economicImpact = round($grandTotal * $rate, 2);
 
+        // Beneficiaries = the figure publishers enter on charity volunteer
+        // opportunities, plus everyone who actually attended a development
+        // course (the client counts learners, not registrations).
+        $volunteerBeneficiaries = (int) VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('volunteer_category', VolunteerCategory::CHARITY->value)
+            ->sum('beneficiaries_count');
+
+        $courseLearners = (int) LearnServeOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('is_attended', true)
+            ->whereHas('opportunity', fn ($q) => $q->notDeleted())
+            ->count();
+
+        $totalBeneficiaries = $volunteerBeneficiaries + $courseLearners;
+
         return ApiResponse::success([
             'yearly_hours' => $yearList,
             'grand_total_hours' => $grandTotal,
@@ -72,6 +89,11 @@ class VolunteerStatisticsController extends Controller
             'outside_kuwait_trips' => $reliefTrips,
             'economic_impact_kwd' => $economicImpact,
             'economic_impact_rate_kwd' => $rate,
+            'beneficiaries_count' => $totalBeneficiaries,
+            'beneficiaries_breakdown' => [
+                'volunteer_opportunities' => $volunteerBeneficiaries,
+                'course_learners' => $courseLearners,
+            ],
         ], 'Yearly volunteer hours summary retrieved successfully.', 'تم استرجاع ملخص ساعات التطوع السنوي بنجاح.');
     }
 

@@ -175,11 +175,22 @@ class OwnerReportBackendTest extends TestCase
 
     public function test_community_org_type_exists_and_relief_label_updated(): void
     {
-        $community = MasterChoice::query()
+        // The client's later feedback renamed "Community" to "Society" as part
+        // of the six-option org_type classification, so that is what the
+        // signup flow must now offer.
+        $society = MasterChoice::query()
+            ->notDeleted()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+            ->where('value_en', 'Society')
+            ->first();
+        $this->assertNotNull($society);
+
+        $retiredCommunity = MasterChoice::query()
+            ->notDeleted()
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
             ->where('value_en', 'Community')
             ->first();
-        $this->assertNotNull($community);
+        $this->assertNull($retiredCommunity);
 
         $relief = MasterChoice::query()
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'volunteer_opportunity_interest'))

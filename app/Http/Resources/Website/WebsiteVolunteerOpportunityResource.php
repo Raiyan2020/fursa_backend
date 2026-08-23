@@ -12,6 +12,23 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
 {
     use BuildsWebsiteFields;
 
+    /**
+     * @param  \Illuminate\Support\Collection<int, \App\Models\VolunteerOpportunityRegistration>  $registrations
+     */
+    protected function isRegisteredInLoaded(
+        $registrations,
+        Request $request,
+        VolunteerOpportunity $opportunity
+    ): bool {
+        $user = $request->user();
+
+        if (! $user || $opportunity->created_by === $user->id) {
+            return false;
+        }
+
+        return $registrations->contains(fn ($registration) => (int) $registration->user_id === (int) $user->id);
+    }
+
     public function toArray(Request $request): array
     {
         /** @var VolunteerOpportunity $opportunity */
@@ -46,7 +63,23 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             'interest_display' => $this->websiteInterestDisplay($opportunity->interests ?? collect()),
             'is_supports_disabled' => (bool) $opportunity->is_supports_disabled,
             'is_urgent' => (bool) $opportunity->is_urgent,
+            // "outside Kuwait" classification; emergency is now its own priority.
             'is_relief' => (bool) $opportunity->is_relief,
+            'is_emergency' => (bool) $opportunity->is_emergency,
+            'is_public' => (bool) $opportunity->is_public,
+            // Derived from the already-loaded registrations so the card list
+            // does not fire one query per row.
+            'is_registered' => $this->isRegisteredInLoaded($registrations, $request, $opportunity),
+            'volunteer_category' => $opportunity->volunteer_category?->value,
+            'volunteer_category_display' => $opportunity->volunteer_category
+                ? [
+                    'en' => $opportunity->volunteer_category->labelEn(),
+                    'ar' => $opportunity->volunteer_category->labelAr(),
+                ]
+                : null,
+            'beneficiaries_count' => $opportunity->volunteer_category?->countsBeneficiaries()
+                ? ar_num((int) ($opportunity->beneficiaries_count ?? 0))
+                : null,
             'all_registered_user' => $this->websiteRegisteredUserIds($registrations),
         ];
     }

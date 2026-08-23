@@ -1,3 +1,7 @@
+{{--
+    Shared shell for the dashboard's standalone auth screens (forgot / reset
+    password). Mirrors the login page chrome so the flow does not feel bolted on.
+--}}
 <!DOCTYPE html>
 <html class="loading" lang="{{ app()->getLocale() }}" data-textdirection="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
 <head>
@@ -5,7 +9,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Forsa | {{ __('login') }}</title>
+    <title>Forsa | @yield('title')</title>
 
     @if (app()->getLocale() === 'ar')
         <link rel="stylesheet" href="{{ asset('_dashboard/app-assets/vendors/css/vendors-rtl.min.css') }}">
@@ -38,9 +42,9 @@
             color: #fff; font-size: 34px; font-weight: 800; letter-spacing: 1px;
             box-shadow: 0 12px 30px rgba(124, 58, 237, .45);
         }
+        .auth-hint { font-size: 14px; opacity: .8; margin-bottom: 20px; text-align: center; }
+        .auth-back { display: block; text-align: center; margin-top: 18px; font-size: 14px; }
     </style>
-
-    @php $loginWelcome = __('Welcome to Forsa control panel') . ' 👋'; @endphp
 </head>
 
 <body id="content_body" class="login-page vertical-layout vertical-menu-modern 1-column blank-page dark-layout" data-open="click" data-menu="vertical-menu-modern" data-col="1-column" data-type="dark">
@@ -77,7 +81,7 @@
         </div>
 
         <div class="login-header">
-            <h4>{{ $loginWelcome }}</h4>
+            <h4>@yield('heading')</h4>
         </div>
 
         @if (session('status'))
@@ -94,39 +98,9 @@
             </div>
         @endif
 
-        <form id="login-form" class="form-horizontal" action="{{ route('admin.login') }}" method="post" novalidate>
-            @csrf
+        @yield('form')
 
-            <div class="modern-input-group">
-                <div class="input-icon-wrap">
-                    <i class="fas fa-envelope field-icon field-icon-end"></i>
-                    <input type="email" id="email" class="modern-input" placeholder="{{ __('email') }}" name="email" value="{{ old('email') }}" required autocomplete="username">
-                </div>
-            </div>
-
-            <div class="modern-input-group">
-                <div class="input-icon-wrap">
-                    <i class="fas fa-lock field-icon field-icon-end"></i>
-                    <button type="button" class="field-icon field-icon-start toggle-password" aria-label="Toggle password">
-                        <i class="fas fa-eye" id="toggle-password-icon"></i>
-                    </button>
-                    <input type="password" id="password" class="modern-input" name="password" placeholder="{{ __('password') }}" required autocomplete="current-password">
-                </div>
-            </div>
-
-            <div class="modern-input-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;">
-                <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;color:inherit;font-size:14px;">
-                    <input type="checkbox" name="remember" id="remember" value="1" {{ old('remember') ? 'checked' : '' }}>
-                    <span>{{ __('Remember me') }}</span>
-                </label>
-                <a href="{{ route('admin.password.request') }}" style="font-size:14px;">{{ __('Forgot password?') }}</a>
-            </div>
-
-            <button type="submit" class="modern-btn submit_button">
-                <span>{{ __('login') }}</span>
-                <i class="fas {{ app()->getLocale() === 'ar' ? 'fa-arrow-left' : 'fa-arrow-right' }} btn-arrow"></i>
-            </button>
-        </form>
+        <a class="auth-back" href="{{ route('admin.login') }}">{{ __('Back to login') }}</a>
     </div>
 </div>
 
@@ -135,8 +109,7 @@
 <script>
 function changeMode() {
     var body = document.getElementById('content_body');
-    var layoutOptions = body.dataset.type;
-    if (layoutOptions === 'dark') {
+    if (body.dataset.type === 'dark') {
         localStorage.setItem('caberz_currentLayout', 'light');
         body.dataset.type = 'light';
         body.classList.remove('dark-layout');
@@ -149,12 +122,12 @@ function changeMode() {
     }
 }
 (function () {
-    function updateLoginThemeIcon() {
+    function updateThemeIcon() {
         var isDark = localStorage.getItem('caberz_currentLayout') !== 'light';
-        var iconClass = isDark ? 'icon-sun' : 'icon-moon';
-        document.querySelector('#layout-mode-login').innerHTML = '<i class="ficon feather ' + iconClass + '"></i>';
+        document.querySelector('#layout-mode-login').innerHTML =
+            '<i class="ficon feather ' + (isDark ? 'icon-sun' : 'icon-moon') + '"></i>';
     }
-    function initLoginTheme() {
+    function initTheme() {
         var body = document.getElementById('content_body');
         var stored = localStorage.getItem('caberz_currentLayout');
         if (stored === null) { stored = 'dark'; localStorage.setItem('caberz_currentLayout', 'dark'); }
@@ -163,69 +136,23 @@ function changeMode() {
         } else {
             body.classList.add('dark-layout'); body.classList.remove('light-mode'); body.dataset.type = 'dark';
         }
-        updateLoginThemeIcon();
-    }
-    function initStarfield() {
-        var canvas = document.getElementById('stars-canvas');
-        if (!canvas) return;
-        var ctx = canvas.getContext('2d');
-        var stars = [];
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        function createStars(count) {
-            stars = [];
-            for (var i = 0; i < count; i++) {
-                stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5 + 0.3, alpha: Math.random(), speed: Math.random() * 0.3 + 0.05, twinkle: Math.random() * 0.02 + 0.005 });
-            }
-        }
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (var i = 0; i < stars.length; i++) {
-                var s = stars[i];
-                s.alpha += s.twinkle * (Math.random() > 0.5 ? 1 : -1);
-                if (s.alpha > 1) s.alpha = 1;
-                if (s.alpha < 0.1) s.alpha = 0.1;
-                s.y -= s.speed * 0.15;
-                if (s.y < 0) s.y = canvas.height;
-                ctx.beginPath();
-                ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-                var isLight = document.body.classList.contains('light-mode');
-                ctx.fillStyle = isLight ? 'rgba(124,58,237,' + (s.alpha * 0.55) + ')' : 'rgba(255,255,255,' + s.alpha + ')';
-                ctx.fill();
-            }
-            requestAnimationFrame(draw);
-        }
-        resize();
-        createStars(Math.floor((canvas.width * canvas.height) / 3500));
-        draw();
-        window.addEventListener('resize', function () { resize(); createStars(Math.floor((canvas.width * canvas.height) / 3500)); });
+        updateThemeIcon();
     }
     document.addEventListener('DOMContentLoaded', function () {
-        initLoginTheme();
-        initStarfield();
-        var emailInput = document.getElementById('email');
-        var rememberInput = document.getElementById('remember');
-        var savedEmail = localStorage.getItem('forsa_admin_email');
-        if (emailInput && savedEmail && !emailInput.value) {
-            emailInput.value = savedEmail;
-            if (rememberInput) rememberInput.checked = true;
-        }
-        document.getElementById('login-form').addEventListener('submit', function () {
-            if (rememberInput && rememberInput.checked && emailInput && emailInput.value) {
-                localStorage.setItem('forsa_admin_email', emailInput.value);
-            } else {
-                localStorage.removeItem('forsa_admin_email');
-            }
-        });
+        initTheme();
         document.getElementById('layout-mode-login').addEventListener('click', function (e) {
             e.preventDefault();
-            if (typeof changeMode === 'function') changeMode();
-            updateLoginThemeIcon();
+            changeMode();
+            updateThemeIcon();
         });
-        document.querySelector('.toggle-password').addEventListener('click', function () {
-            var input = document.getElementById('password');
-            var icon = document.getElementById('toggle-password-icon');
-            if (input.type === 'password') { input.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); }
-            else { input.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
+        document.querySelectorAll('.toggle-password').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = document.getElementById(btn.dataset.target);
+                var icon = btn.querySelector('i');
+                if (!input) return;
+                if (input.type === 'password') { input.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); }
+                else { input.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
+            });
         });
     });
 })();

@@ -27,7 +27,7 @@
     <div class="col-md-6 mb-1">
         <label>{{ __('email') }} <span class="text-danger">*</span></label>
         <input type="email" name="email" class="form-control" value="{{ old('email', $user->email ?? '') }}" required>
-        <small class="text-muted">{{ __('Email can be changed when the user updates their personal email') }}</small>
+        <small class="text-muted">{{ __('Changing this email changes the sign-in email for this account') }}</small>
     </div>
     <div class="col-md-6 mb-1">
         <label>{{ __('phone') }}</label>
@@ -36,6 +36,24 @@
     <div class="col-md-6 mb-1">
         <label>{{ __('country code') }}</label>
         <input type="text" name="country_code" class="form-control" value="{{ old('country_code', $user->country_code ?? '') }}">
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('nationality') }}</label>
+        @php $currentNationality = old('nationality', $user->nationality->value ?? $user->nationality ?? ''); @endphp
+        <select name="nationality" class="form-control">
+            <option value="">{{ __('not specified') }}</option>
+            @foreach (\App\Enums\Nationality::cases() as $nationality)
+                <option value="{{ $nationality->value }}" {{ $currentNationality === $nationality->value ? 'selected' : '' }}>
+                    {{ __('admin.nationalities.'.$nationality->value) }}
+                </option>
+            @endforeach
+        </select>
+        @error('nationality') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('civil id') }}</label>
+        <input type="text" name="civil_id" class="form-control" value="{{ old('civil_id', $user->civil_id ?? '') }}">
+        @error('civil_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
     <div class="col-md-6 mb-1">
         <label>{{ __('user type') }} <span class="text-danger">*</span></label>

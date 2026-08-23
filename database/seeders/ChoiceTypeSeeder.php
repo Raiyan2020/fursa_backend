@@ -37,14 +37,17 @@ class ChoiceTypeSeeder extends Seeder
                 ['forsa certificate', 'شهادة فرصة'],
                 ["organizer's certificate", 'شهادة الجهة'],
             ],
+            // Client-approved classification. Legacy options (Private, Public,
+            // Community, Company, Government) are retired by the
+            // restructure_organization_types migration, which also repoints any
+            // organization still using them.
             'org_type' => [
+                ['Institution', 'وزارة / هيئة حكومية'],
+                ['Education', 'جامعة / مدرسة / معهد'],
+                ['Society', 'جمعية تعاونية / مجتمع'],
+                ['NGO', 'جمعية خيرية / غير ربحية'],
                 ['Volunteer Team', 'فريق تطوعي'],
-                ['Private', 'خاص'],
-                ['Public', 'عام'],
-                ['Community', 'مجتمعي'],
-                ['Company', 'شركة'],
-                ['NGO', 'منظمة غير ربحية'],
-                ['Government', 'حكومي'],
+                ['Commercial', 'شركة تجارية / براند'],
             ],
             'sponsor_type' => [
                 ['Financial sponsor', 'رعاية مالية'],

@@ -154,7 +154,11 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('learnserve/{opportunity_id}/unregister/{user_id}/', [LearnServeRegistrationController::class, 'unregisterUser']);
 
     Route::post('volunteer-attendance/scan/', [VolunteerAttendanceController::class, 'scan']);
+    Route::post('volunteer-attendance/manual/', [VolunteerAttendanceController::class, 'manual']);
     Route::get('volunteer-attendance/history/', [VolunteerAttendanceController::class, 'history']);
+    Route::match(['patch', 'put'], 'volunteer-attendance/{attendance_id}/hours/', [VolunteerAttendanceController::class, 'updateHours']);
+    Route::match(['post', 'delete'], 'volunteer-attendance/{attendance_id}/undo/', [VolunteerAttendanceController::class, 'undo']);
+    Route::post('admin/volunteer-opportunities/{opportunity_id}/reopen-check-in/', [VolunteerAttendanceController::class, 'reopenWindow']);
 
     Route::post('scan-permissions/bulk-update/', [ScanPermissionController::class, 'bulkUpdate']);
     Route::get('scan-permissions/list/', [ScanPermissionController::class, 'list']);

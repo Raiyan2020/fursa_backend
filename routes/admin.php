@@ -18,10 +18,12 @@ use App\Http\Controllers\Admin\MasterChoiceController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OrganizationProfileController;
 use App\Http\Controllers\Admin\PageController;
+use App\Http\Controllers\Admin\PasswordResetController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SiteSettingController;
 use App\Http\Controllers\Admin\SponsorController;
+use App\Http\Controllers\Admin\StatisticsExportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserTypeApprovalController;
 use App\Http\Controllers\Admin\VolunteerOpportunityController;
@@ -32,6 +34,11 @@ use Illuminate\Support\Facades\Route;
 Route::group(['middleware' => ['guest:admin', 'localization']], function () {
     Route::get('login', [LoginController::class, 'create'])->name('login');
     Route::post('login', [LoginController::class, 'store']);
+
+    Route::get('forgot-password', [PasswordResetController::class, 'requestForm'])->name('password.request');
+    Route::post('forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+    Route::get('reset-password/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
+    Route::post('reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
 });
 
 Route::group(['middleware' => ['auth:admin', 'localization']], function () {
@@ -77,6 +84,7 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::get('users', [UserController::class, 'index'])->name('users.index');
     Route::get('users/create', [UserController::class, 'create'])->name('users.create');
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
+    Route::get('statistics/export', [StatisticsExportController::class, 'export'])->name('statistics.export');
     Route::post('users', [UserController::class, 'store'])->name('users.store');
     Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::get('users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');

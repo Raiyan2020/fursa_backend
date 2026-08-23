@@ -82,6 +82,23 @@ class VolunteerOpportunityResource extends JsonResource
             'is_registration_closed' => (bool) $this->is_registration_closed,
             'is_registration_open' => $this->isRegistrationOpen(),
             'preparation_valid_until' => optional($this->preparationValidUntil())?->toDateString(),
+            'preparation_valid_until_at' => optional($this->preparationValidUntil())?->toIso8601String(),
+            'is_preparation_window_closed' => $this->isPreparationWindowClosed(),
+            'preparation_reopened_until' => optional($this->preparation_reopened_until)?->toIso8601String(),
+            'is_emergency' => (bool) $this->is_emergency,
+            'is_relief' => (bool) $this->is_relief,
+            'volunteer_category' => $this->volunteer_category?->value,
+            'volunteer_category_display' => $this->volunteer_category
+                ? [
+                    'en' => $this->volunteer_category->labelEn(),
+                    'ar' => $this->volunteer_category->labelAr(),
+                ]
+                : null,
+            // Beneficiaries are only tracked for charity opportunities.
+            'beneficiaries_count' => $this->volunteer_category?->countsBeneficiaries()
+                ? (int) ($this->beneficiaries_count ?? 0)
+                : null,
+            'supports_beneficiaries_count' => (bool) $this->volunteer_category?->countsBeneficiaries(),
         ];
     }
 }

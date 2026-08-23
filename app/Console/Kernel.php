@@ -52,6 +52,10 @@ class Kernel extends ConsoleKernel
 
         // 8:00 AM — ban non-attending volunteers
         $schedule->command('fursa:check-and-ban-non-attending')->dailyAt('08:00');
+
+        // Hourly — warn publishers before their check-in window closes.
+        // Hourly (not daily) so the reminder lands inside the lead window.
+        $schedule->command('fursa:send-check-in-window-reminder')->hourly();
     }
 
     /**

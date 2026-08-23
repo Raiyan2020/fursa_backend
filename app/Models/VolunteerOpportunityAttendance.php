@@ -11,7 +11,8 @@ class VolunteerOpportunityAttendance extends Model
     use HasSoftFlags;
 
     protected $fillable = [
-        'registration_id', 'attended_date', 'total_hours', 'is_attended', 'is_deleted', 'deleted_at',
+        'registration_id', 'attended_date', 'total_hours', 'is_attended',
+        'recorded_via', 'recorded_by', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [

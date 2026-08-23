@@ -166,6 +166,11 @@ return [
         'required' => 'The :attribute field is required.',
         'boolean' => 'The :attribute field must be true or false.',
     ],
+    'nationalities' => [
+        'kuwaitis' => 'Kuwaitis',
+        'all' => 'All nationalities',
+        'other' => 'Other',
+    ],
     'user_types' => [
         'volunteer' => 'Volunteer',
         'organization' => 'Entity',

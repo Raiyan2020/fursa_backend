@@ -55,7 +55,9 @@ class AdminFlowTest extends TestCase
             ->filter(fn (Route $route) => str_starts_with($route->uri(), 'dashboard'))
             ->filter(fn (Route $route) => in_array('GET', $route->methods(), true))
             ->reject(fn (Route $route) => str_contains($route->uri(), '{'))
-            ->reject(fn (Route $route) => $route->uri() === 'dashboard/login');
+            // Guest-only screens (login, forgot password) redirect an
+            // authenticated admin on purpose.
+            ->reject(fn (Route $route) => in_array('guest:admin', $route->gatherMiddleware(), true));
 
         foreach ($routes as $route) {
             $this->get('/'.$route->uri())->assertOk();

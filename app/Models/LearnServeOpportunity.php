@@ -42,6 +42,26 @@ class LearnServeOpportunity extends Model
         'is_registration_closed' => 'boolean',
     ];
 
+    /**
+     * Learning types that run without a check-in step.
+     *
+     * Workshops and consultations have no attendance to take, but the client
+     * still wants their hours in the organizer's counters, so registrations are
+     * treated as attended once the opportunity completes.
+     */
+    public const NO_CHECK_IN_TYPES = ['workshop', 'consultation'];
+
+    public function requiresCheckIn(): bool
+    {
+        $type = $this->learningType?->value_en;
+
+        if (! $type) {
+            return true;
+        }
+
+        return ! in_array(strtolower(trim($type)), self::NO_CHECK_IN_TYPES, true);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

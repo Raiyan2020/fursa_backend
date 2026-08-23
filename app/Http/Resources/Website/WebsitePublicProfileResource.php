@@ -34,12 +34,16 @@ class WebsitePublicProfileResource extends JsonResource
             $profile = $user->volunteerProfile;
             $profileData = [
                 'id' => $user->id,
-                'full_name' => $this->fullName($user),
+                // Privacy: a volunteer's real name is not published. Viewers get
+                // the picture, badge, username, current status and interests.
+                'full_name' => null,
+                'display_name' => $profile?->nickname ?: __('volunteer'),
                 'nickname' => $profile?->nickname,
                 'profile_pic' => $this->profilePicUrl($user),
                 'gender_display' => $this->websiteChoicePayload($profile?->gender),
                 'interest_display' => $this->masterChoiceCollection($user->masterInterests),
                 'occupation' => $profile?->occupation,
+                'current_status' => $profile?->occupation,
                 'experience' => $profile?->experience,
                 'manual_id' => $user->manual_id,
                 'instagram_link' => $user->instagram_link,

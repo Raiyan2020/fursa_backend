@@ -22,6 +22,8 @@ class Config extends Model
         'manual_attendance_threshold',
         'economic_impact_rate_kwd',
         'preparation_validity_days',
+        'preparation_validity_hours',
+        'preparation_reminder_hours_before',
         'is_deleted',
         'deleted_at',
     ];

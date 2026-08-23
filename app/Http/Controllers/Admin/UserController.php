@@ -7,6 +7,7 @@ use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
+use App\Enums\Nationality;
 use App\Models\User;
 use App\Models\VolunteerProfile;
 use Illuminate\Http\Request;
@@ -54,6 +55,8 @@ class UserController extends Controller
                 __('email'),
                 __('phone'),
                 __('country code'),
+                __('nationality'),
+                __('civil id'),
                 __('user type'),
                 __('status'),
                 __('banned'),
@@ -74,6 +77,8 @@ class UserController extends Controller
                 echo '<td>'.e($user->email).'</td>';
                 echo '<td>'.e($user->phone_number).'</td>';
                 echo '<td>'.e($user->country_code).'</td>';
+                echo '<td>'.e($this->nationalityLabel($user)).'</td>';
+                echo '<td>'.e($user->civil_id).'</td>';
                 echo '<td>'.e($user->accountTypeLabel()).'</td>';
                 echo '<td>'.e($user->is_active ? __('active') : __('inactive')).'</td>';
                 echo '<td>'.e($user->is_banned ? __('banned') : __('active')).'</td>';
@@ -90,6 +95,15 @@ class UserController extends Controller
         ]);
     }
 
+    protected function nationalityLabel(User $user): string
+    {
+        $value = $user->nationality instanceof Nationality
+            ? $user->nationality->value
+            : $user->nationality;
+
+        return $value ? __('admin.nationalities.'.$value) : '';
+    }
+
     public function store(Request $request)
     {
         $data = $this->validated($request);
@@ -103,6 +117,8 @@ class UserController extends Controller
                 'email' => Str::lower(trim($data['email'])),
                 'phone_number' => $data['phone_number'] ?? null,
                 'country_code' => $data['country_code'] ?? null,
+                'nationality' => $data['nationality'] ?? null,
+                'civil_id' => $data['civil_id'] ?? null,
                 'user_type' => $userType,
                 'preferred_language' => $data['preferred_language'],
                 'password' => $data['password'],
@@ -146,6 +162,8 @@ class UserController extends Controller
                 'email' => Str::lower(trim($data['email'])),
                 'phone_number' => $data['phone_number'] ?? null,
                 'country_code' => $data['country_code'] ?? null,
+                'nationality' => $data['nationality'] ?? null,
+                'civil_id' => $data['civil_id'] ?? null,
                 'user_type' => $userType,
                 'preferred_language' => $data['preferred_language'],
                 'is_active' => $request->boolean('is_active'),
@@ -277,6 +295,8 @@ class UserController extends Controller
             ],
             'phone_number' => ['nullable', 'string', 'max:30'],
             'country_code' => ['nullable', 'string', 'max:10'],
+            'nationality' => ['nullable', Rule::in(Nationality::values())],
+            'civil_id' => ['nullable', 'string', 'max:30'],
             'account_type' => ['required', Rule::in(['volunteer', 'organization', 'volunteer_team', 'admin'])],
             'preferred_language' => ['required', 'in:en,ar'],
             'is_active' => ['nullable', 'boolean'],
@@ -291,6 +311,8 @@ class UserController extends Controller
             'preferred_language' => __('admin.attributes.preferred_language'),
             'company_name' => __('admin.attributes.company_name'),
             'nickname' => __('admin.attributes.nickname'),
+            'nationality' => __('nationality'),
+            'civil_id' => __('civil id'),
         ]);
     }
 }

@@ -9,7 +9,7 @@ class UserRoleLicenseRequirementSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach (['volunteer', 'organization', 'volunteer_team', 'community'] as $role) {
+        foreach (['volunteer', 'organization', 'volunteer_team', 'community', 'society', 'education'] as $role) {
             UserRoleLicenseRequirement::query()->firstOrCreate(
                 ['user_role' => $role],
                 ['license_required' => $role === 'organization']

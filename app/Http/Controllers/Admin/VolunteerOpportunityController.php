@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\InterestType;
+use App\Enums\VolunteerCategory;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Controller;
@@ -250,9 +251,19 @@ class VolunteerOpportunityController extends Controller
             'is_relief',
             'is_interview_needed',
             'is_urgent',
+            'is_emergency',
             'is_supports_disabled',
         ] as $flag) {
             $data[$flag] = $request->boolean($flag);
+        }
+
+        // Beneficiaries are a charity-only figure.
+        $category = $request->input('volunteer_category')
+            ? VolunteerCategory::tryFrom((string) $request->input('volunteer_category'))
+            : null;
+
+        if (array_key_exists('beneficiaries_count', $data) && (! $category || ! $category->countsBeneficiaries())) {
+            $data['beneficiaries_count'] = null;
         }
 
         return $data;
@@ -284,11 +295,11 @@ class VolunteerOpportunityController extends Controller
             'title_ar' => ['required', 'string', 'max:255'],
             'description_en' => ['required', 'string'],
             'description_ar' => ['required', 'string'],
-            'start_date' => ['required', 'date', 'after_or_equal:today'],
+            'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
-            'due_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'due_date' => ['nullable', 'date'],
             'location_en' => ['nullable', 'string', 'max:255'],
             'location_ar' => ['nullable', 'string', 'max:255'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
@@ -310,6 +321,9 @@ class VolunteerOpportunityController extends Controller
             'is_relief' => ['nullable', 'boolean'],
             'is_interview_needed' => ['nullable', 'boolean'],
             'is_urgent' => ['nullable', 'boolean'],
+            'is_emergency' => ['nullable', 'boolean'],
+            'volunteer_category' => ['nullable', Rule::in(VolunteerCategory::values())],
+            'beneficiaries_count' => ['nullable', 'integer', 'min:0'],
             'is_supports_disabled' => ['nullable', 'boolean'],
             'interest_ids' => ['nullable', 'array'],
             'interest_ids.*' => [

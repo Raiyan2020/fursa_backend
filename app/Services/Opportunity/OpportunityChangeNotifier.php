@@ -31,14 +31,23 @@ class OpportunityChangeNotifier
 
         $titleEn = $opportunity->title_en ?? 'Opportunity';
         $titleAr = $opportunity->title_ar ?? $titleEn;
+
+        // Field names only ("the start date changed") were not actionable for
+        // volunteers, so every line now carries the old and new value.
         $changesEn = implode(', ', array_column($changes, 'en'));
         $changesAr = implode('، ', array_column($changes, 'ar'));
+        $diffEn = implode("
+", array_column($changes, 'line_en'));
+        $diffAr = implode("
+", array_column($changes, 'line_ar'));
 
         NotificationService::createForUsers(
             "Opportunity updated: {$titleEn}",
             "تم تحديث الفرصة: {$titleAr}",
-            "The following fields were updated: {$changesEn}.",
-            "تم تحديث الحقول التالية: {$changesAr}.",
+            "The following changed:
+{$diffEn}",
+            "التغييرات التالية حدثت:
+{$diffAr}",
             $userIds
         );
 
@@ -49,6 +58,10 @@ class OpportunityChangeNotifier
                 'opportunity_title_ar' => $titleAr,
                 'changed_fields_en' => $changesEn,
                 'changed_fields_ar' => $changesAr,
+                'changes_diff_en' => $diffEn,
+                'changes_diff_ar' => $diffAr,
+                'changes_html_en' => self::toHtmlList($changes, 'line_en'),
+                'changes_html_ar' => self::toHtmlList($changes, 'line_ar'),
             ]);
         }
     }
@@ -56,7 +69,7 @@ class OpportunityChangeNotifier
     /**
      * @param  array<string, mixed>  $before
      * @param  array<string, mixed>  $after
-     * @return list<array{en: string, ar: string}>
+     * @return list<array{en: string, ar: string, old: string, new: string, line_en: string, line_ar: string}>
      */
     public static function diff(array $before, array $after): array
     {
@@ -78,6 +91,9 @@ class OpportunityChangeNotifier
             'to_age' => ['en' => 'Maximum age', 'ar' => 'الحد الأقصى للعمر'],
             'link' => ['en' => 'Link', 'ar' => 'الرابط'],
             'is_registration_closed' => ['en' => 'Registration status', 'ar' => 'حالة التسجيل'],
+            'is_emergency' => ['en' => 'Emergency priority', 'ar' => 'أولوية طوارئ'],
+            'volunteer_category' => ['en' => 'Volunteer category', 'ar' => 'تصنيف التطوع'],
+            'beneficiaries_count' => ['en' => 'Beneficiaries count', 'ar' => 'عدد المستفيدين'],
         ];
 
         $changes = [];
@@ -92,10 +108,65 @@ class OpportunityChangeNotifier
                 continue;
             }
 
-            $changes[] = $label;
+            $changes[] = [
+                'field' => $field,
+                'en' => $label['en'],
+                'ar' => $label['ar'],
+                'old' => $old,
+                'new' => $new,
+                'line_en' => sprintf(
+                    '%s: %s → %s',
+                    $label['en'],
+                    self::forDisplay($old, 'en'),
+                    self::forDisplay($new, 'en')
+                ),
+                'line_ar' => sprintf(
+                    '%s: %s ← %s',
+                    $label['ar'],
+                    self::forDisplay($new, 'ar'),
+                    self::forDisplay($old, 'ar')
+                ),
+            ];
         }
 
         return $changes;
+    }
+
+    /**
+     * Empty values read as a blank gap in an email, so name them explicitly.
+     */
+    protected static function forDisplay(string $value, string $locale): string
+    {
+        if ($value === '') {
+            return $locale === 'en' ? '(empty)' : '(فارغ)';
+        }
+
+        if ($locale === 'ar') {
+            return match ($value) {
+                'Yes' => 'نعم',
+                'No' => 'لا',
+                default => $value,
+            };
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param  list<array<string, string>>  $changes
+     */
+    protected static function toHtmlList(array $changes, string $key): string
+    {
+        if ($changes === []) {
+            return '';
+        }
+
+        $items = array_map(
+            fn (array $change) => '<li>'.e($change[$key]).'</li>',
+            $changes
+        );
+
+        return '<ul>'.implode('', $items).'</ul>';
     }
 
     /**
@@ -129,7 +200,11 @@ class OpportunityChangeNotifier
         }
 
         if (is_bool($value)) {
-            return $value ? '1' : '0';
+            return $value ? 'Yes' : 'No';
+        }
+
+        if ($value instanceof \BackedEnum) {
+            return (string) $value->value;
         }
 
         return trim((string) ($value ?? ''));

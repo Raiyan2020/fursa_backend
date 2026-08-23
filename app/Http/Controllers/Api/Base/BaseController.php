@@ -138,13 +138,20 @@ class BaseController extends Controller
                 $userRoleType = 'volunteer_team';
                 $userRoleDisplay = 'Volunteer Team';
             } else {
-                $communityType = MasterChoice::query()
+                // "Society" is the renamed "Community"; both resolve to the
+                // licence-exempt role so older profiles keep working.
+                $societyType = MasterChoice::query()
                     ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-                    ->where('value_en', 'Community')
-                    ->first();
-                if ($communityType && $org?->organizer_type_id === $communityType->id) {
-                    $userRoleType = 'community';
-                    $userRoleDisplay = 'Community';
+                    ->whereIn('value_en', ['Society', 'Community'])
+                    ->pluck('value_en', 'id');
+
+                $matchedSociety = $org?->organizer_type_id
+                    ? ($societyType[$org->organizer_type_id] ?? null)
+                    : null;
+
+                if ($matchedSociety) {
+                    $userRoleType = $matchedSociety === 'Society' ? 'society' : 'community';
+                    $userRoleDisplay = $matchedSociety;
                 } else {
                     $userRoleType = 'organization';
                     $userRoleDisplay = 'Organization';

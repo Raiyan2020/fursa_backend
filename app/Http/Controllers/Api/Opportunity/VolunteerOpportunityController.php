@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Opportunity;
 
 use App\Enums\ApprovalStatus;
+use App\Enums\VolunteerCategory;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
@@ -197,19 +198,23 @@ class VolunteerOpportunityController extends Controller
         $filtered = $filtered
             ->select('volunteer_opportunities.*')
             ->selectRaw('(SELECT COUNT(*) FROM volunteer_opportunity_registrations r WHERE r.opportunity_id = volunteer_opportunities.id AND r.is_deleted = 0) as current_registrations')
+            // Bucket order, per the client's feedback: emergency first, then
+            // opportunities you can still join, then full ones, and anything
+            // already started drops below all of those instead of near the top.
+            // Dead records (completed / cancelled / past due) stay last.
             ->orderByRaw("
                 CASE
-                    WHEN is_urgent = 1 AND opportunity_status = 'upcoming'
+                    WHEN (is_emergency = 1 OR is_urgent = 1) AND opportunity_status = 'upcoming'
                         AND (participants_needed = 0 OR current_registrations < participants_needed)
                         AND (due_date IS NULL OR due_date >= ?)
                         AND opportunity_status != 'completed' THEN 0
                     WHEN opportunity_status = 'upcoming'
                         AND (participants_needed = 0 OR current_registrations < participants_needed)
                         AND (due_date IS NULL OR due_date >= ?) THEN 1
-                    WHEN opportunity_status = 'inprogress'
-                        AND (participants_needed = 0 OR current_registrations < participants_needed) THEN 2
                     WHEN (participants_needed > 0 AND current_registrations >= participants_needed)
-                        AND (due_date IS NULL OR due_date >= ?) THEN 3
+                        AND (due_date IS NULL OR due_date >= ?) THEN 2
+                    WHEN opportunity_status = 'inprogress'
+                        AND (participants_needed = 0 OR current_registrations < participants_needed) THEN 3
                     ELSE 4
                 END ASC
             ", [$now, $now, $now])
@@ -411,6 +416,10 @@ class VolunteerOpportunityController extends Controller
             'is_kuwaitis' => ['nullable', 'boolean'],
             'is_relief' => ['nullable', 'boolean'],
             'is_urgent' => ['nullable', 'boolean'],
+            'is_emergency' => ['nullable', 'boolean'],
+            'volunteer_category' => ['nullable', Rule::in(VolunteerCategory::values())],
+            // Beneficiaries only apply to charity opportunities; enforced below.
+            'beneficiaries_count' => ['nullable', 'integer', 'min:0'],
             'is_supports_disabled' => ['nullable', 'boolean'],
             'is_interview_needed' => ['nullable', 'boolean'],
             'volunteer_hours_per_day' => ['nullable', 'numeric'],
@@ -420,7 +429,30 @@ class VolunteerOpportunityController extends Controller
             'interest_ids.*' => ['integer', 'exists:interests,id'],
         ];
 
-        return $request->validate($rules);
+        $validated = $request->validate($rules);
+
+        return $this->normalizeBeneficiaries($validated);
+    }
+
+    /**
+     * The client only counts beneficiaries on charity opportunities, so drop the
+     * value for any other category rather than storing a number nothing reads.
+     */
+    protected function normalizeBeneficiaries(array $data): array
+    {
+        if (! array_key_exists('volunteer_category', $data)) {
+            return $data;
+        }
+
+        $category = $data['volunteer_category']
+            ? VolunteerCategory::tryFrom($data['volunteer_category'])
+            : null;
+
+        if (! $category || ! $category->countsBeneficiaries()) {
+            $data['beneficiaries_count'] = null;
+        }
+
+        return $data;
     }
 
     protected function syncInterests(VolunteerOpportunity $opportunity, array $interestIds): void

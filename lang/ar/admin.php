@@ -166,6 +166,11 @@ return [
     'required' => 'حقل :attribute مطلوب.',
     'boolean' => 'حقل :attribute يجب أن يكون صح أو خطأ.',
   ],
+  'nationalities' => [
+    'kuwaitis' => 'كويتيون',
+    'all' => 'جميع الجنسيات',
+    'other' => 'أخرى',
+  ],
   'user_types' => [
     'volunteer' => 'متطوع',
     'organization' => 'جهة',

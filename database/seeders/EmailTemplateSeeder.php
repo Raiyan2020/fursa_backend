@@ -93,7 +93,9 @@ HTML;
             ['volunteer_three_day_reminder', '3-Day Reminder', 'تذكير قبل 3 أيام', 'Your opportunity starts in 3 days.', 'فرصتك تبدأ خلال 3 أيام.'],
             ['volunteer_day_of_notification', 'Day-Of Reminder', 'تذكير يوم الفعالية', 'Your opportunity is today.', 'فرصتك اليوم.'],
             ['volunteer_completion_notification', 'Thanks for Completing', 'شكرًا للمشاركة', 'Thank you for completing the opportunity.', 'شكرًا لإكمال الفرصة.'],
-            ['opportunity_updated', 'Opportunity updated: {{opportunity_title_en}}', 'تم تحديث الفرصة: {{opportunity_title_ar}}', 'The following fields were updated: {{changed_fields_en}}.', 'تم تحديث الحقول التالية: {{changed_fields_ar}}.'],
+            ['opportunity_updated', 'Opportunity updated: {{opportunity_title_en}}', 'تم تحديث الفرصة: {{opportunity_title_ar}}', 'The following changed on {{opportunity_title_en}}:{{changes_html_en}}', 'التغييرات التالية على {{opportunity_title_ar}}:{{changes_html_ar}}'],
+            ['check_in_window_reminder', 'Check-in window closing: {{opportunity_title_en}}', 'نافذة التحضير تُغلق قريباً: {{opportunity_title_ar}}', 'The check-in window for {{opportunity_title_en}} closes at {{closes_at}}. {{pending_check_ins}} registered volunteer(s) still have no attendance recorded.', 'نافذة التحضير للفرصة {{opportunity_title_ar}} تُغلق في {{closes_at}}. لا يزال {{pending_check_ins}} من المتطوعين المسجلين بدون تسجيل حضور.'],
+            ['emergency_alert', 'Emergency: {{title_en}}', 'طوارئ: {{title_ar}}', '{{message_en}}', '{{message_ar}}'],
             ['fursa_friend_backup_notification', 'Volunteer backup needed', 'مطلوب دعم تطوعي', '{{title}} Needs {{volunteers_needed}} more volunteers in {{days_until_start}} days.', '{{title}} تحتاج إلى {{volunteers_needed}} متطوعين إضافيين خلال {{days_until_start}} أيام.'],
         ];
 

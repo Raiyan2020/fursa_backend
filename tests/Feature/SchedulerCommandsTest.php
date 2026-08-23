@@ -28,6 +28,7 @@ class SchedulerCommandsTest extends TestCase
             'fursa:delete-expired-tokens',
             'fursa:generate-missing-qr-codes',
             'fursa:notify-fursa-friends-backup',
+            'fursa:send-check-in-window-reminder',
             'fursa:send-completion-notification',
             'fursa:send-day-of-notification',
             'fursa:send-three-day-reminder',

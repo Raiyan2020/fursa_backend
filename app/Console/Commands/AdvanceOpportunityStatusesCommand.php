@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\OpportunityStatus;
 use App\Models\Event;
 use App\Models\LearnServeOpportunity;
+use App\Models\LearnServeOpportunityRegistration;
 use App\Models\VolunteerOpportunity;
 use App\Services\Opportunity\SyncService;
 use Illuminate\Console\Command;
@@ -22,9 +23,14 @@ class AdvanceOpportunityStatusesCommand extends Command
         $synced = [];
 
         foreach ([VolunteerOpportunity::class, LearnServeOpportunity::class] as $model) {
+            $relations = ['sponsorImages.organization'];
+            if ($model === LearnServeOpportunity::class) {
+                $relations[] = 'learningType';
+            }
+
             $items = $model::query()
                 ->notDeleted()
-                ->with(['sponsorImages.organization'])
+                ->with($relations)
                 ->get();
 
             foreach ($items as $opp) {
@@ -64,6 +70,27 @@ class AdvanceOpportunityStatusesCommand extends Command
                 $opp->save();
 
                 if ($newStatus === OpportunityStatus::COMPLETED) {
+                    // Workshops and consultations take no attendance, so their
+                    // registrations are credited on completion instead.
+                    if ($opp instanceof LearnServeOpportunity && ! $opp->requiresCheckIn()) {
+                        $credited = LearnServeOpportunityRegistration::query()
+                            ->notDeleted()
+                            ->where('opportunity_id', $opp->id)
+                            ->where('is_attended', false)
+                            ->update(['is_attended' => true]);
+
+                        if ($credited > 0) {
+                            foreach (
+                                LearnServeOpportunityRegistration::query()
+                                    ->notDeleted()
+                                    ->where('opportunity_id', $opp->id)
+                                    ->pluck('user_id') as $userId
+                            ) {
+                                $synced[$userId] = true;
+                            }
+                        }
+                    }
+
                     $synced[$opp->created_by] = true;
                     foreach ($opp->sponsorImages ?? [] as $sponsor) {
                         if ($sponsor->organization?->user_id) {

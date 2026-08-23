@@ -11,6 +11,7 @@ use App\Models\VolunteerOpportunityAttendance;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerProfile;
 use App\Models\VolunteerStatistic;
+use App\Services\Opportunity\AttendanceService;
 use App\Services\Opportunity\SyncService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -69,15 +70,7 @@ class VolunteerAttendanceController extends Controller
             );
         }
 
-        $hasPermission = $opportunity->created_by === $request->user()->id
-            || ScanPermission::query()
-                ->notDeleted()
-                ->where('opportunity_id', $opportunity->id)
-                ->where('user_id', $request->user()->id)
-                ->where('is_allowed', true)
-                ->exists();
-
-        if (! $hasPermission) {
+        if (! $this->canManageAttendance($opportunity, $request->user()->id)) {
             return ApiResponse::error(
                 "You don't have permission to manage attendance for this opportunity.",
                 'ليس لديك إذن لإدارة الحضور لهذه الفرصة.',
@@ -132,35 +125,14 @@ class VolunteerAttendanceController extends Controller
                 continue;
             }
 
-            DB::transaction(function () use ($registration, $opportunity, $attendanceDate, $volunteer) {
-                $hours = $this->computeAttendanceHours($opportunity);
-                VolunteerOpportunityAttendance::create([
-                    'registration_id' => $registration->id,
-                    'attended_date' => $attendanceDate,
-                    'total_hours' => $hours,
-                    'is_attended' => true,
-                ]);
-
-                $volunteer->increment('total_volunteer_hours', $hours);
-
-                $stat = VolunteerStatistic::query()->firstOrCreate(
-                    [
-                        'user_id' => $volunteer->user_id,
-                        'year' => (int) date('Y', strtotime($attendanceDate)),
-                        'month' => (int) date('n', strtotime($attendanceDate)),
-                    ],
-                    [
-                        'volunteer_hours' => 0,
-                        'opportunities_participated' => 0,
-                        'opportunities_organized' => 0,
-                        'certificates_earned' => 0,
-                    ]
-                );
-                $stat->increment('volunteer_hours', $hours);
-            });
-
-            SyncService::syncUser($volunteer->user_id);
-            SyncService::syncUser($opportunity->created_by);
+            AttendanceService::record(
+                $registration,
+                $opportunity,
+                $attendanceDate,
+                $this->computeAttendanceHours($opportunity),
+                AttendanceService::VIA_QR,
+                $request->user()->id
+            );
 
             if ($isSingle) {
                 return ApiResponse::success(null, 'Attendance recorded successfully.', 'تم تسجيل الحضور بنجاح.');
@@ -232,6 +204,266 @@ class VolunteerAttendanceController extends Controller
         $payload['total_hours'] = $totalHours;
 
         return response()->json($payload, 200);
+    }
+
+    /**
+     * Manual check-in, usable alongside QR for the same opportunity.
+     *
+     * The publisher picks whichever path suits the volunteer in front of them;
+     * hours may be overridden here because manual check-ins often cover only
+     * part of a shift.
+     */
+    public function manual(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'opportunity_id' => ['required', 'integer', 'exists:volunteer_opportunities,id'],
+            'registration_id' => ['nullable', 'integer'],
+            'user_id' => ['nullable', 'integer'],
+            'volunteer_uuid' => ['nullable', 'string'],
+            'attendance_date' => ['nullable', 'date'],
+            'total_hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
+        ]);
+
+        if (empty($data['registration_id']) && empty($data['user_id']) && empty($data['volunteer_uuid'])) {
+            return ApiResponse::error(
+                "One of 'registration_id', 'user_id' or 'volunteer_uuid' must be provided.",
+                "يجب توفير 'registration_id' أو 'user_id' أو 'volunteer_uuid'.",
+                400
+            );
+        }
+
+        $opportunity = VolunteerOpportunity::query()->notDeleted()->find($data['opportunity_id']);
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity does not exist.', 'الفرصة غير موجودة.', 404);
+        }
+
+        if (! $this->canManageAttendance($opportunity, $request->user()->id)) {
+            return ApiResponse::error(
+                "You don't have permission to manage attendance for this opportunity.",
+                'ليس لديك إذن لإدارة الحضور لهذه الفرصة.',
+                403
+            );
+        }
+
+        $attendanceDate = isset($data['attendance_date'])
+            ? \Carbon\Carbon::parse($data['attendance_date'])->toDateString()
+            : now()->toDateString();
+
+        if (! $opportunity->isWithinPreparationWindow($attendanceDate)) {
+            return ApiResponse::error(
+                'The check-in window for this opportunity is closed.',
+                'نافذة التحضير لهذه الفرصة مغلقة.',
+                400
+            );
+        }
+
+        $registration = $this->resolveRegistration($opportunity, $data);
+        if (! $registration) {
+            return ApiResponse::error(
+                'This user is not registered for this opportunity.',
+                'هذا المستخدم غير مسجل لهذه الفرصة.',
+                400
+            );
+        }
+
+        $alreadyAttended = VolunteerOpportunityAttendance::query()
+            ->notDeleted()
+            ->where('registration_id', $registration->id)
+            ->whereDate('attended_date', $attendanceDate)
+            ->where('is_attended', true)
+            ->exists();
+
+        if ($alreadyAttended) {
+            return ApiResponse::error(
+                'Attendance already recorded for this date.',
+                'تم تسجيل الحضور بالفعل لهذا التاريخ.',
+                409
+            );
+        }
+
+        $hours = array_key_exists('total_hours', $data) && $data['total_hours'] !== null
+            ? round((float) $data['total_hours'], 2)
+            : $this->computeAttendanceHours($opportunity);
+
+        $attendance = AttendanceService::record(
+            $registration,
+            $opportunity,
+            $attendanceDate,
+            $hours,
+            AttendanceService::VIA_MANUAL,
+            $request->user()->id
+        );
+
+        return ApiResponse::success(
+            new VolunteerAttendanceResource($attendance->load(['registration.user', 'registration.opportunity'])),
+            'Attendance recorded successfully.',
+            'تم تسجيل الحضور بنجاح.'
+        );
+    }
+
+    /**
+     * Correct the hours on a check-in that already happened, QR or manual.
+     */
+    public function updateHours(Request $request, int $attendance_id): JsonResponse
+    {
+        $data = $request->validate([
+            'total_hours' => ['required', 'numeric', 'min:0', 'max:24'],
+        ]);
+
+        $attendance = VolunteerOpportunityAttendance::query()
+            ->notDeleted()
+            ->with(['registration.opportunity'])
+            ->find($attendance_id);
+
+        if (! $attendance) {
+            return ApiResponse::error('Attendance record not found.', 'لم يتم العثور على سجل الحضور.', 404);
+        }
+
+        $opportunity = $attendance->registration?->opportunity;
+        if (! $opportunity || ! $this->canManageAttendance($opportunity, $request->user()->id)) {
+            return ApiResponse::error(
+                "You don't have permission to manage attendance for this opportunity.",
+                'ليس لديك إذن لإدارة الحضور لهذه الفرصة.',
+                403
+            );
+        }
+
+        $attendance = AttendanceService::updateHours($attendance, round((float) $data['total_hours'], 2));
+
+        return ApiResponse::success(
+            new VolunteerAttendanceResource($attendance->load(['registration.user', 'registration.opportunity'])),
+            'Attendance hours updated successfully.',
+            'تم تحديث ساعات الحضور بنجاح.'
+        );
+    }
+
+    /**
+     * Undo a check-in and give back the hours it had granted.
+     */
+    public function undo(Request $request, int $attendance_id): JsonResponse
+    {
+        $attendance = VolunteerOpportunityAttendance::query()
+            ->notDeleted()
+            ->with(['registration.opportunity'])
+            ->find($attendance_id);
+
+        if (! $attendance) {
+            return ApiResponse::error('Attendance record not found.', 'لم يتم العثور على سجل الحضور.', 404);
+        }
+
+        $opportunity = $attendance->registration?->opportunity;
+        if (! $opportunity || ! $this->canManageAttendance($opportunity, $request->user()->id)) {
+            return ApiResponse::error(
+                "You don't have permission to manage attendance for this opportunity.",
+                'ليس لديك إذن لإدارة الحضور لهذه الفرصة.',
+                403
+            );
+        }
+
+        AttendanceService::undo($attendance);
+
+        return ApiResponse::success(
+            null,
+            'Attendance undone successfully.',
+            'تم التراجع عن الحضور بنجاح.'
+        );
+    }
+
+    /**
+     * Reopen a check-in window that already closed.
+     *
+     * Only an admin can do this; publishers who miss the window have to ask.
+     */
+    public function reopenWindow(Request $request, int $opportunity_id): JsonResponse
+    {
+        if (! $request->user()->isAdmin()) {
+            return ApiResponse::error('Admin access required.', 'مطلوب وصول المسؤول.', 403);
+        }
+
+        $data = $request->validate([
+            'reopen_until' => ['nullable', 'date'],
+            'extra_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
+        ]);
+
+        $opportunity = VolunteerOpportunity::query()->notDeleted()->find($opportunity_id);
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity does not exist.', 'الفرصة غير موجودة.', 404);
+        }
+
+        if (! empty($data['reopen_until'])) {
+            $until = \Carbon\Carbon::parse($data['reopen_until']);
+        } else {
+            // Extend from whichever boundary is later so a second reopen still moves forward.
+            $base = $opportunity->preparationValidUntil() ?? now();
+            if ($base->lt(now())) {
+                $base = now();
+            }
+            $until = $base->copy()->addHours((int) ($data['extra_hours'] ?? 24));
+        }
+
+        if ($until->lte(now())) {
+            return ApiResponse::error(
+                'The reopen date must be in the future.',
+                'يجب أن يكون تاريخ إعادة الفتح في المستقبل.',
+                422
+            );
+        }
+
+        $opportunity->update(['preparation_reopened_until' => $until]);
+
+        return ApiResponse::success(
+            [
+                'id' => $opportunity->id,
+                'preparation_reopened_until' => $until->toIso8601String(),
+                'preparation_valid_until' => $opportunity->fresh()->preparationValidUntil()?->toIso8601String(),
+                'is_preparation_window_closed' => $opportunity->fresh()->isPreparationWindowClosed(),
+            ],
+            'Check-in window reopened successfully.',
+            'تم إعادة فتح نافذة التحضير بنجاح.'
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function resolveRegistration(
+        VolunteerOpportunity $opportunity,
+        array $data
+    ): ?VolunteerOpportunityRegistration {
+        $query = VolunteerOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('opportunity_id', $opportunity->id);
+
+        if (! empty($data['registration_id'])) {
+            return $query->where('id', $data['registration_id'])->first();
+        }
+
+        if (! empty($data['user_id'])) {
+            return $query->where('user_id', $data['user_id'])->first();
+        }
+
+        $uuid = $this->validateUuid($data['volunteer_uuid'] ?? null);
+        if (! $uuid) {
+            return null;
+        }
+
+        $profile = VolunteerProfile::query()->where('uuid', $uuid)->first();
+
+        return $profile ? $query->where('user_id', $profile->user_id)->first() : null;
+    }
+
+    protected function canManageAttendance(VolunteerOpportunity $opportunity, int $userId): bool
+    {
+        if ($opportunity->created_by === $userId) {
+            return true;
+        }
+
+        return ScanPermission::query()
+            ->notDeleted()
+            ->where('opportunity_id', $opportunity->id)
+            ->where('user_id', $userId)
+            ->where('is_allowed', true)
+            ->exists();
     }
 
     protected function validateUuid(?string $raw): ?string
