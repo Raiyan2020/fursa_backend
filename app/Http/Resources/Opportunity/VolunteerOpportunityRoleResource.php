@@ -17,6 +17,11 @@ class VolunteerOpportunityRoleResource extends JsonResource
             'instructions_en' => $this->instructions_en,
             'instructions_ar' => $this->instructions_ar,
             'participants_needed' => $this->participants_needed,
+            // Seat availability, so the client can disable a full role instead
+            // of submitting and getting a 400 back.
+            'assigned_count' => $this->resource->assignedCount(),
+            'remaining_slots' => $this->resource->remainingSlots(),
+            'is_full' => $this->resource->isFull(),
         ];
     }
 }

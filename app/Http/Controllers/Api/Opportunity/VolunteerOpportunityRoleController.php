@@ -15,7 +15,10 @@ class VolunteerOpportunityRoleController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = VolunteerOpportunityRole::query()->notDeleted();
+        $query = VolunteerOpportunityRole::query()
+            ->notDeleted()
+            // Eager-loaded so assignedCount() does not fire a query per role.
+            ->with(['assignments.registration']);
 
         if ($opportunityId = $request->query('opportunity_id')) {
             $query->where('opportunity_id', $opportunityId);
