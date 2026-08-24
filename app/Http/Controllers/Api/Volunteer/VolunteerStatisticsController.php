@@ -13,6 +13,7 @@ use App\Models\LearnServeOpportunityRegistration;
 use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
 use App\Models\OrganizationStatistic;
+use App\Models\Sponsor;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerProfile;
@@ -79,6 +80,24 @@ class VolunteerStatisticsController extends Controller
 
         $totalBeneficiaries = $volunteerBeneficiaries + $courseLearners;
 
+        // Certificates count from any source (Forsa-issued or externally added),
+        // matching how the volunteer profile totals them.
+        $certificatesIssued = (int) LearnServeOpportunityRegistration::query()
+            ->notDeleted()
+            ->where(function ($q) {
+                $q->where('is_certified', true)
+                    ->orWhere(function ($inner) {
+                        $inner->whereNotNull('certificate_image')
+                            ->where('certificate_image', '!=', '');
+                    });
+            })
+            ->count();
+
+        $sponsorsCount = (int) Sponsor::query()
+            ->notDeleted()
+            ->where('approval_status', ApprovalStatus::APPROVED)
+            ->count();
+
         return ApiResponse::success([
             'yearly_hours' => $yearList,
             'grand_total_hours' => $grandTotal,
@@ -94,6 +113,22 @@ class VolunteerStatisticsController extends Controller
                 'volunteer_opportunities' => $volunteerBeneficiaries,
                 'course_learners' => $courseLearners,
             ],
+            // Client rule: volunteer hours and volunteer opportunities are always
+            // shown; development, certificates and sponsorship (and their tabs)
+            // only appear once they hold a real value. Computed here so every
+            // client applies the same rule.
+            'counter_visibility' => [
+                'volunteer_hours' => true,
+                'volunteer_opportunities' => true,
+                'development' => $learnCompleted > 0,
+                'certificates' => $certificatesIssued > 0,
+                'sponsorship' => $sponsorsCount > 0,
+                'economic_impact' => $economicImpact > 0,
+                'beneficiaries' => $totalBeneficiaries > 0,
+                'outside_kuwait' => $reliefTrips > 0,
+            ],
+            'certificates_count' => $certificatesIssued,
+            'sponsors_count' => $sponsorsCount,
         ], 'Yearly volunteer hours summary retrieved successfully.', 'تم استرجاع ملخص ساعات التطوع السنوي بنجاح.');
     }
 

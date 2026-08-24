@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Api\Volunteer;
 
+use App\Http\Controllers\Api\Concerns\HandlesProfileInterests;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Volunteer\VolunteerProfileResource;
 use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
 use App\Http\Resources\Volunteer\VolunteerVerificationResource;
-use App\Models\Interest;
-use App\Models\MasterChoice;
-use App\Models\User;
 use App\Models\VolunteerProfile;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +16,8 @@ use Illuminate\Validation\Rule;
 
 class VolunteerProfileController extends Controller
 {
+    use HandlesProfileInterests;
+
     public function show(Request $request): JsonResponse
     {
         $profile = $request->user()->volunteerProfile()->with([
@@ -259,75 +259,4 @@ class VolunteerProfileController extends Controller
         ]);
     }
 
-    /**
-     * Profile tags come from master_choices (user_interest). The frontend may send
-     * interest_ids, interests, or tags — all with master choice IDs.
-     *
-     * @return list<int>|null
-     */
-    private function extractProfileInterestIds(Request $request): ?array
-    {
-        $raw = null;
-
-        foreach (['interest_ids', 'interests', 'tags', 'master_interest_ids'] as $field) {
-            if ($request->has($field)) {
-                $raw = $request->input($field);
-                break;
-            }
-        }
-
-        if ($raw === null) {
-            return null;
-        }
-
-        if (! is_array($raw)) {
-            $raw = [$raw];
-        }
-
-        return array_values(array_filter(array_map(
-            static fn ($id) => filter_int($id),
-            $raw
-        ), static fn ($id) => $id !== null));
-    }
-
-    /**
-     * @param  list<int>  $ids
-     */
-    private function syncProfileInterests(User $user, array $ids): ?JsonResponse
-    {
-        $ids = array_values(array_unique($ids));
-
-        if ($ids === []) {
-            $user->masterInterests()->sync([]);
-            $user->interests()->sync([]);
-
-            return null;
-        }
-
-        $masterIds = MasterChoice::query()
-            ->notDeleted()
-            ->whereHas('choiceType', fn ($query) => $query->where('name', 'user_interest')->notDeleted())
-            ->whereIn('id', $ids)
-            ->pluck('id');
-
-        if ($masterIds->count() === count($ids)) {
-            $user->masterInterests()->sync($masterIds);
-
-            return null;
-        }
-
-        $legacyInterestIds = Interest::query()->whereIn('id', $ids)->pluck('id');
-        if ($legacyInterestIds->count() === count($ids)) {
-            $user->interests()->sync($legacyInterestIds);
-
-            return null;
-        }
-
-        return ApiResponse::error(
-            'One or more interests are invalid.',
-            'واحد أو أكثر من الاهتمامات غير صالح.',
-            422,
-            ['interest_ids' => ['One or more selected interests are invalid.']]
-        );
-    }
 }

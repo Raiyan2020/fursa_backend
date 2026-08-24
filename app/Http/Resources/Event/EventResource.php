@@ -58,6 +58,28 @@ class EventResource extends JsonResource
             'interests' => $this->whenLoaded('interests', fn () => $this->interests->pluck('id')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+            // One computed state so every screen renders the same button.
+            'action_state' => $this->resource->actionState($this->isRegisteredForEvent($request)),
+            'is_full' => $this->resource->isAtCapacity(),
+            'has_started' => $this->resource->hasStarted(),
+            'has_ended' => $this->resource->hasEnded(),
         ];
+    }
+
+    /**
+     * Registration lookup kept local so the resource has no extra dependency.
+     */
+    protected function isRegisteredForEvent($request): bool
+    {
+        $user = $request->user();
+        if (! $user) {
+            return false;
+        }
+
+        return \App\Models\EventRegistration::query()
+            ->where('event_id', $this->resource->id)
+            ->where('user_id', $user->id)
+            ->where('is_deleted', false)
+            ->exists();
     }
 }

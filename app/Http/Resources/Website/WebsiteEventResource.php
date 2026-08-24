@@ -80,6 +80,11 @@ class WebsiteEventResource extends JsonResource
                 : ($creatorUser ? ['id' => $creatorUser->id] : null),
             'is_creator' => $isCreator,
             'is_registered' => $isRegistered,
+            // One computed state so every screen renders the same button.
+            'action_state' => $event->actionState($isRegistered, $registeredCount),
+            'is_full' => $event->isAtCapacity($registeredCount),
+            'has_started' => $event->hasStarted(),
+            'has_ended' => $event->hasEnded(),
         ];
 
         if ($this->detail) {

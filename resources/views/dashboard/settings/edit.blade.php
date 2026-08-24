@@ -71,6 +71,20 @@
                                     <label>{{ __('manual attendance threshold') }}</label>
                                     <input type="number" name="manual_attendance_threshold" class="form-control" value="{{ old('manual_attendance_threshold', $config->manual_attendance_threshold) }}">
                                 </div>
+                                <div class="col-md-6 mb-1">
+                                    <label>{{ __('economic impact rate kwd') }}</label>
+                                    <input type="number" step="0.01" min="0" name="economic_impact_rate_kwd" class="form-control" value="{{ old('economic_impact_rate_kwd', $config->economic_impact_rate_kwd) }}">
+                                    <small class="text-muted">{{ __('Economic impact = total volunteer hours x this rate') }}</small>
+                                </div>
+                                <div class="col-md-6 mb-1">
+                                    <label>{{ __('check-in window hours') }}</label>
+                                    <input type="number" min="0" name="preparation_validity_hours" class="form-control" value="{{ old('preparation_validity_hours', $config->preparation_validity_hours) }}">
+                                    <small class="text-muted">{{ __('Hours after the end date during which attendance can still be recorded (72 = 3 days, 168 = 1 week)') }}</small>
+                                </div>
+                                <div class="col-md-6 mb-1">
+                                    <label>{{ __('check-in reminder hours before closing') }}</label>
+                                    <input type="number" min="0" name="preparation_reminder_hours_before" class="form-control" value="{{ old('preparation_reminder_hours_before', $config->preparation_reminder_hours_before) }}">
+                                </div>
                             </div>
                             <div class="mt-1">
                                 <button type="submit" class="btn btn-primary">{{ __('save') }}</button>

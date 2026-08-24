@@ -21,6 +21,11 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
         $images = $opportunity->images?->filter(fn ($image) => ! $image->is_deleted) ?? collect();
         $registrations = $opportunity->registrations?->filter(fn ($registration) => ! $registration->is_deleted) ?? collect();
 
+        $viewer = $request->user();
+        $isRegistered = $viewer !== null
+            && $opportunity->created_by !== $viewer->id
+            && $registrations->contains(fn ($registration) => (int) $registration->user_id === (int) $viewer->id);
+
         return [
             'id' => $opportunity->id,
             'opportunity_type' => 'learn_serve_opportunity',
@@ -50,6 +55,12 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'is_urgent' => (bool) $opportunity->is_urgent,
             'is_relief' => (bool) $opportunity->is_relief,
             'all_registered_user' => $this->websiteRegisteredUserIds($registrations),
+            // One computed state so every screen renders the same button.
+            'action_state' => $opportunity->actionState($isRegistered, $registrations->count()),
+            'is_registered' => $isRegistered,
+            'is_full' => $opportunity->isAtCapacity($registrations->count()),
+            'has_started' => $opportunity->hasStarted(),
+            'has_ended' => $opportunity->hasEnded(),
         ];
     }
 }

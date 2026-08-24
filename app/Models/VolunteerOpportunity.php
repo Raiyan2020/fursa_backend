@@ -7,6 +7,7 @@ use App\Enums\DeletionStatus;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
 use App\Enums\VolunteerCategory;
+use App\Models\Concerns\HasActionState;
 use App\Models\Concerns\HasRegistrationWindow;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VolunteerOpportunity extends Model
 {
+    use HasActionState;
     use HasRegistrationWindow;
     use HasSoftFlags;
 

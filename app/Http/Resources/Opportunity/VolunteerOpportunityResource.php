@@ -99,6 +99,16 @@ class VolunteerOpportunityResource extends JsonResource
                 ? (int) ($this->beneficiaries_count ?? 0)
                 : null,
             'supports_beneficiaries_count' => (bool) $this->volunteer_category?->countsBeneficiaries(),
+            // One computed state so every screen renders the same button.
+            'action_state' => $this->resource->actionState(
+                $this->isVolunteerOpportunityRegistered($this->resource, $request),
+                $this->registeredVolunteersCount($registrations)
+            ),
+            'is_full' => $this->resource->isAtCapacity($this->registeredVolunteersCount($registrations)),
+            'has_started' => $this->resource->hasStarted(),
+            'has_ended' => $this->resource->hasEnded(),
+            // organizer / sponsor / registered / attended for the current viewer.
+            'relationship_tags' => $this->relationshipTags($this->resource, $request),
         ];
     }
 }

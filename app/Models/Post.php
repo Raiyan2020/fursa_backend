@@ -15,14 +15,13 @@ class Post extends Model
 
     protected $fillable = [
         'user_id', 'title_en', 'title_ar', 'idea_text_en', 'idea_text_ar',
-        'primary_language', 'proposing_idea', 'needs_support', 'is_funding_required',
+        'primary_language', 'proposing_idea', 'is_funding_required',
         'is_displayed', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
         'primary_language' => Language::class,
         'proposing_idea' => 'boolean',
-        'needs_support' => 'boolean',
         'is_funding_required' => 'boolean',
         'is_displayed' => 'boolean',
     ];

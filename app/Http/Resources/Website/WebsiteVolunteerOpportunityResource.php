@@ -70,6 +70,14 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             // Derived from the already-loaded registrations so the card list
             // does not fire one query per row.
             'is_registered' => $this->isRegisteredInLoaded($registrations, $request, $opportunity),
+            // One computed state so every screen renders the same button.
+            'action_state' => $opportunity->actionState(
+                $this->isRegisteredInLoaded($registrations, $request, $opportunity),
+                $registrations->count()
+            ),
+            'is_full' => $opportunity->isAtCapacity($registrations->count()),
+            'has_started' => $opportunity->hasStarted(),
+            'has_ended' => $opportunity->hasEnded(),
             'volunteer_category' => $opportunity->volunteer_category?->value,
             'volunteer_category_display' => $opportunity->volunteer_category
                 ? [

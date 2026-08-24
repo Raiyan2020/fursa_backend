@@ -6,6 +6,7 @@ use App\Enums\UserType;
 use App\Models\LearnServeOpportunity;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
+use App\Services\Mail\DynamicEmailService;
 use App\Services\Notification\NotificationService;
 use Illuminate\Database\Eloquent\Model;
 
@@ -49,6 +50,45 @@ class OpportunityAudienceNotifier
             "تتوفر الآن فرصة {$typeAr} جديدة تناسب عمرك.",
             $userIds
         );
+
+        // The client asked for an actual email, not just the in-app bell, so the
+        // same age-filtered audience also receives the templated message.
+        self::emailEligibleVolunteers($opportunity, $userIds, $typeEn, $typeAr, $titleEn, $titleAr);
+    }
+
+    /**
+     * @param  array<int, int>  $userIds
+     */
+    protected static function emailEligibleVolunteers(
+        Model $opportunity,
+        array $userIds,
+        string $typeEn,
+        string $typeAr,
+        string $titleEn,
+        string $titleAr
+    ): void {
+        $startDate = optional($opportunity->start_date)->toDateString() ?? '';
+        $dueDate = optional($opportunity->due_date)->toDateString() ?? '';
+
+        // Chunked so a large audience never loads every user into memory at once.
+        User::query()
+            ->whereIn('id', $userIds)
+            ->chunkById(200, function ($users) use (
+                $opportunity, $typeEn, $typeAr, $titleEn, $titleAr, $startDate, $dueDate
+            ) {
+                foreach ($users as $user) {
+                    DynamicEmailService::send('new_opportunity_notification', $user, [
+                        'opportunity_title_en' => $titleEn,
+                        'opportunity_title_ar' => $titleAr,
+                        'opportunity_type_en' => $typeEn,
+                        'opportunity_type_ar' => $typeAr,
+                        'start_date' => $startDate,
+                        'due_date' => $dueDate,
+                        'from_age' => (string) ($opportunity->from_age ?? ''),
+                        'to_age' => (string) ($opportunity->to_age ?? ''),
+                    ]);
+                }
+            });
     }
 
     public static function notifyIfNewlyApproved(Model $opportunity, mixed $previousStatus): void

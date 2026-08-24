@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Models\Concerns\HasActionState;
 use App\Models\Concerns\HasRegistrationWindow;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
 {
+    use HasActionState;
     use HasRegistrationWindow;
     use HasSoftFlags;
 

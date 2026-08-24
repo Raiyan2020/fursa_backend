@@ -144,6 +144,37 @@ class EventController extends Controller
         );
     }
 
+    /**
+     * Manually close (or reopen) registration from inside the event, mirroring
+     * the volunteer/development endpoints the client already has.
+     */
+    public function closeRegistration(Request $request, int $id): JsonResponse
+    {
+        $event = Event::query()->notDeleted()->find($id);
+        if (! $event) {
+            return ApiResponse::error('Event not found.', 'الحدث غير موجود.', 404);
+        }
+
+        $org = $request->user()->organizationProfile;
+        if (! $org || $event->created_by !== $org->id) {
+            return ApiResponse::error('You can only update your own events.', 'يمكنك فقط تحديث الأحداث الخاصة بك.', 403);
+        }
+
+        // Defaults to closing; pass is_registration_closed=false to reopen.
+        $closed = $request->has('is_registration_closed')
+            ? $request->boolean('is_registration_closed')
+            : true;
+
+        $event->update(['is_registration_closed' => $closed]);
+        $event->load(['images', 'sponsorImages', 'interests']);
+
+        return ApiResponse::success(
+            new EventResource($event->fresh()),
+            $closed ? 'Registration closed successfully.' : 'Registration reopened successfully.',
+            $closed ? 'تم إغلاق التسجيل بنجاح.' : 'تم إعادة فتح التسجيل بنجاح.'
+        );
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         $event = Event::query()->notDeleted()->find($id);

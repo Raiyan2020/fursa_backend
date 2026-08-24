@@ -82,6 +82,16 @@ class LearnServeOpportunityResource extends JsonResource
             'timeslots_display' => LearnServeTimeSlotResource::collection($timeSlots)->resolve(),
             'license_image' => $this->licenseImageUrl($this->license_image),
             'all_registered_user' => $this->allRegisteredUsersPayload($registrations),
+            // One computed state so every screen renders the same button.
+            'action_state' => $this->resource->actionState(
+                $this->isLearnServeOpportunityRegistered($this->resource, $request),
+                $this->registeredVolunteersCount($registrations)
+            ),
+            'is_full' => $this->resource->isAtCapacity($this->registeredVolunteersCount($registrations)),
+            'has_started' => $this->resource->hasStarted(),
+            'has_ended' => $this->resource->hasEnded(),
+            // organizer / sponsor / registered / attended for the current viewer.
+            'relationship_tags' => $this->relationshipTags($this->resource, $request),
         ];
     }
 }

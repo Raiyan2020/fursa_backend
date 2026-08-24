@@ -18,6 +18,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>{{ __('name') }}</th>
+                                        <th>{{ __('placement') }}</th>
                                         <th>{{ __('image') }}</th>
                                         <th>{{ __('banner_url') }}</th>
                                         <th>{{ __('start date') }}</th>
@@ -30,6 +31,7 @@
                                         <tr>
                                             <td>{{ $row->id }}</td>
                                             <td>{{ $row->name }}</td>
+                                            <td>{{ $row->placement ? (app()->getLocale() === 'ar' ? $row->placement->labelAr() : $row->placement->labelEn()) : '—' }}</td>
                                             <td>
                                                 @if ($row->image)
                                                     <img src="{{ $row->image }}" width="70" height="70" alt="{{ $row->name }}" style="object-fit:cover;border-radius:8px;">

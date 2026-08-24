@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BannerPlacement;
 use App\Http\Traits\UploadTrait;
 use App\Models\Concerns\HasSoftFlags;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,7 @@ class BannerImage extends Model
     protected $fillable = [
         'image',
         'name',
+        'placement',
         'banner_url',
         'start_date',
         'end_date',
@@ -27,7 +29,20 @@ class BannerImage extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'placement' => BannerPlacement::class,
     ];
+
+    /**
+     * Restrict to one page's banners. Unknown/empty placements fall back to
+     * `home` so legacy rows keep showing where they always did.
+     */
+    public function scopeForPlacement(Builder $query, ?string $placement): Builder
+    {
+        $value = BannerPlacement::tryFrom((string) $placement)?->value
+            ?? BannerPlacement::HOME->value;
+
+        return $query->where('placement', $value);
+    }
 
     /**
      * Banners with no dates are always visible; otherwise today must fall in [start_date, end_date].

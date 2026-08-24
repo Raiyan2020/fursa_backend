@@ -21,7 +21,6 @@ class PostResource extends JsonResource
             'idea_text_ar' => $this->idea_text_ar,
             'primary_language' => $this->primary_language?->value,
             'proposing_idea' => (bool) $this->proposing_idea,
-            'needs_support' => (bool) $this->needs_support,
             'is_funding_required' => (bool) $this->is_funding_required,
             'is_displayed' => (bool) $this->is_displayed,
             'user' => $this->whenLoaded('user', fn () => [

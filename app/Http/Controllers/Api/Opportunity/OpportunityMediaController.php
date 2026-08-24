@@ -95,7 +95,7 @@ class OpportunityMediaController extends Controller
     public function certificatePreview(int $registration_id): JsonResponse
     {
         $registration = LearnServeOpportunityRegistration::query()
-            ->with(['user', 'opportunity.creator.organizationProfile'])
+            ->with(['user', 'opportunity.creator.organizationProfile', 'opportunity.certificateType'])
             ->find($registration_id);
 
         if (! $registration) {
@@ -127,6 +127,16 @@ class OpportunityMediaController extends Controller
             'end_date' => optional($opportunity?->end_date)?->toDateString(),
             'instructor' => $instructor,
             'organization_name' => $organization,
+            'civil_id' => $user?->civil_id,
+            'certificate_type' => $opportunity?->certificateType?->value_ar
+                ?: $opportunity?->certificateType?->value_en,
+            // Server-rendered certificate. Embed or open this instead of drawing
+            // the certificate client-side — the browser shapes Arabic correctly,
+            // which the canvas/PDF approach did not.
+            'certificate_html_url' => url("/api/certificates/{$registration->id}/"),
+            'stored_certificate_url' => $registration->certificate_image
+                ? getimg($registration->certificate_image)
+                : null,
         ], 'Certificate preview data retrieved successfully.', 'تم استرجاع بيانات معاينة الشهادة بنجاح.');
     }
 

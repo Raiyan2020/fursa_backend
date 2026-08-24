@@ -19,6 +19,18 @@
         <input type="text" name="name" class="form-control" value="{{ old('name', $bannerImage->name ?? '') }}" required>
     </div>
     <div class="col-md-6 mb-1">
+        <label>{{ __('placement') }} <span class="text-danger">*</span></label>
+        @php $currentPlacement = old('placement', optional(optional($bannerImage ?? null)->placement)->value ?? 'home'); @endphp
+        <select name="placement" class="form-control" required>
+            @foreach (\App\Enums\BannerPlacement::cases() as $case)
+                <option value="{{ $case->value }}" {{ $currentPlacement === $case->value ? 'selected' : '' }}>
+                    {{ app()->getLocale() === 'ar' ? $case->labelAr() : $case->labelEn() }}
+                </option>
+            @endforeach
+        </select>
+        <small class="text-muted">{{ __('Which page this banner appears on') }}</small>
+    </div>
+    <div class="col-md-6 mb-1">
         <label>{{ __('banner_url') }}</label>
         <input type="url" name="banner_url" class="form-control" value="{{ old('banner_url', $bannerImage->banner_url ?? '') }}">
     </div>

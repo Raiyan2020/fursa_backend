@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\InterestType;
@@ -30,6 +31,46 @@ class LearnServeOpportunityController extends Controller
             ->get();
 
         return view('dashboard.learn-serve-opportunities.index', compact('opportunities'));
+    }
+
+    public function export()
+    {
+        $opportunities = LearnServeOpportunity::query()
+            ->notDeleted()
+            ->with(['creator', 'registrations', 'learningType', 'certificateType'])
+            ->latest()
+            ->get();
+
+        $headers = [
+            '#', __('title'), __('organization'), __('learning type'), __('certificate type'),
+            __('start date'), __('end date'), __('due date'), __('approval status'),
+            __('opportunity status'), __('participants needed'),
+            __('registered volunteers count'), __('attended'), __('created at'),
+        ];
+
+        $rows = $opportunities->map(function ($o) {
+            $regs = $o->registrations?->where('is_deleted', false);
+
+            return [
+                $o->id,
+                $o->title_ar ?: $o->title_en,
+                $o->creator?->organizationProfile?->company_name
+                    ?? trim(($o->creator?->first_name ?? '').' '.($o->creator?->last_name ?? '')),
+                $o->learningType?->value_ar ?: $o->learningType?->value_en,
+                $o->certificateType?->value_ar ?: $o->certificateType?->value_en,
+                optional($o->start_date)->format('Y-m-d'),
+                optional($o->end_date)->format('Y-m-d'),
+                optional($o->due_date)->format('Y-m-d'),
+                $o->approval_status?->value ?? $o->approval_status,
+                $o->opportunity_status?->value ?? $o->opportunity_status,
+                $o->participants_needed,
+                $regs?->count() ?? 0,
+                $regs?->where('is_attended', true)->count() ?? 0,
+                optional($o->created_at)->format('Y-m-d H:i'),
+            ];
+        });
+
+        return AdminExport::spreadsheet('development_opportunities', $headers, $rows);
     }
 
     public function create()
@@ -128,6 +169,20 @@ class LearnServeOpportunityController extends Controller
 
         $image->softDeleteFlags();
         deleted();
+
+        return back();
+    }
+
+    /**
+     * Admin-side manual close / reopen of registration (client request:
+     * the dashboard needed the same control the publisher has in the app).
+     */
+    public function toggleRegistration(LearnServeOpportunity $opportunity)
+    {
+        $opportunity->is_registration_closed = ! (bool) $opportunity->is_registration_closed;
+        $opportunity->save();
+
+        statusChange();
 
         return back();
     }
