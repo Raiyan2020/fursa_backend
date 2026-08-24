@@ -24,7 +24,7 @@ class RegisterRequest extends BaseRequest
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email')->where(fn ($query) => $query->where('is_active', true)),
+                Rule::unique('users', 'email')->where(fn ($query) => $query->where('is_active', true)->where('is_deleted', false)),
             ],
             'password' => ['nullable', 'string', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/'],
             'user_type' => ['nullable', Rule::in(UserType::values())],

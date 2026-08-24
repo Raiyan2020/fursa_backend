@@ -18,7 +18,10 @@ use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
-    use HasFactory, HasSoftFlags, Notifiable;
+    use HasFactory, Notifiable;
+    use HasSoftFlags {
+        softDeleteFlags as protected softDeleteFlagsOnly;
+    }
 
     protected $fillable = [
         'username',
@@ -115,6 +118,18 @@ class User extends Authenticatable
     public function getAuthIdentifierName(): string
     {
         return 'email';
+    }
+
+    /**
+     * Free the unique email slot so the address can be used for a fresh registration.
+     */
+    public function softDeleteFlags(): bool
+    {
+        if (! $this->is_deleted) {
+            $this->email = 'deleted_'.$this->id.'_'.now()->timestamp.'_'.$this->email;
+        }
+
+        return $this->softDeleteFlagsOnly();
     }
 
     public function volunteerProfile(): HasOne

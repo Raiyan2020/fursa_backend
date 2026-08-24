@@ -31,7 +31,7 @@ class AuthController extends Controller
     public function register(RegisterRequest $request): JsonResponse
     {
         $email = strtolower(trim((string) $request->input('email')));
-        $existing = User::query()->where('email', $email)->first();
+        $existing = User::query()->where('email', $email)->where('is_deleted', false)->first();
 
         if ($existing && ! $existing->is_active) {
             $this->authService->sendAccountActivation($existing);
