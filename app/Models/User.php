@@ -7,6 +7,7 @@ use App\Enums\Nationality;
 use App\Enums\SocialMediaProvider;
 use App\Enums\UserType;
 use App\Models\Concerns\HasSoftFlags;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -113,6 +114,56 @@ class User extends Authenticatable
                 $user->username = Str::before($user->email, '@').'_'.Str::random(4);
             }
         });
+
+        // Registration only ever asked for one of `dob` / `birth_year`, so an
+        // account could end up with a full birth date and an empty birth_year —
+        // which blocked opportunity sign-up and age-targeted notifications even
+        // though the data was there. Derive it on every write instead.
+        static::saving(function (User $user) {
+            $user->syncBirthYearFromDob();
+        });
+    }
+
+    /**
+     * Fill `birth_year` from `dob` when it is missing. Never overwrites an
+     * explicitly provided birth_year.
+     */
+    public function syncBirthYearFromDob(): void
+    {
+        if (! empty($this->birth_year)) {
+            return;
+        }
+
+        if (empty($this->dob)) {
+            return;
+        }
+
+        try {
+            $this->birth_year = (int) Carbon::parse($this->dob)->year;
+        } catch (\Throwable) {
+            // A malformed dob must not block saving the rest of the profile.
+        }
+    }
+
+    /**
+     * The birth year to use for age checks: the stored value, else derived from
+     * `dob`. Returns null only when the account really has neither.
+     */
+    public function effectiveBirthYear(): ?int
+    {
+        if (! empty($this->birth_year)) {
+            return (int) $this->birth_year;
+        }
+
+        if (empty($this->dob)) {
+            return null;
+        }
+
+        try {
+            return (int) Carbon::parse($this->dob)->year;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function getAuthIdentifierName(): string

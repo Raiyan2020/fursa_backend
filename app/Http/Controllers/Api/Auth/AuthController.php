@@ -197,6 +197,11 @@ class AuthController extends Controller
 
     public function verifyOtpOrToken(Request $request): JsonResponse
     {
+        // The activation-required response hands the client `otp_type`, so accept
+        // it as an alias for `type` instead of failing validation on the very key
+        // this API just told the client to use.
+        $this->aliasOtpType($request);
+
         $data = $request->validate([
             'email' => ['required', 'email'],
             'type' => ['required', Rule::in(['register', 'password'])],
@@ -233,6 +238,8 @@ class AuthController extends Controller
 
     public function resendOtpOrToken(Request $request): JsonResponse
     {
+        $this->aliasOtpType($request);
+
         $data = $request->validate([
             'email' => ['required', 'email'],
             'type' => ['required', Rule::in(['register', 'password'])],
@@ -542,6 +549,18 @@ class AuthController extends Controller
         }
 
         return ApiResponse::success(new WebsitePublicProfileResource($user));
+    }
+
+    /**
+     * Accept `otp_type` wherever `type` is expected — the two names are used
+     * interchangeably by clients because the API emits `otp_type` in its own
+     * activation-required payload.
+     */
+    protected function aliasOtpType(Request $request): void
+    {
+        if (! $request->filled('type') && $request->filled('otp_type')) {
+            $request->merge(['type' => $request->input('otp_type')]);
+        }
     }
 
     /**

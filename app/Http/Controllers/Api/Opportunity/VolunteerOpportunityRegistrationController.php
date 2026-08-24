@@ -87,7 +87,9 @@ class VolunteerOpportunityRegistrationController extends Controller
             );
         }
 
-        $userAge = $this->calculateAge($user->birth_year);
+        // effectiveBirthYear() falls back to `dob`, so an account that has a
+        // birth date but no birth_year is no longer rejected.
+        $userAge = $this->calculateAge($user->effectiveBirthYear());
         if ($userAge === null) {
             return ApiResponse::error(
                 'Please provide your birth year to check age eligibility.',
