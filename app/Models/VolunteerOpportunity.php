@@ -26,7 +26,7 @@ class VolunteerOpportunity extends Model
         'description_en', 'description_ar', 'due_date', 'start_date', 'end_date',
         'participants_needed', 'from_age', 'to_age', 'start_time', 'end_time',
         'latitude', 'longitude', 'link', 'is_calendar', 'primary_language',
-        'rejected_reason', 'location_en', 'location_ar', 'opportunity_nationality',
+        'rejected_reason', 'location_en', 'location_ar', 'map_desc', 'opportunity_nationality',
         'deletion_status', 'deletion_rejected_reason', 'is_kuwaitis', 'created_by',
         'volunteer_hours_per_day', 'gender_id', 'is_public', 'license_image',
         'is_relief', 'is_interview_needed', 'is_urgent', 'is_supports_disabled',
@@ -36,6 +36,8 @@ class VolunteerOpportunity extends Model
     ];
 
     protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
         'approval_status' => ApprovalStatus::class,
         'opportunity_status' => OpportunityStatus::class,
         'deletion_status' => DeletionStatus::class,

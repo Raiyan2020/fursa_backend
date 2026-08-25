@@ -259,6 +259,10 @@ Route::middleware('auth:api')->group(function () {
     Route::get('notifications/', [NotificationController::class, 'index']);
     Route::match(['post', 'patch'], 'notifications/mark-read/', [NotificationController::class, 'markRead']);
     Route::delete('notifications/delete/', [NotificationController::class, 'destroy']);
+    // Single-notification variants — id in the path, nothing to mis-shape.
+    Route::match(['post', 'patch'], 'notifications/{id}/read/', [NotificationController::class, 'markOneRead'])->whereNumber('id');
+    Route::match(['post', 'patch'], 'notifications/{id}/unread/', [NotificationController::class, 'markOneUnread'])->whereNumber('id');
+    Route::delete('notifications/{id}/', [NotificationController::class, 'destroyOne'])->whereNumber('id');
 
     // Calendar
 

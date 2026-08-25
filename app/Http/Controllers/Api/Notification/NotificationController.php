@@ -158,6 +158,59 @@ class NotificationController extends Controller
     }
 
     /**
+     * Single-notification variants. The bulk endpoints take their ids in the
+     * request body, which is easy to get wrong (especially for DELETE, where
+     * many HTTP clients drop the body). These take the id from the path, so
+     * there is nothing to mis-shape.
+     */
+    public function markOneRead(Request $request, int $id): JsonResponse
+    {
+        return $this->applyToOwnNotification($request, $id, ['is_read' => true],
+            'Notification marked as read.', 'تم وضع علامة مقروءة على الإشعار.');
+    }
+
+    public function markOneUnread(Request $request, int $id): JsonResponse
+    {
+        return $this->applyToOwnNotification($request, $id, ['is_read' => false],
+            'Notification marked as unread.', 'تم وضع علامة غير مقروءة على الإشعار.');
+    }
+
+    public function destroyOne(Request $request, int $id): JsonResponse
+    {
+        return $this->applyToOwnNotification($request, $id,
+            ['is_deleted' => true, 'deleted_at' => now()],
+            'Notification deleted successfully.', 'تم حذف الإشعار بنجاح.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function applyToOwnNotification(
+        Request $request,
+        int $id,
+        array $attributes,
+        string $messageEn,
+        string $messageAr
+    ): JsonResponse {
+        $notification = UserNotification::query()
+            ->notDeleted()
+            ->where('user_id', $request->user()->id)
+            ->find($id);
+
+        if (! $notification) {
+            return ApiResponse::error('Notification not found.', 'الإشعار غير موجود.', 404);
+        }
+
+        $notification->forceFill($attributes)->save();
+
+        return ApiResponse::success(
+            ['id' => $notification->id, 'is_read' => (bool) $notification->is_read],
+            $messageEn,
+            $messageAr
+        );
+    }
+
+    /**
      * Accept the shapes clients actually send for a single notification:
      * `notification_id: 5`, `notification_ids: 5`, or `id: 5` — all normalised
      * to the `notification_ids: [5]` array the endpoints validate.

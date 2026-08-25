@@ -70,6 +70,10 @@ class VolunteerOpportunityResource extends JsonResource
             'is_saved_to_calendar' => $this->isSavedToVolunteerCalendar($this->resource, $request),
             'location_en' => $this->location_en,
             'location_ar' => $this->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $this->map_desc ?: ($this->location_ar ?: $this->location_en),
+            'lat' => $this->latitude === null ? null : (float) $this->latitude,
+            'lng' => $this->longitude === null ? null : (float) $this->longitude,
             'interest_display' => null,
             'is_kuwaitis' => (bool) $this->is_kuwaitis,
             'total_roles' => $this->roles?->filter(fn ($r) => ! $r->is_deleted)->count() ?? 0,

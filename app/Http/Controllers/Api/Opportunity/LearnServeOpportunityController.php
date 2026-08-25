@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
+use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
@@ -19,6 +20,7 @@ use Illuminate\Validation\Rule;
 
 class LearnServeOpportunityController extends Controller
 {
+    use HandlesMapLocation;
     use HandlesOpportunities;
 
     public function index(Request $request): JsonResponse
@@ -66,6 +68,8 @@ class LearnServeOpportunityController extends Controller
     {
         $data = $this->validatePayload($request);
 
+        $data = array_merge($data, $this->mapLocationAttributes($data));
+
         $opportunity = LearnServeOpportunity::create(array_merge($data, [
             'created_by' => $request->user()->id,
             'approval_status' => ApprovalStatus::PENDING,
@@ -102,6 +106,7 @@ class LearnServeOpportunityController extends Controller
 
         $data = $this->validatePayload($request, partial: true);
         $before = $this->opportunitySnapshot($opportunity);
+        $data = array_merge($data, $this->mapLocationAttributes($data));
         $opportunity->update($data);
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
 
@@ -264,7 +269,8 @@ class LearnServeOpportunityController extends Controller
         if ($location = $request->query('location')) {
             $query->where(function ($q) use ($location) {
                 $q->where('location_en', 'like', "%{$location}%")
-                    ->orWhere('location_ar', 'like', "%{$location}%");
+                    ->orWhere('location_ar', 'like', "%{$location}%")
+                    ->orWhere('map_desc', 'like', "%{$location}%");
             });
         }
 
@@ -287,6 +293,10 @@ class LearnServeOpportunityController extends Controller
 
     protected function validatePayload(Request $request, bool $partial = false): array
     {
+        // `lat` / `lng` from the map picker land on the real column names
+        // before the rules run.
+        $this->normalizeMapLocation($request);
+
         return $request->validate([
             'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'title_ar' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
@@ -300,8 +310,7 @@ class LearnServeOpportunityController extends Controller
             'to_age' => ['nullable', 'integer'],
             'start_time' => ['nullable', 'string'],
             'end_time' => ['nullable', 'string'],
-            'latitude' => ['nullable', 'numeric'],
-            'longitude' => ['nullable', 'numeric'],
+            ...$this->mapLocationRules($partial),
             'link' => ['nullable', 'url'],
             'location_url' => ['nullable', 'url'],
             'is_registration_closed' => ['nullable', 'boolean'],

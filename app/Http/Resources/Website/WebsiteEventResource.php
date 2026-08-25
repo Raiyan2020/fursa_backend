@@ -68,6 +68,10 @@ class WebsiteEventResource extends JsonResource
             'view_count' => ar_num($event->view_count),
             'location_en' => $event->location_en,
             'location_ar' => $event->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $event->map_desc ?: ($event->location_ar ?: $event->location_en),
+            'lat' => $event->latitude === null ? null : (float) $event->latitude,
+            'lng' => $event->longitude === null ? null : (float) $event->longitude,
             'location_url' => $event->location_url ?: $event->registration_link,
             'is_registration_closed' => (bool) $event->is_registration_closed,
             'is_registration_open' => $event->isRegistrationOpen(),

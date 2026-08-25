@@ -26,12 +26,14 @@ class Event extends Model
         'title_en', 'title_ar', 'event_type_id', 'due_date', 'start_date', 'end_date',
         'start_time', 'end_time', 'registration_required', 'participants_needed',
         'paid_registration', 'registration_fee', 'latitude', 'longitude',
-        'location_en', 'location_ar', 'description_en', 'description_ar',
+        'location_en', 'location_ar', 'map_desc', 'description_en', 'description_ar',
         'participation_type_id', 'registration_link', 'created_by', 'license_image',
         'view_count', 'primary_language', 'location_url', 'is_registration_closed', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
         'approval_status' => ApprovalStatus::class,
         'deletion_status' => DeletionStatus::class,
         'event_status' => OpportunityStatus::class,

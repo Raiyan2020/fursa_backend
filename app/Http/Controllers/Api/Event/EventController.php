@@ -8,6 +8,7 @@ use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
 use App\Http\Controllers\Api\Event\EventRegistrationController;
+use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventResource;
 use App\Http\Resources\Website\WebsiteEventResource;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 
 class EventController extends Controller
 {
+    use HandlesMapLocation;
     use AppliesAudienceFilters;
     use AppliesOpportunityStatusFilter;
 
@@ -95,6 +97,8 @@ class EventController extends Controller
 
         $data = $this->validateEventPayload($request);
         $event = DB::transaction(function () use ($data, $org, $request) {
+            $data = array_merge($data, $this->mapLocationAttributes($data));
+
             $event = Event::create(array_merge($data, [
                 'created_by' => $org->id,
                 'approval_status' => ApprovalStatus::PENDING,
@@ -131,6 +135,7 @@ class EventController extends Controller
 
         $data = $this->validateEventPayload($request, partial: true);
         DB::transaction(function () use ($event, $data, $request) {
+            $data = array_merge($data, $this->mapLocationAttributes($data));
             $event->update($data);
             $this->syncEventRelations($event, $request);
         });
@@ -264,7 +269,8 @@ class EventController extends Controller
         if ($location = $request->query('location')) {
             $query->where(function ($q) use ($location) {
                 $q->where('location_en', 'like', "%{$location}%")
-                    ->orWhere('location_ar', 'like', "%{$location}%");
+                    ->orWhere('location_ar', 'like', "%{$location}%")
+                    ->orWhere('map_desc', 'like', "%{$location}%");
             });
         }
 
@@ -328,6 +334,10 @@ class EventController extends Controller
 
     protected function validateEventPayload(Request $request, bool $partial = false): array
     {
+        // `lat` / `lng` from the map picker land on the real column names
+        // before the rules run.
+        $this->normalizeMapLocation($request);
+
         $rules = [
             'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'title_ar' => ['nullable', 'string', 'max:255'],
@@ -343,8 +353,7 @@ class EventController extends Controller
             'participants_needed' => ['nullable', 'integer', 'min:0'],
             'paid_registration' => ['nullable', 'boolean'],
             'registration_fee' => ['nullable', 'numeric', 'min:0'],
-            'latitude' => ['nullable', 'numeric'],
-            'longitude' => ['nullable', 'numeric'],
+            ...$this->mapLocationRules($partial),
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'location_url' => ['nullable', 'url'],
