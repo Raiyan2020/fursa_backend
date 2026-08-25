@@ -226,17 +226,26 @@ class EventController extends Controller
             }
         }
 
-        if ($eventTypeName = $request->query('event_type')) {
+        if (($eventTypeName = $request->query('event_type')) !== null && $eventTypeName !== '') {
+            // `event_type` historically took the choice NAME while `event` took
+            // the id, which meant a client sending an id here silently got every
+            // event back. Accept either form.
+            $eventTypeId = filter_int($eventTypeName);
+
             $choice = MasterChoice::query()
                 ->whereHas('choiceType', fn ($q) => $q->where('name', 'event_type'))
-                ->where(function ($q) use ($eventTypeName) {
+                ->where(function ($q) use ($eventTypeName, $eventTypeId) {
                     $q->where('value_en', $eventTypeName)
                         ->orWhere('value_ar', $eventTypeName);
+                    if ($eventTypeId !== null) {
+                        $q->orWhere('id', $eventTypeId);
+                    }
                 })
                 ->first();
-            if ($choice) {
-                $query->where('event_type_id', $choice->id);
-            }
+
+            // An unresolvable filter must narrow to nothing, not silently widen
+            // to everything — that is what hid this bug.
+            $query->where('event_type_id', $choice?->id ?? 0);
         }
 
         if ($status = $request->query('status')) {
