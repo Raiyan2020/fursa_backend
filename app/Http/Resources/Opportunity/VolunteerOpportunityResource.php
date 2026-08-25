@@ -68,8 +68,6 @@ class VolunteerOpportunityResource extends JsonResource
             'registered_volunteers_count' => $this->registeredVolunteersCount($registrations),
             'is_registered' => $this->isVolunteerOpportunityRegistered($this->resource, $request),
             'is_saved_to_calendar' => $this->isSavedToVolunteerCalendar($this->resource, $request),
-            'location_en' => $this->location_en,
-            'location_ar' => $this->location_ar,
             // Map picker fields. `lat`/`lng` are numbers, not strings.
             'map_desc' => $this->map_desc ?: ($this->location_ar ?: $this->location_en),
             'lat' => $this->latitude === null ? null : (float) $this->latitude,
