@@ -12,6 +12,9 @@
                         <a href="{{ route('admin.events.create') }}" class="btn btn-primary mb-2 waves-effect waves-light">
                             <i class="fas fa-plus"></i>&nbsp; {{ __('add new') }}
                         </a>
+                        <a href="{{ route('admin.events.export') }}" class="btn btn-success mb-2 waves-effect waves-light">
+                            <i class="fas fa-file-excel"></i>&nbsp; {{ __('export excel') }}
+                        </a>
                         <div class="table-responsive">
                             <table class="dataex-html5-selectors table">
                                 <thead>
@@ -55,6 +58,11 @@
                                                 @if ($event->deletion_status === \App\Enums\DeletionStatus::PENDING)
                                                     <a class="btn btn-outline-danger" href="#" onclick="forsaConfirmPost('{{ route('admin.events.approve-deletion', $event) }}','{{ __('Approve deletion request ?') }}')"><i class="feather icon-trash-2"></i></a>
                                                     <a class="btn btn-outline-secondary" href="#" onclick="forsaReject('{{ route('admin.events.reject-deletion', $event) }}')"><i class="feather icon-rotate-ccw"></i></a>
+                                                @endif
+                                                @if ($event->is_registration_closed)
+                                                    <a class="btn btn-outline-success" title="{{ __('reopen registration') }}" href="#" onclick="forsaConfirmPost('{{ route('admin.events.toggle-registration', $event) }}','{{ __('Reopen registration ?') }}')"><i class="feather icon-unlock"></i></a>
+                                                @else
+                                                    <a class="btn btn-outline-warning" title="{{ __('close registration') }}" href="#" onclick="forsaConfirmPost('{{ route('admin.events.toggle-registration', $event) }}','{{ __('Close registration ?') }}')"><i class="feather icon-lock"></i></a>
                                                 @endif
                                                 <a class="btn btn-danger" data-href="{{ route('admin.events.destroy', $event) }}" onclick="delete_form(this)"><i class="feather icon-trash"></i></a>
                                             </td>

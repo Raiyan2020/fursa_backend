@@ -2,7 +2,10 @@
 
 namespace App\Http\Resources\Volunteer;
 
+use App\Enums\ApprovalStatus;
 use App\Http\Resources\Concerns\ResolvesApiPayloads;
+use App\Models\LearnServeOpportunity;
+use App\Models\LearnServeOpportunityRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -84,7 +87,60 @@ class VolunteerProfileResource extends JsonResource
             'emergency_contact_civil_id' => $user?->emergency_contact_civil_id,
             'emergency_contact_relationship' => $user?->emergency_contact_relationship_id,
             'emergency_contact_relationship_display' => $this->masterChoicePayload($user?->emergencyContactRelationship),
+            // "خبير / Expert": a volunteer who runs their own workshops, courses
+            // or consultations. Shown as a tag on the Development tab.
+            'is_expert' => $this->isExpert($user),
+            'expert_opportunities_count' => $this->expertOpportunitiesCount($user),
+            // Counters the client wants hidden until they hold a real value.
+            'counter_visibility' => [
+                'volunteer_hours' => true,
+                'volunteer_opportunities' => true,
+                'development' => $this->developmentActivityCount($user) > 0,
+                'certificates' => (int) ($this->total_certificates ?? 0) > 0,
+                'sponsorship' => false,
+            ],
         ];
+    }
+
+    /**
+     * Expert = the volunteer created at least one approved development
+     * opportunity (workshop / course / consultation) of their own.
+     */
+    protected function isExpert($user): bool
+    {
+        return $this->expertOpportunitiesCount($user) > 0;
+    }
+
+    protected function expertOpportunitiesCount($user): int
+    {
+        if (! $user) {
+            return 0;
+        }
+
+        return (int) LearnServeOpportunity::query()
+            ->where('created_by', $user->id)
+            ->where('is_deleted', false)
+            ->where('approval_status', ApprovalStatus::APPROVED)
+            ->count();
+    }
+
+    /**
+     * Development activity = development opportunities the volunteer attended,
+     * plus any they ran themselves. Drives whether the tab/counter shows.
+     */
+    protected function developmentActivityCount($user): int
+    {
+        if (! $user) {
+            return 0;
+        }
+
+        $attended = (int) LearnServeOpportunityRegistration::query()
+            ->where('user_id', $user->id)
+            ->where('is_deleted', false)
+            ->where('is_attended', true)
+            ->count();
+
+        return $attended + $this->expertOpportunitiesCount($user);
     }
 
     protected function userPayload(): mixed

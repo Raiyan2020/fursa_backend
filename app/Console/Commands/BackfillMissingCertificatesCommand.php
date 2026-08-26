@@ -3,15 +3,16 @@
 namespace App\Console\Commands;
 
 use App\Models\LearnServeOpportunityRegistration;
+use App\Services\Certificate\CertificateRenderer;
 use App\Services\Opportunity\SyncService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Port of Django apps.opportunity.tasks.backfill_missing_certificates.
- * Full Selenium PDF generation is not ported; eligible rows are flagged and a
- * lightweight placeholder certificate is stored when missing.
+ *
+ * Certificates are rendered as HTML by CertificateRenderer — the old `.txt`
+ * placeholder is what broke Arabic names, since plain text does no shaping.
  */
 class BackfillMissingCertificatesCommand extends Command
 {
@@ -49,18 +50,7 @@ class BackfillMissingCertificatesCommand extends Command
             }
 
             try {
-                $path = 'certificates/registration_'.$registration->id.'.txt';
-                $fullName = trim(($registration->user?->first_name ?? '').' '.($registration->user?->last_name ?? ''));
-                $content = "\u{FEFF}".implode("\n", [
-                    'شهادة فرصة / Fursa Certificate',
-                    'الاسم / Name: '.$fullName,
-                    'الدورة / Course: '.($opportunity->title_ar ?? '').' / '.($opportunity->title_en ?? ''),
-                    'البداية / Start: '.optional($opportunity->start_date)->toDateString(),
-                    'النهاية / End: '.optional($opportunity->end_date)->toDateString(),
-                    'Generated: '.now()->toDateTimeString(),
-                ]);
-
-                Storage::disk('public')->put($path, $content);
+                $path = CertificateRenderer::store($registration);
 
                 $registration->certificate_image = $path;
                 $registration->is_certified = true;

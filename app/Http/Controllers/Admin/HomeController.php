@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
@@ -365,5 +366,39 @@ class HomeController extends Controller
         }
 
         return $result;
+    }
+
+    /**
+     * Platform statistics export — the client asked to be able to pull the
+     * dashboard numbers out, not just read them on screen.
+     */
+    public function exportStatistics()
+    {
+        $volunteerHours = (float) \App\Models\VolunteerStatistic::query()
+            ->whereNotNull('month')
+            ->sum('volunteer_hours');
+
+        $rate = (float) (\App\Models\Config::query()->value('economic_impact_rate_kwd') ?: 6);
+
+        $rows = [
+            [__('all users'), User::query()->notDeleted()->count()],
+            [__('volunteers'), VolunteerProfile::query()->notDeleted()->count()],
+            [__('entities'), OrganizationProfile::query()->notDeleted()->count()],
+            [__('volunteer opportunities'), VolunteerOpportunity::query()->notDeleted()->count()],
+            [__('learn_share_opportunities'), LearnServeOpportunity::query()->notDeleted()->count()],
+            [__('events'), Event::query()->notDeleted()->count()],
+            [__('sponsors'), Sponsor::query()->notDeleted()->count()],
+            [__('volunteer opportunity registrations'), VolunteerOpportunityRegistration::query()->notDeleted()->count()],
+            [__('learn serve registrations'), LearnServeOpportunityRegistration::query()->notDeleted()->count()],
+            [__('event registrations'), EventRegistration::query()->notDeleted()->count()],
+            [__('total volunteer hours'), round($volunteerHours, 2)],
+            [__('economic impact rate kwd'), $rate],
+            [__('economic impact'), round($volunteerHours * $rate, 2)],
+            [__('pending entities'), OrganizationProfile::query()->notDeleted()->where('organization_status', ApprovalStatus::PENDING)->count()],
+            [__('pending volunteer opportunities'), VolunteerOpportunity::query()->notDeleted()->where('approval_status', ApprovalStatus::PENDING)->count()],
+            [__('pending events'), Event::query()->notDeleted()->where('approval_status', ApprovalStatus::PENDING)->count()],
+        ];
+
+        return AdminExport::spreadsheet('platform_statistics', [__('metric'), __('value')], $rows);
     }
 }

@@ -53,6 +53,10 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             'to_age' => ar_num($opportunity->to_age),
             'location_en' => $opportunity->location_en,
             'location_ar' => $opportunity->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $opportunity->map_desc ?: ($opportunity->location_ar ?: $opportunity->location_en),
+            'lat' => $opportunity->latitude === null ? null : (float) $opportunity->latitude,
+            'lng' => $opportunity->longitude === null ? null : (float) $opportunity->longitude,
             'location_url' => $opportunity->location_url ?: $opportunity->link,
             'is_registration_closed' => (bool) $opportunity->is_registration_closed,
             'is_registration_open' => $opportunity->isRegistrationOpen(),
@@ -70,6 +74,14 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             // Derived from the already-loaded registrations so the card list
             // does not fire one query per row.
             'is_registered' => $this->isRegisteredInLoaded($registrations, $request, $opportunity),
+            // One computed state so every screen renders the same button.
+            'action_state' => $opportunity->actionState(
+                $this->isRegisteredInLoaded($registrations, $request, $opportunity),
+                $registrations->count()
+            ),
+            'is_full' => $opportunity->isAtCapacity($registrations->count()),
+            'has_started' => $opportunity->hasStarted(),
+            'has_ended' => $opportunity->hasEnded(),
             'volunteer_category' => $opportunity->volunteer_category?->value,
             'volunteer_category_display' => $opportunity->volunteer_category
                 ? [

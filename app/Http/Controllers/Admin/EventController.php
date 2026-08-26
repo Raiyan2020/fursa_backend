@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\InterestType;
@@ -29,6 +30,40 @@ class EventController extends Controller
             ->get();
 
         return view('dashboard.events.index', compact('events'));
+    }
+
+    public function export()
+    {
+        $events = Event::query()
+            ->notDeleted()
+            ->with(['organization', 'eventType', 'registrations'])
+            ->latest()
+            ->get();
+
+        $headers = [
+            '#', __('title'), __('organization'), __('event type'), __('start date'),
+            __('end date'), __('due date'), __('approval status'), __('event status'),
+            __('participants needed'), __('registered volunteers count'),
+            __('location'), __('created at'),
+        ];
+
+        $rows = $events->map(fn ($e) => [
+            $e->id,
+            $e->title_ar ?: $e->title_en,
+            $e->organization?->company_name,
+            $e->eventType?->value_ar ?: $e->eventType?->value_en,
+            optional($e->start_date)->format('Y-m-d'),
+            optional($e->end_date)->format('Y-m-d'),
+            optional($e->due_date)->format('Y-m-d'),
+            $e->approval_status?->value ?? $e->approval_status,
+            $e->event_status?->value ?? $e->event_status,
+            $e->participants_needed,
+            $e->registrations?->where('is_deleted', false)->count() ?? 0,
+            $e->location_ar ?: $e->location_en,
+            optional($e->created_at)->format('Y-m-d H:i'),
+        ]);
+
+        return AdminExport::spreadsheet('events', $headers, $rows);
     }
 
     public function create()
@@ -113,6 +148,20 @@ class EventController extends Controller
     {
         $event->softDeleteFlags();
         deleted();
+
+        return back();
+    }
+
+    /**
+     * Admin-side manual close / reopen of registration (client request:
+     * the dashboard needed the same control the publisher has in the app).
+     */
+    public function toggleRegistration(Event $event)
+    {
+        $event->is_registration_closed = ! (bool) $event->is_registration_closed;
+        $event->save();
+
+        statusChange();
 
         return back();
     }
@@ -264,6 +313,9 @@ class EventController extends Controller
             'location_en' => ['nullable', 'string', 'max:255'],
             'location_ar' => ['nullable', 'string', 'max:255'],
             'location_url' => ['nullable', 'url', 'max:500'],
+            'map_desc' => ['nullable', 'string', 'max:500'],
+            'lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'from_age' => ['nullable', 'integer', 'min:0', 'max:120'],

@@ -9,6 +9,11 @@
 
 @section('content')
     <div class="dashboard-home">
+        <div class="mb-2 text-right">
+            <a href="{{ route('admin.statistics.export') }}" class="btn btn-success waves-effect waves-light">
+                <i class="fas fa-file-excel"></i>&nbsp; {{ __('export statistics') }}
+            </a>
+        </div>
         <section class="dash-welcome mb-2">
             <div class="dash-welcome__inner">
                 <div class="dash-welcome__content">

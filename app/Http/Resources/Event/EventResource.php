@@ -38,6 +38,10 @@ class EventResource extends JsonResource
             'longitude' => $this->longitude,
             'location_en' => $this->location_en,
             'location_ar' => $this->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $this->map_desc ?: ($this->location_ar ?: $this->location_en),
+            'lat' => $this->latitude === null ? null : (float) $this->latitude,
+            'lng' => $this->longitude === null ? null : (float) $this->longitude,
             'location_url' => $this->location_url,
             'is_registration_closed' => (bool) $this->is_registration_closed,
             'is_registration_open' => $this->isRegistrationOpen(),
@@ -58,6 +62,28 @@ class EventResource extends JsonResource
             'interests' => $this->whenLoaded('interests', fn () => $this->interests->pluck('id')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+            // One computed state so every screen renders the same button.
+            'action_state' => $this->resource->actionState($this->isRegisteredForEvent($request)),
+            'is_full' => $this->resource->isAtCapacity(),
+            'has_started' => $this->resource->hasStarted(),
+            'has_ended' => $this->resource->hasEnded(),
         ];
+    }
+
+    /**
+     * Registration lookup kept local so the resource has no extra dependency.
+     */
+    protected function isRegisteredForEvent($request): bool
+    {
+        $user = $request->user();
+        if (! $user) {
+            return false;
+        }
+
+        return \App\Models\EventRegistration::query()
+            ->where('event_id', $this->resource->id)
+            ->where('user_id', $user->id)
+            ->where('is_deleted', false)
+            ->exists();
     }
 }

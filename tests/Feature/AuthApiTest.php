@@ -79,6 +79,44 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('database', 'connected');
     }
 
+    public function test_register_after_deleting_previous_account_creates_a_fresh_account(): void
+    {
+        config(['mail.default' => 'array']);
+        $this->seed();
+
+        $this->postJson('/api/register/', [
+            'email' => 'reused@test.com',
+            'password' => 'Password1',
+            'user_type' => 'volunteer',
+            'first_name' => 'Old',
+            'last_name' => 'Account',
+            'civil_id' => '111111111111',
+            'birth_year' => 1995,
+        ])->assertCreated();
+
+        $oldUser = User::query()->where('first_name', 'Old')->firstOrFail();
+        $oldUser->softDeleteFlags();
+
+        $this->assertNotSame('reused@test.com', $oldUser->fresh()->email);
+
+        $register = $this->postJson('/api/register/', [
+            'email' => 'reused@test.com',
+            'password' => 'Password2',
+            'user_type' => 'volunteer',
+            'first_name' => 'New',
+            'last_name' => 'Account',
+            'civil_id' => '222222222222',
+            'birth_year' => 1996,
+        ]);
+
+        $this->assertSuccessEnvelope($register, 201, 'OTP has been sent to the email address.');
+
+        $newUser = User::query()->where('email', 'reused@test.com')->firstOrFail();
+        $this->assertSame('New', $newUser->first_name);
+        $this->assertNotSame($oldUser->id, $newUser->id);
+        $this->assertFalse($newUser->is_deleted);
+    }
+
     public function test_forgot_password_rejects_unregistered_email(): void
     {
         $this->seed();

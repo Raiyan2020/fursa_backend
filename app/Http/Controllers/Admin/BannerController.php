@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\BannerPlacement;
 use App\Http\Controllers\Controller;
 use App\Models\BannerImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class BannerController extends Controller
 {
@@ -27,6 +29,7 @@ class BannerController extends Controller
 
         BannerImage::create([
             'name' => $data['name'],
+            'placement' => $data['placement'] ?? BannerPlacement::HOME->value,
             'banner_url' => $data['banner_url'] ?? null,
             'start_date' => $data['start_date'] ?? null,
             'end_date' => $data['end_date'] ?? null,
@@ -50,6 +53,7 @@ class BannerController extends Controller
         $data = $this->validated($request, updating: true);
 
         $banner->name = $data['name'];
+        $banner->placement = $data['placement'] ?? BannerPlacement::HOME->value;
         $banner->banner_url = $data['banner_url'] ?? null;
         $banner->start_date = $data['start_date'] ?? null;
         $banner->end_date = $data['end_date'] ?? null;
@@ -81,6 +85,7 @@ class BannerController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'placement' => ['nullable', Rule::in(BannerPlacement::values())],
             'image' => [$updating ? 'nullable' : 'required', 'image', 'max:1024'],
             'banner_url' => ['nullable', 'url', 'max:255'],
             'start_date' => ['nullable', 'date'],
@@ -92,6 +97,7 @@ class BannerController extends Controller
             'image.required' => __('The slider image is required.'),
         ], [
             'name' => __('admin.attributes.name'),
+            'placement' => __('placement'),
             'image' => __('admin.attributes.image'),
             'banner_url' => __('admin.attributes.banner_url'),
             'start_date' => __('admin.attributes.start_date'),

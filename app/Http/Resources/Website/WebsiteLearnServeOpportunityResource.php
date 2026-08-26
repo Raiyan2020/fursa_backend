@@ -21,6 +21,11 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
         $images = $opportunity->images?->filter(fn ($image) => ! $image->is_deleted) ?? collect();
         $registrations = $opportunity->registrations?->filter(fn ($registration) => ! $registration->is_deleted) ?? collect();
 
+        $viewer = $request->user();
+        $isRegistered = $viewer !== null
+            && $opportunity->created_by !== $viewer->id
+            && $registrations->contains(fn ($registration) => (int) $registration->user_id === (int) $viewer->id);
+
         return [
             'id' => $opportunity->id,
             'opportunity_type' => 'learn_serve_opportunity',
@@ -36,6 +41,10 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'to_age' => ar_num($opportunity->to_age),
             'location_en' => $opportunity->location_en,
             'location_ar' => $opportunity->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $opportunity->map_desc ?: ($opportunity->location_ar ?: $opportunity->location_en),
+            'lat' => $opportunity->latitude === null ? null : (float) $opportunity->latitude,
+            'lng' => $opportunity->longitude === null ? null : (float) $opportunity->longitude,
             'location_url' => $opportunity->location_url ?: $opportunity->link,
             'is_registration_closed' => (bool) $opportunity->is_registration_closed,
             'is_registration_open' => $opportunity->isRegistrationOpen(),
@@ -50,6 +59,12 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'is_urgent' => (bool) $opportunity->is_urgent,
             'is_relief' => (bool) $opportunity->is_relief,
             'all_registered_user' => $this->websiteRegisteredUserIds($registrations),
+            // One computed state so every screen renders the same button.
+            'action_state' => $opportunity->actionState($isRegistered, $registrations->count()),
+            'is_registered' => $isRegistered,
+            'is_full' => $opportunity->isAtCapacity($registrations->count()),
+            'has_started' => $opportunity->hasStarted(),
+            'has_ended' => $opportunity->hasEnded(),
         ];
     }
 }

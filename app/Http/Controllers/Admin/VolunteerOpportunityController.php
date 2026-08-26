@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\InterestType;
@@ -31,6 +32,44 @@ class VolunteerOpportunityController extends Controller
             ->get();
 
         return view('dashboard.volunteer-opportunities.index', compact('opportunities'));
+    }
+
+    /**
+     * Client asked to be able to pull the data out of the dashboard.
+     */
+    public function export()
+    {
+        $opportunities = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->with(['creator', 'registrations'])
+            ->latest()
+            ->get();
+
+        $headers = [
+            '#', __('title'), __('organization'), __('start date'), __('end date'),
+            __('due date'), __('approval status'), __('opportunity status'),
+            __('participants needed'), __('registered volunteers count'),
+            __('volunteer hours per day'), __('location'), __('created at'),
+        ];
+
+        $rows = $opportunities->map(fn ($o) => [
+            $o->id,
+            $o->title_ar ?: $o->title_en,
+            $o->creator?->organizationProfile?->company_name
+                ?? trim(($o->creator?->first_name ?? '').' '.($o->creator?->last_name ?? '')),
+            optional($o->start_date)->format('Y-m-d'),
+            optional($o->end_date)->format('Y-m-d'),
+            optional($o->due_date)->format('Y-m-d'),
+            $o->approval_status?->value ?? $o->approval_status,
+            $o->opportunity_status?->value ?? $o->opportunity_status,
+            $o->participants_needed,
+            $o->registrations?->where('is_deleted', false)->count() ?? 0,
+            $o->volunteer_hours_per_day,
+            $o->location_ar ?: $o->location_en,
+            optional($o->created_at)->format('Y-m-d H:i'),
+        ]);
+
+        return AdminExport::spreadsheet('volunteer_opportunities', $headers, $rows);
     }
 
     public function create()
@@ -129,6 +168,20 @@ class VolunteerOpportunityController extends Controller
 
         $image->softDeleteFlags();
         deleted();
+
+        return back();
+    }
+
+    /**
+     * Admin-side manual close / reopen of registration (client request:
+     * the dashboard needed the same control the publisher has in the app).
+     */
+    public function toggleRegistration(VolunteerOpportunity $opportunity)
+    {
+        $opportunity->is_registration_closed = ! (bool) $opportunity->is_registration_closed;
+        $opportunity->save();
+
+        statusChange();
 
         return back();
     }
@@ -311,6 +364,9 @@ class VolunteerOpportunityController extends Controller
             'volunteer_hours_per_day' => ['nullable', 'numeric', 'min:0'],
             'link' => ['nullable', 'string', 'max:500'],
             'location_url' => ['nullable', 'url', 'max:500'],
+            'map_desc' => ['nullable', 'string', 'max:500'],
+            'lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'opportunity_nationality' => ['nullable', Rule::in(\App\Enums\Nationality::values())],
             'primary_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],

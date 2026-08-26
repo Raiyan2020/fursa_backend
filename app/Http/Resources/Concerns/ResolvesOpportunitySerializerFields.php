@@ -10,6 +10,7 @@ use App\Models\MyCalendar;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
 /**
@@ -155,6 +156,81 @@ trait ResolvesOpportunitySerializerFields
         }
 
         return false;
+    }
+
+    /**
+     * Relationship tags the client asked to show on profile tabs:
+     * organizer / sponsor / registered / attended.
+     *
+     * Computed for the authenticated viewer, so an anonymous request gets [].
+     *
+     * @return array<int, string>
+     */
+    protected function relationshipTags(Model $opportunity, Request $request): array
+    {
+        $user = $request->user();
+        if (! $user) {
+            return [];
+        }
+
+        $tags = [];
+
+        if ((int) ($opportunity->created_by ?? 0) === (int) $user->id) {
+            $tags[] = 'organizer';
+        }
+
+        if ($this->isSponsorOf($opportunity, $user)) {
+            $tags[] = 'sponsor';
+        }
+
+        if ($opportunity instanceof VolunteerOpportunity) {
+            if ($this->isVolunteerOpportunityRegistered($opportunity, $request)) {
+                $tags[] = 'registered';
+            }
+            if ($this->hasVolunteerAttendance($opportunity, $user->id)) {
+                $tags[] = 'attended';
+            }
+        }
+
+        if ($opportunity instanceof LearnServeOpportunity) {
+            if ($this->isLearnServeOpportunityRegistered($opportunity, $request)) {
+                $tags[] = 'registered';
+            }
+            if ($this->isLearnServeAttended($opportunity, $request)) {
+                $tags[] = 'attended';
+            }
+        }
+
+        return array_values(array_unique($tags));
+    }
+
+    /**
+     * The viewer's organization appears in the opportunity's sponsor images.
+     */
+    protected function isSponsorOf(Model $opportunity, $user): bool
+    {
+        $orgId = $user->organizationProfile?->id;
+        if (! $orgId || ! method_exists($opportunity, 'sponsorImages')) {
+            return false;
+        }
+
+        $images = $opportunity->relationLoaded('sponsorImages')
+            ? $opportunity->sponsorImages
+            : $opportunity->sponsorImages()->get();
+
+        return $images
+            ->filter(fn ($img) => ! ($img->is_deleted ?? false))
+            ->contains(fn ($img) => (int) ($img->organization_id ?? 0) === (int) $orgId);
+    }
+
+    protected function hasVolunteerAttendance(VolunteerOpportunity $opportunity, int $userId): bool
+    {
+        return VolunteerOpportunityRegistration::query()
+            ->where('opportunity_id', $opportunity->id)
+            ->where('user_id', $userId)
+            ->where('is_deleted', false)
+            ->whereHas('attendances', fn ($q) => $q->where('is_attended', true)->where('is_deleted', false))
+            ->exists();
     }
 
     protected function hasScanPermission(VolunteerOpportunity $opportunity, Request $request): bool

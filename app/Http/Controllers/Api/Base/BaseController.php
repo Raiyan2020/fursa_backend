@@ -75,12 +75,20 @@ class BaseController extends Controller
         );
     }
 
-    public function bannerImages(): JsonResponse
+    public function bannerImages(Request $request): JsonResponse
     {
-        $images = BannerImage::query()->notDeleted()->currentlyVisible()->get()->map(fn (BannerImage $b) => [
-            'image' => ($path = $b->getRawImagePath()) ? getimg($path) : null,
-            'banner_url' => $b->banner_url,
-        ])->values();
+        // `placement` lets the opportunities/development/events pages pull their
+        // own admin-managed banner; omitting it keeps the legacy home carousel.
+        $images = BannerImage::query()
+            ->notDeleted()
+            ->currentlyVisible()
+            ->forPlacement($request->query('placement'))
+            ->get()
+            ->map(fn (BannerImage $b) => [
+                'image' => ($path = $b->getRawImagePath()) ? getimg($path) : null,
+                'banner_url' => $b->banner_url,
+                'placement' => $b->placement?->value,
+            ])->values();
 
         $volunteerTeamType = MasterChoice::query()
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))

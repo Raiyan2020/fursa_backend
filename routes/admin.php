@@ -44,6 +44,7 @@ Route::group(['middleware' => ['guest:admin', 'localization']], function () {
 Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('statistics/export', [HomeController::class, 'exportStatistics'])->name('statistics.export');
 
     // Simple CRUD resources
     Route::resource('admins', AdminController::class)->except(['show']);
@@ -111,6 +112,7 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
 
     // Volunteer opportunities
     Route::get('volunteer-opportunities', [VolunteerOpportunityController::class, 'index'])->name('volunteer-opportunities.index');
+    Route::get('volunteer-opportunities/export', [VolunteerOpportunityController::class, 'export'])->name('volunteer-opportunities.export');
     Route::get('volunteer-opportunities/create', [VolunteerOpportunityController::class, 'create'])->name('volunteer-opportunities.create');
     Route::post('volunteer-opportunities', [VolunteerOpportunityController::class, 'store'])->name('volunteer-opportunities.store');
     Route::get('volunteer-opportunities/{opportunity}', [VolunteerOpportunityController::class, 'show'])->name('volunteer-opportunities.show');
@@ -122,9 +124,11 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::post('volunteer-opportunities/{opportunity}/reject', [VolunteerOpportunityController::class, 'reject'])->name('volunteer-opportunities.reject');
     Route::post('volunteer-opportunities/{opportunity}/approve-deletion', [VolunteerOpportunityController::class, 'approveDeletion'])->name('volunteer-opportunities.approve-deletion');
     Route::post('volunteer-opportunities/{opportunity}/reject-deletion', [VolunteerOpportunityController::class, 'rejectDeletion'])->name('volunteer-opportunities.reject-deletion');
+    Route::post('volunteer-opportunities/{opportunity}/toggle-registration', [VolunteerOpportunityController::class, 'toggleRegistration'])->name('volunteer-opportunities.toggle-registration');
 
     // Learn & Serve opportunities
     Route::get('learn-serve-opportunities', [LearnServeOpportunityController::class, 'index'])->name('learn-serve-opportunities.index');
+    Route::get('learn-serve-opportunities/export', [LearnServeOpportunityController::class, 'export'])->name('learn-serve-opportunities.export');
     Route::get('learn-serve-opportunities/create', [LearnServeOpportunityController::class, 'create'])->name('learn-serve-opportunities.create');
     Route::post('learn-serve-opportunities', [LearnServeOpportunityController::class, 'store'])->name('learn-serve-opportunities.store');
     Route::get('learn-serve-opportunities/{opportunity}', [LearnServeOpportunityController::class, 'show'])->name('learn-serve-opportunities.show');
@@ -136,9 +140,11 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::post('learn-serve-opportunities/{opportunity}/reject', [LearnServeOpportunityController::class, 'reject'])->name('learn-serve-opportunities.reject');
     Route::post('learn-serve-opportunities/{opportunity}/approve-deletion', [LearnServeOpportunityController::class, 'approveDeletion'])->name('learn-serve-opportunities.approve-deletion');
     Route::post('learn-serve-opportunities/{opportunity}/reject-deletion', [LearnServeOpportunityController::class, 'rejectDeletion'])->name('learn-serve-opportunities.reject-deletion');
+    Route::post('learn-serve-opportunities/{opportunity}/toggle-registration', [LearnServeOpportunityController::class, 'toggleRegistration'])->name('learn-serve-opportunities.toggle-registration');
 
     // Events
     Route::get('events', [EventController::class, 'index'])->name('events.index');
+    Route::get('events/export', [EventController::class, 'export'])->name('events.export');
     Route::get('events/create', [EventController::class, 'create'])->name('events.create');
     Route::post('events', [EventController::class, 'store'])->name('events.store');
     Route::get('events/{event}', [EventController::class, 'show'])->name('events.show');
@@ -150,6 +156,7 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::post('events/{event}/reject', [EventController::class, 'reject'])->name('events.reject');
     Route::post('events/{event}/approve-deletion', [EventController::class, 'approveDeletion'])->name('events.approve-deletion');
     Route::post('events/{event}/reject-deletion', [EventController::class, 'rejectDeletion'])->name('events.reject-deletion');
+    Route::post('events/{event}/toggle-registration', [EventController::class, 'toggleRegistration'])->name('events.toggle-registration');
 
     // Sponsors
     Route::get('sponsors', [SponsorController::class, 'index'])->name('sponsors.index');

@@ -13,9 +13,13 @@ class NotificationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        // A notification deleted from the dashboard soft-deletes the parent row,
+        // so the per-user rows must be filtered by it too — otherwise it keeps
+        // showing on the site after the admin deletes it.
         $query = UserNotification::query()
             ->notDeleted()
             ->where('user_id', $request->user()->id)
+            ->whereHas('notification', fn ($q) => $q->where('is_deleted', false))
             ->with('notification')
             ->latest();
 
@@ -28,6 +32,7 @@ class NotificationController extends Controller
         $unreadCount = UserNotification::query()
             ->notDeleted()
             ->where('user_id', $request->user()->id)
+            ->whereHas('notification', fn ($q) => $q->where('is_deleted', false))
             ->where('is_read', false)
             ->count();
 
@@ -67,6 +72,14 @@ class NotificationController extends Controller
 
     public function markRead(Request $request): JsonResponse
     {
+        $this->normalizeNotificationIds($request);
+
+        // Marking one notification read is the overwhelmingly common case, so a
+        // missing `is_read` means "read" rather than a validation error.
+        if (! $request->has('is_read')) {
+            $request->merge(['is_read' => true]);
+        }
+
         $data = $request->validate([
             'notification_ids' => ['nullable', 'array'],
             'notification_ids.*' => ['integer'],
@@ -108,6 +121,8 @@ class NotificationController extends Controller
 
     public function destroy(Request $request): JsonResponse
     {
+        $this->normalizeNotificationIds($request);
+
         $data = $request->validate([
             'notification_ids' => ['nullable', 'array'],
             'notification_ids.*' => ['integer'],
@@ -140,5 +155,81 @@ class NotificationController extends Controller
         }
 
         return ApiResponse::success(null, 'Notifications deleted successfully.', 'تم حذف الإشعارات بنجاح.');
+    }
+
+    /**
+     * Single-notification variants. The bulk endpoints take their ids in the
+     * request body, which is easy to get wrong (especially for DELETE, where
+     * many HTTP clients drop the body). These take the id from the path, so
+     * there is nothing to mis-shape.
+     */
+    public function markOneRead(Request $request, int $id): JsonResponse
+    {
+        return $this->applyToOwnNotification($request, $id, ['is_read' => true],
+            'Notification marked as read.', 'تم وضع علامة مقروءة على الإشعار.');
+    }
+
+    public function markOneUnread(Request $request, int $id): JsonResponse
+    {
+        return $this->applyToOwnNotification($request, $id, ['is_read' => false],
+            'Notification marked as unread.', 'تم وضع علامة غير مقروءة على الإشعار.');
+    }
+
+    public function destroyOne(Request $request, int $id): JsonResponse
+    {
+        return $this->applyToOwnNotification($request, $id,
+            ['is_deleted' => true, 'deleted_at' => now()],
+            'Notification deleted successfully.', 'تم حذف الإشعار بنجاح.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function applyToOwnNotification(
+        Request $request,
+        int $id,
+        array $attributes,
+        string $messageEn,
+        string $messageAr
+    ): JsonResponse {
+        $notification = UserNotification::query()
+            ->notDeleted()
+            ->where('user_id', $request->user()->id)
+            ->find($id);
+
+        if (! $notification) {
+            return ApiResponse::error('Notification not found.', 'الإشعار غير موجود.', 404);
+        }
+
+        $notification->forceFill($attributes)->save();
+
+        return ApiResponse::success(
+            ['id' => $notification->id, 'is_read' => (bool) $notification->is_read],
+            $messageEn,
+            $messageAr
+        );
+    }
+
+    /**
+     * Accept the shapes clients actually send for a single notification:
+     * `notification_id: 5`, `notification_ids: 5`, or `id: 5` — all normalised
+     * to the `notification_ids: [5]` array the endpoints validate.
+     */
+    protected function normalizeNotificationIds(Request $request): void
+    {
+        if (! $request->has('notification_ids')) {
+            foreach (['notification_id', 'id'] as $alias) {
+                if ($request->has($alias)) {
+                    $request->merge(['notification_ids' => $request->input($alias)]);
+                    break;
+                }
+            }
+        }
+
+        $ids = $request->input('notification_ids');
+
+        if ($ids !== null && ! is_array($ids)) {
+            $request->merge(['notification_ids' => [$ids]]);
+        }
     }
 }

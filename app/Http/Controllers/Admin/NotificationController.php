@@ -49,11 +49,18 @@ class NotificationController extends Controller
             $usersQuery->where('user_type', UserType::ORGANIZATION);
         }
 
-        $rows = $usersQuery->pluck('id')->map(function ($id) use ($notification) {
+        // Bulk insert() bypasses Eloquent, so the timestamps have to be set by
+        // hand — without them created_at lands as NULL and every client renders
+        // the notification as 1 Jan 1970.
+        $now = now();
+
+        $rows = $usersQuery->pluck('id')->map(function ($id) use ($notification, $now) {
             return [
                 'user_id' => $id,
                 'notification_id' => $notification->id,
                 'is_read' => false,
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
         })->all();
 

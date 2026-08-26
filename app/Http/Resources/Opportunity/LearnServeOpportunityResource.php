@@ -69,6 +69,10 @@ class LearnServeOpportunityResource extends JsonResource
             'registered_volunteers_count' => $this->registeredVolunteersCount($registrations),
             'location_en' => $this->location_en,
             'location_ar' => $this->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $this->map_desc ?: ($this->location_ar ?: $this->location_en),
+            'lat' => $this->latitude === null ? null : (float) $this->latitude,
+            'lng' => $this->longitude === null ? null : (float) $this->longitude,
             'location_url' => $this->location_url ?: $this->link,
             'is_registration_closed' => (bool) $this->is_registration_closed,
             'is_registration_open' => $this->isRegistrationOpen(),
@@ -82,6 +86,16 @@ class LearnServeOpportunityResource extends JsonResource
             'timeslots_display' => LearnServeTimeSlotResource::collection($timeSlots)->resolve(),
             'license_image' => $this->licenseImageUrl($this->license_image),
             'all_registered_user' => $this->allRegisteredUsersPayload($registrations),
+            // One computed state so every screen renders the same button.
+            'action_state' => $this->resource->actionState(
+                $this->isLearnServeOpportunityRegistered($this->resource, $request),
+                $this->registeredVolunteersCount($registrations)
+            ),
+            'is_full' => $this->resource->isAtCapacity($this->registeredVolunteersCount($registrations)),
+            'has_started' => $this->resource->hasStarted(),
+            'has_ended' => $this->resource->hasEnded(),
+            // organizer / sponsor / registered / attended for the current viewer.
+            'relationship_tags' => $this->relationshipTags($this->resource, $request),
         ];
     }
 }

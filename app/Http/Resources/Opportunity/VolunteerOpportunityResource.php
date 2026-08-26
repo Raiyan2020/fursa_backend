@@ -68,8 +68,10 @@ class VolunteerOpportunityResource extends JsonResource
             'registered_volunteers_count' => $this->registeredVolunteersCount($registrations),
             'is_registered' => $this->isVolunteerOpportunityRegistered($this->resource, $request),
             'is_saved_to_calendar' => $this->isSavedToVolunteerCalendar($this->resource, $request),
-            'location_en' => $this->location_en,
-            'location_ar' => $this->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $this->map_desc ?: ($this->location_ar ?: $this->location_en),
+            'lat' => $this->latitude === null ? null : (float) $this->latitude,
+            'lng' => $this->longitude === null ? null : (float) $this->longitude,
             'interest_display' => null,
             'is_kuwaitis' => (bool) $this->is_kuwaitis,
             'total_roles' => $this->roles?->filter(fn ($r) => ! $r->is_deleted)->count() ?? 0,
@@ -99,6 +101,16 @@ class VolunteerOpportunityResource extends JsonResource
                 ? (int) ($this->beneficiaries_count ?? 0)
                 : null,
             'supports_beneficiaries_count' => (bool) $this->volunteer_category?->countsBeneficiaries(),
+            // One computed state so every screen renders the same button.
+            'action_state' => $this->resource->actionState(
+                $this->isVolunteerOpportunityRegistered($this->resource, $request),
+                $this->registeredVolunteersCount($registrations)
+            ),
+            'is_full' => $this->resource->isAtCapacity($this->registeredVolunteersCount($registrations)),
+            'has_started' => $this->resource->hasStarted(),
+            'has_ended' => $this->resource->hasEnded(),
+            // organizer / sponsor / registered / attended for the current viewer.
+            'relationship_tags' => $this->relationshipTags($this->resource, $request),
         ];
     }
 }

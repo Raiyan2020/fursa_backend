@@ -27,6 +27,9 @@ class ConfigController extends Controller
             'time_duration' => ['nullable', 'integer'],
             'time_unit' => ['nullable', Rule::in(['days', 'weeks', 'months', 'years'])],
             'manual_attendance_threshold' => ['nullable', 'integer'],
+            'economic_impact_rate_kwd' => ['nullable', 'numeric', 'min:0'],
+            'preparation_validity_hours' => ['nullable', 'integer', 'min:0', 'max:8760'],
+            'preparation_reminder_hours_before' => ['nullable', 'integer', 'min:0', 'max:720'],
         ]);
 
         $config = Config::query()->first();
@@ -39,6 +42,9 @@ class ConfigController extends Controller
             'time_duration',
             'time_unit',
             'manual_attendance_threshold',
+            'economic_impact_rate_kwd',
+            'preparation_validity_hours',
+            'preparation_reminder_hours_before',
         ]));
         updated();
 

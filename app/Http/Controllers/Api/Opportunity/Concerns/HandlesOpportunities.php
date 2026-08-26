@@ -107,7 +107,8 @@ trait HandlesOpportunities
         if ($location = $request->query('location')) {
             $query->where(function ($q) use ($location) {
                 $q->where('location_en', 'like', "%{$location}%")
-                    ->orWhere('location_ar', 'like', "%{$location}%");
+                    ->orWhere('location_ar', 'like', "%{$location}%")
+                    ->orWhere('map_desc', 'like', "%{$location}%");
             });
         }
 
@@ -282,6 +283,7 @@ trait HandlesOpportunities
             'title_en', 'title_ar', 'description_en', 'description_ar',
             'start_date', 'end_date', 'due_date', 'start_time', 'end_time',
             'location_en', 'location_ar', 'location_url', 'participants_needed',
+            'map_desc', 'latitude', 'longitude',
             'from_age', 'to_age', 'link', 'is_registration_closed',
         ]);
     }

@@ -209,7 +209,19 @@
         <input type="text" name="link" class="form-control{{ $invalid('link') }}" value="{{ $opportunityValue('link') }}" placeholder="https://">
         @error('link') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
+        <div class="col-md-12 mb-1">
+        <label>{{ __('map description') }}</label>
+        <input type="text" name="map_desc" class="form-control" value="{{ $opportunityValue('map_desc') }}" placeholder="{{ __('e.g. Jumhuriya St., Mansoura') }}">
+    </div>
     <div class="col-md-6 mb-1">
+        <label>{{ __('latitude') }}</label>
+        <input type="number" step="any" min="-90" max="90" name="lat" class="form-control" value="{{ $opportunityValue('latitude') }}">
+    </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('longitude') }}</label>
+        <input type="number" step="any" min="-180" max="180" name="lng" class="form-control" value="{{ $opportunityValue('longitude') }}">
+    </div>
+<div class="col-md-6 mb-1">
         <label>{{ __('location url') }}</label>
         <input type="text" name="location_url" class="form-control{{ $invalid('location_url') }}" value="{{ $opportunityValue('location_url') }}" placeholder="https://maps.google.com/...">
         @error('location_url') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror

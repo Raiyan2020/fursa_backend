@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Organization;
 
 use App\Enums\ApprovalStatus;
+use App\Http\Controllers\Api\Concerns\HandlesProfileInterests;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Organization\OrganizationDocumentResource;
 use App\Http\Resources\Organization\OrganizationListResource;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
 
 class OrganizationProfileController extends Controller
 {
+    use HandlesProfileInterests;
+
     public function show(Request $request): JsonResponse
     {
         $profile = $request->user()->organizationProfile()->with([
@@ -54,7 +57,13 @@ class OrganizationProfileController extends Controller
             ]);
         }
 
+        $interestIds = $this->extractProfileInterestIds($request);
+        if ($interestIds !== null) {
+            $request->merge(['interest_ids' => $interestIds]);
+        }
+
         $data = $request->validate([
+            'profile_pic' => ['nullable', 'image'],
             'nickname' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'sector' => ['nullable', 'integer', 'exists:master_choices,id'],
@@ -69,6 +78,8 @@ class OrganizationProfileController extends Controller
             'linkedin_link' => ['nullable', 'url'],
             'facebook_link' => ['nullable', 'url'],
             'twitter_link' => ['nullable', 'url'],
+            'interest_ids' => ['nullable', 'array'],
+            'interest_ids.*' => ['integer'],
         ]);
 
         $profile->fill([
@@ -83,6 +94,10 @@ class OrganizationProfileController extends Controller
         ]);
         $profile->save();
 
+        if (! empty($data['profile_pic'])) {
+            $user->profile_pic = $data['profile_pic']->store(config('fursa.storage_path').'/profile_pics', 'public');
+        }
+
         $user->fill([
             'nationality' => $data['nationality'] ?? $user->nationality,
             'instagram_link' => $data['instagram_link'] ?? $user->instagram_link,
@@ -92,6 +107,13 @@ class OrganizationProfileController extends Controller
             'twitter_link' => $data['twitter_link'] ?? $user->twitter_link,
         ]);
         $user->save();
+
+        if (array_key_exists('interest_ids', $data)) {
+            $interestError = $this->syncProfileInterests($user, $data['interest_ids']);
+            if ($interestError) {
+                return $interestError;
+            }
+        }
 
         $profile = $profile->fresh([
             'organizerType.choiceType',

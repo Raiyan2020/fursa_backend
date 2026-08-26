@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Base\BaseController;
 use App\Http\Controllers\Api\Base\HomeController;
-use App\Http\Controllers\Api\Calendar\CalendarController;
 use App\Http\Controllers\Api\Community\LikeController;
 use App\Http\Controllers\Api\Community\MentionSuggestionsController;
 use App\Http\Controllers\Api\Community\PostController;
@@ -18,6 +17,7 @@ use App\Http\Controllers\Api\Event\EventTimeSlotController;
 use App\Http\Controllers\Api\Faq\FaqController;
 use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Page\PageController;
+use App\Http\Controllers\Api\Opportunity\CertificateController;
 use App\Http\Controllers\Api\Opportunity\LearnServeOpportunityController;
 use App\Http\Controllers\Api\Opportunity\LearnServeRegistrationController;
 use App\Http\Controllers\Api\Opportunity\LearnServeTimeSlotController;
@@ -214,6 +214,7 @@ Route::middleware('auth:api')->group(function () {
     Route::match(['put', 'patch'], 'events/{id}/', [EventController::class, 'update']);
     Route::post('events/{id}/approve/', [EventController::class, 'approve']);
     Route::post('events/{id}/register/', [EventController::class, 'register']);
+    Route::post('events/{id}/close-registration/', [EventController::class, 'closeRegistration']);
     Route::post('events/{id}/reject/', [EventController::class, 'reject']);
     Route::delete('events/{id}/', [EventController::class, 'destroy']);
     Route::match(['delete', 'post'], 'events/{event_id}/unregister/', [EventRegistrationController::class, 'unregister']);
@@ -258,15 +259,17 @@ Route::middleware('auth:api')->group(function () {
     Route::get('notifications/', [NotificationController::class, 'index']);
     Route::match(['post', 'patch'], 'notifications/mark-read/', [NotificationController::class, 'markRead']);
     Route::delete('notifications/delete/', [NotificationController::class, 'destroy']);
+    // Single-notification variants — id in the path, nothing to mis-shape.
+    Route::match(['post', 'patch'], 'notifications/{id}/read/', [NotificationController::class, 'markOneRead'])->whereNumber('id');
+    Route::match(['post', 'patch'], 'notifications/{id}/unread/', [NotificationController::class, 'markOneUnread'])->whereNumber('id');
+    Route::delete('notifications/{id}/', [NotificationController::class, 'destroyOne'])->whereNumber('id');
 
     // Calendar
-    Route::get('my-calendar/', [CalendarController::class, 'index']);
-    Route::post('my-calendar/', [CalendarController::class, 'store']);
-    Route::match(['put', 'patch'], 'my-calendar/{id}/', [CalendarController::class, 'update']);
-    Route::delete('my-calendar/{id}/', [CalendarController::class, 'destroy']);
-    Route::post('upload-ics/', [CalendarController::class, 'uploadIcs']);
 
     // Volunteer extras
+    // Certificates — rendered HTML (browser handles Arabic shaping / print-to-PDF).
+    Route::get('certificates/{registration_id}/', [CertificateController::class, 'show']);
+    Route::post('certificates/{registration_id}/issue/', [CertificateController::class, 'store']);
     Route::get('available-volunteers/', [VolunteerStatisticsController::class, 'availableVolunteers']);
     Route::get('volunteer-detail/', [VolunteerStatisticsController::class, 'volunteerDetail']);
     Route::get('download-qr-code/', [VolunteerStatisticsController::class, 'downloadQrCode']);

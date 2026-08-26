@@ -8,6 +8,7 @@ use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
 use App\Http\Controllers\Api\Event\EventRegistrationController;
+use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventResource;
 use App\Http\Resources\Website\WebsiteEventResource;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 
 class EventController extends Controller
 {
+    use HandlesMapLocation;
     use AppliesAudienceFilters;
     use AppliesOpportunityStatusFilter;
 
@@ -95,6 +97,8 @@ class EventController extends Controller
 
         $data = $this->validateEventPayload($request);
         $event = DB::transaction(function () use ($data, $org, $request) {
+            $data = array_merge($data, $this->mapLocationAttributes($data));
+
             $event = Event::create(array_merge($data, [
                 'created_by' => $org->id,
                 'approval_status' => ApprovalStatus::PENDING,
@@ -131,6 +135,7 @@ class EventController extends Controller
 
         $data = $this->validateEventPayload($request, partial: true);
         DB::transaction(function () use ($event, $data, $request) {
+            $data = array_merge($data, $this->mapLocationAttributes($data));
             $event->update($data);
             $this->syncEventRelations($event, $request);
         });
@@ -141,6 +146,37 @@ class EventController extends Controller
             new EventResource($event->fresh()),
             'Event updated successfully.',
             'تم تحديث الحدث بنجاح.'
+        );
+    }
+
+    /**
+     * Manually close (or reopen) registration from inside the event, mirroring
+     * the volunteer/development endpoints the client already has.
+     */
+    public function closeRegistration(Request $request, int $id): JsonResponse
+    {
+        $event = Event::query()->notDeleted()->find($id);
+        if (! $event) {
+            return ApiResponse::error('Event not found.', 'الحدث غير موجود.', 404);
+        }
+
+        $org = $request->user()->organizationProfile;
+        if (! $org || $event->created_by !== $org->id) {
+            return ApiResponse::error('You can only update your own events.', 'يمكنك فقط تحديث الأحداث الخاصة بك.', 403);
+        }
+
+        // Defaults to closing; pass is_registration_closed=false to reopen.
+        $closed = $request->has('is_registration_closed')
+            ? $request->boolean('is_registration_closed')
+            : true;
+
+        $event->update(['is_registration_closed' => $closed]);
+        $event->load(['images', 'sponsorImages', 'interests']);
+
+        return ApiResponse::success(
+            new EventResource($event->fresh()),
+            $closed ? 'Registration closed successfully.' : 'Registration reopened successfully.',
+            $closed ? 'تم إغلاق التسجيل بنجاح.' : 'تم إعادة فتح التسجيل بنجاح.'
         );
     }
 
@@ -195,17 +231,26 @@ class EventController extends Controller
             }
         }
 
-        if ($eventTypeName = $request->query('event_type')) {
+        if (($eventTypeName = $request->query('event_type')) !== null && $eventTypeName !== '') {
+            // `event_type` historically took the choice NAME while `event` took
+            // the id, which meant a client sending an id here silently got every
+            // event back. Accept either form.
+            $eventTypeId = filter_int($eventTypeName);
+
             $choice = MasterChoice::query()
                 ->whereHas('choiceType', fn ($q) => $q->where('name', 'event_type'))
-                ->where(function ($q) use ($eventTypeName) {
+                ->where(function ($q) use ($eventTypeName, $eventTypeId) {
                     $q->where('value_en', $eventTypeName)
                         ->orWhere('value_ar', $eventTypeName);
+                    if ($eventTypeId !== null) {
+                        $q->orWhere('id', $eventTypeId);
+                    }
                 })
                 ->first();
-            if ($choice) {
-                $query->where('event_type_id', $choice->id);
-            }
+
+            // An unresolvable filter must narrow to nothing, not silently widen
+            // to everything — that is what hid this bug.
+            $query->where('event_type_id', $choice?->id ?? 0);
         }
 
         if ($status = $request->query('status')) {
@@ -224,7 +269,8 @@ class EventController extends Controller
         if ($location = $request->query('location')) {
             $query->where(function ($q) use ($location) {
                 $q->where('location_en', 'like', "%{$location}%")
-                    ->orWhere('location_ar', 'like', "%{$location}%");
+                    ->orWhere('location_ar', 'like', "%{$location}%")
+                    ->orWhere('map_desc', 'like', "%{$location}%");
             });
         }
 
@@ -288,6 +334,10 @@ class EventController extends Controller
 
     protected function validateEventPayload(Request $request, bool $partial = false): array
     {
+        // `lat` / `lng` from the map picker land on the real column names
+        // before the rules run.
+        $this->normalizeMapLocation($request);
+
         $rules = [
             'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'title_ar' => ['nullable', 'string', 'max:255'],
@@ -303,8 +353,7 @@ class EventController extends Controller
             'participants_needed' => ['nullable', 'integer', 'min:0'],
             'paid_registration' => ['nullable', 'boolean'],
             'registration_fee' => ['nullable', 'numeric', 'min:0'],
-            'latitude' => ['nullable', 'numeric'],
-            'longitude' => ['nullable', 'numeric'],
+            ...$this->mapLocationRules($partial),
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'location_url' => ['nullable', 'url'],

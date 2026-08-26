@@ -68,6 +68,10 @@ class WebsiteEventResource extends JsonResource
             'view_count' => ar_num($event->view_count),
             'location_en' => $event->location_en,
             'location_ar' => $event->location_ar,
+            // Map picker fields. `lat`/`lng` are numbers, not strings.
+            'map_desc' => $event->map_desc ?: ($event->location_ar ?: $event->location_en),
+            'lat' => $event->latitude === null ? null : (float) $event->latitude,
+            'lng' => $event->longitude === null ? null : (float) $event->longitude,
             'location_url' => $event->location_url ?: $event->registration_link,
             'is_registration_closed' => (bool) $event->is_registration_closed,
             'is_registration_open' => $event->isRegistrationOpen(),
@@ -80,6 +84,11 @@ class WebsiteEventResource extends JsonResource
                 : ($creatorUser ? ['id' => $creatorUser->id] : null),
             'is_creator' => $isCreator,
             'is_registered' => $isRegistered,
+            // One computed state so every screen renders the same button.
+            'action_state' => $event->actionState($isRegistered, $registeredCount),
+            'is_full' => $event->isAtCapacity($registeredCount),
+            'has_started' => $event->hasStarted(),
+            'has_ended' => $event->hasEnded(),
         ];
 
         if ($this->detail) {
