@@ -111,6 +111,8 @@ class PostController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->normalizeImageFiles($request);
+
         $data = $request->validate([
             'title_en' => ['nullable', 'string'],
             'title_ar' => ['nullable', 'string'],
@@ -121,6 +123,8 @@ class PostController extends Controller
             'is_funding_required' => ['nullable', 'boolean'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
         ]);
 
         $detected = ForbiddenWordFilter::detect(
@@ -164,6 +168,8 @@ class PostController extends Controller
             );
         }
 
+        $this->normalizeImageFiles($request);
+
         $data = $request->validate([
             'title_en' => ['nullable', 'string'],
             'title_ar' => ['nullable', 'string'],
@@ -173,6 +179,8 @@ class PostController extends Controller
             'is_funding_required' => ['nullable', 'boolean'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
         ]);
 
         $titleEn = $data['title_en'] ?? $post->title_en;
@@ -230,11 +238,24 @@ class PostController extends Controller
         if (! $request->hasFile('images')) {
             return;
         }
-        foreach ($request->file('images') as $file) {
+
+        $files = $request->file('images');
+        $files = is_array($files) ? $files : [$files];
+
+        foreach ($files as $file) {
             PostImage::create([
                 'post_id' => $post->id,
                 'image' => uploader($file, 'community/posts'),
             ]);
+        }
+    }
+
+    protected function normalizeImageFiles(Request $request): void
+    {
+        $files = $request->file('images');
+
+        if ($files !== null && ! is_array($files)) {
+            $request->files->set('images', [$files]);
         }
     }
 
