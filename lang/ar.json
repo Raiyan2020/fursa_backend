@@ -378,5 +378,10 @@
     "Your password has been reset. You can sign in now.": "تم إعادة تعيين كلمة المرور. يمكنك تسجيل الدخول الآن.",
     "Please wait before retrying.": "يرجى الانتظار قبل إعادة المحاولة.",
     "Reset your Forsa dashboard password": "إعادة تعيين كلمة مرور لوحة تحكم فرصة",
-    "not specified": "غير محدد"
+    "not specified": "غير محدد",
+    "site visibility": "الظهور في الموقع",
+    "Live on site": "ظاهرة في الموقع",
+    "Not public": "غير عامة",
+    "Not approved": "غير مقبولة",
+    "Deleted": "محذوفة"
 }

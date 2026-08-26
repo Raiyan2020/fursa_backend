@@ -86,7 +86,7 @@ HTML;
             ['opportunity_rejection_email', 'Opportunity Rejected', 'تم رفض الفرصة', 'Your opportunity was rejected.', 'تم رفض الفرصة.'],
             ['event_approval_email', 'Event Approved', 'تمت الموافقة على الفعالية', 'Your event was approved.', 'تمت الموافقة على الفعالية.'],
             ['event_rejection_email', 'Event Rejected', 'تم رفض الفعالية', 'Your event was rejected.', 'تم رفض الفعالية.'],
-            ['volunteer_registration_confirmation', 'Registration Confirmed', 'تأكيد التسجيل', 'Your registration was confirmed.', 'تم تأكيد تسجيلك.'],
+            ['volunteer_registration_confirmation', 'Registration confirmed: {{opportunity_title_en}}', 'تم تأكيد تسجيلك: {{opportunity_title_ar}}', 'Hi {{first_name}},<br><br>Your registration for <b>{{opportunity_title_en}}</b> is confirmed.<br><br>Start: {{start_date}} {{start_time}}<br>End: {{end_date}} {{end_time}}<br>Location: {{location}}<br>Role: {{role}}<br>Team: {{team}}<br><br>Thank you for volunteering.', 'مرحباً {{first_name}}،<br><br>تم تأكيد تسجيلك في <b>{{opportunity_title_ar}}</b>.<br><br>البداية: {{start_date}} {{start_time}}<br>النهاية: {{end_date}} {{end_time}}<br>الموقع: {{location}}<br>الدور: {{role}}<br>الفريق: {{team}}<br><br>شكراً لتطوعك.'],
             ['user_ban_notification_by_admin', 'Account Banned', 'تم حظر الحساب', 'Your account has been banned.', 'تم حظر حسابك.'],
             ['user_unban_email', 'Account Unbanned', 'تم رفع الحظر', 'Your account has been unbanned.', 'تم رفع الحظر عن حسابك.'],
             ['admin_notification_new_entity', 'New Entity Registered', 'جهة جديدة', 'A new organization registered.', 'تم تسجيل جهة جديدة.'],

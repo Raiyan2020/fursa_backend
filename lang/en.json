@@ -378,5 +378,10 @@
     "Your password has been reset. You can sign in now.": "Your password has been reset. You can sign in now.",
     "Please wait before retrying.": "Please wait before retrying.",
     "Reset your Forsa dashboard password": "Reset your Forsa dashboard password",
-    "not specified": "not specified"
+    "not specified": "not specified",
+    "site visibility": "site visibility",
+    "Live on site": "Live on site",
+    "Not public": "Not public",
+    "Not approved": "Not approved",
+    "Deleted": "Deleted"
 }

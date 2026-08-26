@@ -57,6 +57,72 @@ class VolunteerOpportunity extends Model
         'backup_alert_sent_at' => 'datetime',
     ];
 
+    /**
+     * Why this opportunity is or is not live on the public site.
+     *
+     * The public list filters on notDeleted + is_public + approved, and sorts
+     * past-due rows into the last bucket, where pagination can hide them. Admins
+     * had no way to see which of those applied, so the dashboard shows it.
+     *
+     * @return array{live: bool, key: string, reason_en: string, reason_ar: string}
+     */
+    public function siteVisibility(): array
+    {
+        if ($this->is_deleted) {
+            return [
+                'live' => false,
+                'key' => 'deleted',
+                'reason_en' => 'Deleted',
+                'reason_ar' => 'محذوفة',
+            ];
+        }
+
+        if ($this->approval_status !== ApprovalStatus::APPROVED) {
+            return [
+                'live' => false,
+                'key' => 'not_approved',
+                'reason_en' => 'Not approved',
+                'reason_ar' => 'غير مقبولة',
+            ];
+        }
+
+        if (! $this->is_public) {
+            return [
+                'live' => false,
+                'key' => 'not_public',
+                'reason_en' => 'Not public',
+                'reason_ar' => 'غير عامة',
+            ];
+        }
+
+        $closesAt = $this->registrationClosesAt();
+
+        if ((bool) $this->is_registration_closed) {
+            return [
+                'live' => true,
+                'key' => 'registration_closed',
+                'reason_en' => 'Registration closed manually',
+                'reason_ar' => 'التسجيل مغلق يدوياً',
+            ];
+        }
+
+        if ($closesAt && now()->gt($closesAt)) {
+            return [
+                'live' => true,
+                'key' => 'expired',
+                'reason_en' => 'Due date passed — ranks last',
+                'reason_ar' => 'انتهى موعد التسجيل — يظهر في آخر الترتيب',
+            ];
+        }
+
+        return [
+            'live' => true,
+            'key' => 'live',
+            'reason_en' => 'Live on site',
+            'reason_ar' => 'ظاهرة في الموقع',
+        ];
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

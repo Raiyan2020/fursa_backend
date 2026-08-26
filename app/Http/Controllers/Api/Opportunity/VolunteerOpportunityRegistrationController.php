@@ -12,10 +12,13 @@ use App\Models\VolunteerOpportunityAssignment;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerOpportunityRole;
 use App\Models\VolunteerOpportunityTeam;
+use App\Services\Mail\DynamicEmailService;
+use App\Services\Notification\NotificationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class VolunteerOpportunityRegistrationController extends Controller
 {
@@ -163,6 +166,10 @@ class VolunteerOpportunityRegistrationController extends Controller
             ->where('opportunity_id', $opportunity->id)
             ->count();
 
+        // Confirmation email + in-app notification. The template already
+        // existed but nothing ever sent it, so volunteers got no confirmation.
+        $this->sendRegistrationConfirmation($opportunity, $registration);
+
         return ApiResponse::success([
             'registration' => (new VolunteerOpportunityRegistrationResource($registration))->resolve(),
             'assignment_id' => $registration->assignment?->id,
@@ -172,6 +179,65 @@ class VolunteerOpportunityRegistrationController extends Controller
             'required_age_to' => $toAge,
             'meets_age_requirement' => true,
         ], 'Successfully registered for the opportunity.', 'تم التسجيل بنجاح في الفرصة.', 201);
+    }
+
+    /**
+     * Emails the volunteer their registration details and raises a notification.
+     *
+     * Failures are logged, never surfaced: a mail outage must not roll back a
+     * registration the volunteer already completed.
+     */
+    protected function sendRegistrationConfirmation(
+        VolunteerOpportunity $opportunity,
+        VolunteerOpportunityRegistration $registration
+    ): void {
+        $user = $registration->user;
+        if (! $user) {
+            return;
+        }
+
+        $titleEn = $opportunity->title_en ?? 'Opportunity';
+        $titleAr = $opportunity->title_ar ?? $titleEn;
+        $startDate = optional($opportunity->start_date)->toDateString() ?? '-';
+        $endDate = optional($opportunity->end_date)->toDateString() ?? '-';
+        $location = $opportunity->location_ar ?: ($opportunity->location_en ?: '-');
+
+        try {
+            NotificationService::createForUsers(
+                "Registration confirmed: {$titleEn}",
+                "تم تأكيد تسجيلك: {$titleAr}",
+                "You are registered for '{$titleEn}' starting {$startDate}.",
+                "تم تسجيلك في '{$titleAr}' التي تبدأ في {$startDate}.",
+                [$user->id]
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Registration notification failed', [
+                'opportunity_id' => $opportunity->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            DynamicEmailService::send('volunteer_registration_confirmation', $user, [
+                'opportunity_title_en' => $titleEn,
+                'opportunity_title_ar' => $titleAr,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'start_time' => (string) ($opportunity->start_time ?? '-'),
+                'end_time' => (string) ($opportunity->end_time ?? '-'),
+                'location' => $location,
+                'location_url' => (string) ($opportunity->location_url ?: $opportunity->link ?: ''),
+                'role' => (string) ($registration->assignment?->role?->name_en ?? '-'),
+                'team' => (string) ($registration->assignment?->team?->name_en ?? '-'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Registration confirmation email failed', [
+                'opportunity_id' => $opportunity->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function updateAssignment(Request $request): JsonResponse

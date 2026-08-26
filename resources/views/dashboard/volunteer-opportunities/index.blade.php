@@ -21,6 +21,7 @@
                                         <th>{{ __('title') }}</th>
                                         <th>{{ __('creator') }}</th>
                                         <th>{{ __('approval status') }}</th>
+                                        <th>{{ __('site visibility') }}</th>
                                         <th>{{ __('deletion status') }}</th>
                                         <th>{{ __('actions') }}</th>
                                     </tr>
@@ -40,6 +41,26 @@
                                             <td>{{ tr($opportunity->title_en, $opportunity->title_ar) }}</td>
                                             <td>{{ $opportunity->creator?->email }}</td>
                                             <td>@include('dashboard.partials.status-badge', ['status' => $opportunity->approval_status])</td>
+                                            @php $visibility = $opportunity->siteVisibility(); @endphp
+                                            <td style="white-space:nowrap;">
+                                                @if ($visibility['key'] === 'live')
+                                                    <span class="badge badge-light-success">
+                                                        <i class="feather icon-check-circle"></i>
+                                                        {{ tr($visibility['reason_en'], $visibility['reason_ar']) }}
+                                                    </span>
+                                                @elseif ($visibility['live'])
+                                                    {{-- Reachable by the API, but sorted last so it may sit on a later page. --}}
+                                                    <span class="badge badge-light-warning">
+                                                        <i class="feather icon-clock"></i>
+                                                        {{ tr($visibility['reason_en'], $visibility['reason_ar']) }}
+                                                    </span>
+                                                @else
+                                                    <span class="badge badge-light-danger">
+                                                        <i class="feather icon-eye-off"></i>
+                                                        {{ tr($visibility['reason_en'], $visibility['reason_ar']) }}
+                                                    </span>
+                                                @endif
+                                            </td>
                                             <td>@include('dashboard.partials.status-badge', ['status' => $opportunity->deletion_status])</td>
                                             <td class="product-action">
                                                 <a class="btn btn-info" href="{{ route('admin.volunteer-opportunities.show', $opportunity) }}"><i class="feather icon-eye"></i></a>
