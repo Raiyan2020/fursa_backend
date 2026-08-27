@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Enums\ApprovalStatus;
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
@@ -111,6 +112,11 @@ class AuthController extends Controller
             ]);
         }
 
+        // Pending/rejected organizations must not receive a token.
+        if ($approvalResponse = $this->organizationApprovalResponse($user)) {
+            return $approvalResponse;
+        }
+
         [$user, $token] = $this->authService->login($user, (bool) ($data['rememberMe'] ?? false));
         $payload = (new WebsiteLoginUserResource($user))->resolve();
         $payload['auth_token'] = $token->key;
@@ -120,6 +126,49 @@ class AuthController extends Controller
             'Login successful.',
             'تم تسجيل الدخول بنجاح.'
         );
+    }
+
+    /**
+     * Organizations may only receive a token once the admin approves their
+     * profile. Volunteers and approved organizations pass through untouched.
+     */
+    protected function organizationApprovalResponse(User $user): ?JsonResponse
+    {
+        if ($user->user_type !== UserType::ORGANIZATION) {
+            return null;
+        }
+
+        $status = $user->organizationProfile?->organization_status;
+
+        if ($status === ApprovalStatus::PENDING) {
+            return ApiResponse::error(
+                'Your organization account has not been approved by the admin yet.',
+                'لم يتم تأكيد حساب الجهة من قبل الإدارة بعد.',
+                403,
+                [
+                    'organization_status' => [
+                        'en' => 'Your organization account is pending admin approval.',
+                        'ar' => 'حساب الجهة في انتظار موافقة الإدارة.',
+                    ],
+                ]
+            );
+        }
+
+        if ($status === ApprovalStatus::REJECTED) {
+            return ApiResponse::error(
+                'Your organization account was rejected by the admin.',
+                'تم رفض حساب الجهة من قبل الإدارة.',
+                403,
+                [
+                    'organization_status' => [
+                        'en' => 'Your organization account was rejected by the admin.',
+                        'ar' => 'تم رفض حساب الجهة من قبل الإدارة.',
+                    ],
+                ]
+            );
+        }
+
+        return null;
     }
 
     public function forgotPassword(Request $request): JsonResponse
@@ -478,6 +527,12 @@ class AuthController extends Controller
                 'social_media_provider' => $data['social_media_provider'],
             ]);
             $user->save();
+        }
+
+        // Existing pending/rejected organizations must not receive a token either.
+        // Brand-new social sign-ups are left untouched (same behavior as before).
+        if (! $isNewUser && $approvalResponse = $this->organizationApprovalResponse($user)) {
+            return $approvalResponse;
         }
 
         $token = $this->authService->issueSocialToken($user);
