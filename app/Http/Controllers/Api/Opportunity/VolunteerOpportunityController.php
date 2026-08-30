@@ -149,6 +149,64 @@ class VolunteerOpportunityController extends Controller
         );
     }
 
+    public function reopenRegistration(Request $request, int $id): JsonResponse
+    {
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        $before = $this->opportunitySnapshot($opportunity);
+        $opportunity->update(['is_registration_closed' => false]);
+        OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
+        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
+
+        return ApiResponse::success(
+            new VolunteerOpportunityResource($opportunity),
+            'Registration reopened successfully.',
+            'تم إعادة فتح التسجيل بنجاح.'
+        );
+    }
+
+    /**
+     * Let the organizer resend a rejected opportunity back into the approval
+     * queue after editing it, instead of having to recreate it from scratch.
+     */
+    public function resubmit(Request $request, int $id): JsonResponse
+    {
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        if ($opportunity->approval_status !== ApprovalStatus::REJECTED) {
+            return ApiResponse::error(
+                'Only a rejected opportunity can be resubmitted.',
+                'يمكن فقط إعادة تقديم فرصة تم رفضها.',
+                400
+            );
+        }
+
+        $opportunity->approval_status = ApprovalStatus::PENDING;
+        $opportunity->rejected_reason = null;
+        $opportunity->save();
+        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
+
+        return ApiResponse::success(
+            new VolunteerOpportunityResource($opportunity),
+            'Opportunity resubmitted for approval.',
+            'تم إعادة تقديم الفرصة للمراجعة.'
+        );
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         $opportunity = VolunteerOpportunity::query()

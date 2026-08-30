@@ -12,13 +12,20 @@ use Tests\Support\CreatesDomainFixtures;
 use Tests\TestCase;
 
 /**
- * Diagnoses why opportunity #108 is missing from the public site while #106
- * (older, same flags) shows fine.
+ * Diagnosed why opportunity #108 was missing from page 1 of the public site
+ * while #106 (older, same flags) showed fine.
  *
  * Real row values from the dump:
  *   #108 approved, is_public=1, is_deleted=0, due_date 2026-08-26 00:00,
  *        start_date 2026-08-27
  *   #109 approved, is_public=1, is_deleted=1  <- soft deleted
+ *
+ * Root cause: the sort bucket in listVolunteerOpportunities() compared the
+ * raw due_date timestamp against now(), so a same-day due_date (typically
+ * midnight, as here) counted as already expired the moment any later time
+ * that day was reached — even though registrationClosesAt() correctly treats
+ * due_date as open through end of day. Fixed by bucketing on DATE(due_date)
+ * instead of the raw timestamp.
  */
 class Opportunity108DiagnosisTest extends TestCase
 {
@@ -111,11 +118,11 @@ class Opportunity108DiagnosisTest extends TestCase
         $this->assertContains($row->id, $ids);
     }
 
-    public function test_pagination_can_push_a_row_off_the_first_page(): void
+    public function test_same_day_due_date_no_longer_falls_off_the_first_page(): void
     {
         [$org] = $this->createOrganizationActor();
 
-        // 12 healthy upcoming rows rank ahead of a past-due one.
+        // 12 genuinely-future rows would previously outrank a same-day due_date.
         for ($i = 0; $i < 12; $i++) {
             $this->row($org->id, [
                 'title_en' => "Healthy {$i}",
@@ -128,7 +135,7 @@ class Opportunity108DiagnosisTest extends TestCase
             ]);
         }
 
-        $pastDue = $this->row($org->id, [
+        $dueToday = $this->row($org->id, [
             'title_en' => 'Dolore esse et volup',
             'due_date' => '2026-08-26 00:00:00',
             'start_date' => '2026-08-27',
@@ -143,13 +150,16 @@ class Opportunity108DiagnosisTest extends TestCase
             'id'
         );
 
-        // This is the practical failure mode: it is in the data set, but it
-        // sorts into the last bucket, so page 1 never shows it.
-        $this->assertNotContains(
-            $pastDue->id,
+        // A same-day due_date is still within its registration window (open
+        // through end of day), so it belongs in the same "open" bucket as the
+        // healthy rows — and since its start_date is earlier, it now ranks
+        // ahead of them instead of sinking to the last bucket.
+        $this->assertContains(
+            $dueToday->id,
             $firstPage,
-            'A past-due row sinks to the last bucket and falls off page 1.'
+            'A same-day due_date must not sink to the last bucket and fall off page 1.'
         );
+        $this->assertSame($dueToday->id, $firstPage[0] ?? null);
     }
 
     /**

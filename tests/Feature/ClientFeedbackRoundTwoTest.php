@@ -128,6 +128,61 @@ class ClientFeedbackRoundTwoTest extends TestCase
         );
     }
 
+    public function test_organizer_can_reopen_closed_registration(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+        $opportunity = $this->makeOpportunity($org, ['is_registration_closed' => true]);
+
+        $response = $this->api($token)
+            ->postJson("/api/volunteer-opportunities/{$opportunity->id}/reopen-registration/");
+
+        $this->assertSuccessEnvelope($response, 200, 'Registration reopened successfully.');
+        $this->assertFalse($opportunity->fresh()->is_registration_closed);
+    }
+
+    public function test_organizer_cannot_reopen_someone_elses_opportunity(): void
+    {
+        [$org] = $this->createOrganizationActor('owner.reg@test.com');
+        [, $otherToken] = $this->createOrganizationActor('other.reg@test.com');
+        $opportunity = $this->makeOpportunity($org, ['is_registration_closed' => true]);
+
+        $this->api($otherToken)
+            ->postJson("/api/volunteer-opportunities/{$opportunity->id}/reopen-registration/")
+            ->assertNotFound();
+
+        $this->assertTrue($opportunity->fresh()->is_registration_closed);
+    }
+
+    public function test_organizer_can_resubmit_a_rejected_opportunity(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+        $opportunity = $this->makeOpportunity($org, [
+            'approval_status' => ApprovalStatus::REJECTED,
+            'rejected_reason' => 'Missing details',
+        ]);
+
+        $response = $this->api($token)
+            ->postJson("/api/volunteer-opportunities/{$opportunity->id}/resubmit/");
+
+        $this->assertSuccessEnvelope($response, 200, 'Opportunity resubmitted for approval.');
+
+        $fresh = $opportunity->fresh();
+        $this->assertSame(ApprovalStatus::PENDING, $fresh->approval_status);
+        $this->assertNull($fresh->rejected_reason);
+    }
+
+    public function test_resubmit_rejects_an_opportunity_that_was_not_rejected(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+        $opportunity = $this->makeOpportunity($org, ['approval_status' => ApprovalStatus::APPROVED]);
+
+        $this->api($token)
+            ->postJson("/api/volunteer-opportunities/{$opportunity->id}/resubmit/")
+            ->assertStatus(400);
+
+        $this->assertSame(ApprovalStatus::APPROVED, $opportunity->fresh()->approval_status);
+    }
+
     public function test_beneficiaries_count_is_kept_only_for_charity_category(): void
     {
         [$org, $token] = $this->createOrganizationActor();

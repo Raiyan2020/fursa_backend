@@ -250,7 +250,7 @@ class AllEndpointsCompatibilityTest extends TestCase
             ->assertJsonPath('data.user_type', 'volunteer')
             ->assertJsonPath('data.password', null);
 
-        $update = $this->withTokenHeader($this->volunteerToken)->patchJson('/api/account/', [
+        $update = $this->withTokenHeader($this->volunteerToken)->postJson('/api/account/', [
             'first_name' => 'Updated',
             'preferred_language' => 'ar',
         ]);
