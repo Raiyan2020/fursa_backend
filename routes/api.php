@@ -70,7 +70,7 @@ Route::get('all-profiles/', [OrganizationProfileController::class, 'allProfiles'
 // Auth — protected
 Route::middleware('auth:api')->group(function () {
     Route::get('account/', [AuthController::class, 'account']);
-    Route::match(['put', 'patch'], 'account/', [AuthController::class, 'updateAccount']);
+    Route::match(['post', 'put', 'patch'], 'account/', [AuthController::class, 'updateAccount']);
     Route::get('check-license-requirement/', [BaseController::class, 'checkLicenseRequirement']);
 
     Route::get('volunteer-profile/', [VolunteerProfileController::class, 'show']);
