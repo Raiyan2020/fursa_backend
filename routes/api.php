@@ -105,11 +105,11 @@ Route::middleware('auth:api')->group(function () {
     Route::get('volunteer-opportunities/', [VolunteerOpportunityController::class, 'index']);
     Route::post('volunteer-opportunities/', [VolunteerOpportunityController::class, 'store']);
     Route::get('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'show']);
-    Route::match(['put', 'patch'], 'volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update']);
+    Route::post('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update']);
     Route::post('volunteer-opportunities/{id}/close-registration/', [VolunteerOpportunityController::class, 'closeRegistration']);
     Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration']);
     Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit']);
-    Route::patch('volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages']);
+    Route::post('volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages']);
     Route::delete('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'destroy']);
     Route::match(['delete', 'post'], 'volunteer-opportunities/{opportunity_id}/unregister/', [VolunteerOpportunityRegistrationController::class, 'unregister']);
 
