@@ -66,6 +66,9 @@ Route::get('pages/{slug}/', [PageController::class, 'show']);
 
 // Organization — public (Django AllowAny)
 Route::get('all-profiles/', [OrganizationProfileController::class, 'allProfiles']);
+Route::get('profiles/volunteers/', [OrganizationProfileController::class, 'volunteerProfilesList']);
+Route::get('profiles/organizations/', [OrganizationProfileController::class, 'organizationProfilesList']);
+Route::get('profiles/volunteer-teams/', [OrganizationProfileController::class, 'volunteerTeamProfilesList']);
 
 // Auth — protected
 Route::middleware('auth:api')->group(function () {

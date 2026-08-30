@@ -200,12 +200,15 @@ class OrganizationProfileController extends Controller
         );
     }
 
-    /** Matches Django GET all-profiles/ (combined volunteers + orgs + volunteer teams). */
+    /**
+     * Matches Django GET all-profiles/ (combined volunteers + orgs + volunteer
+     * teams) — small, independently-paginated groups for the profiles landing
+     * page ("عرض الكل" per section still uses volunteer_page / organization_page
+     * / volunteer_team_page here, but prefer the dedicated single-type
+     * endpoints below for a full "view all" listing).
+     */
     public function allProfiles(Request $request): JsonResponse
     {
-        $search = $request->query('search');
-        $name = $request->query('name');
-        $nickname = $request->query('nickname');
         $userType = $request->query('user_type');
         $genericPage = max(1, (int) $request->query('page', 1));
         $volunteerPage = max(1, (int) $request->query('volunteer_page', $genericPage));
@@ -213,83 +216,9 @@ class OrganizationProfileController extends Controller
         $volunteerTeamPage = max(1, (int) $request->query('volunteer_team_page', $genericPage));
         $limit = min(100, max(1, (int) $request->query('limit', 10)));
 
-        $volunteerTeamType = MasterChoice::query()
-            ->notDeleted()
-            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-            ->where('value_en', 'Volunteer Team')
-            ->first();
-
-        $volunteerQuery = VolunteerProfile::query()
-            ->notDeleted()
-            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
-            ->with([
-                'user.interests',
-                'user.masterInterests.choiceType',
-                'user.badge',
-                'user.volunteerProfile.gender.choiceType',
-                'user.emergencyContactRelationship.choiceType',
-                'gender.choiceType',
-                'currentBadge',
-            ]);
-
-        $orgQuery = OrganizationProfile::query()
-            ->notDeleted()
-            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
-            ->with([
-                'organizerType.choiceType',
-                'sector.choiceType',
-                'documents',
-                'user.interests',
-                'user.masterInterests.choiceType',
-                'user.badge',
-            ]);
-
-        if ($volunteerTeamType) {
-            $orgQuery->where('organizer_type_id', '!=', $volunteerTeamType->id);
-        }
-
-        $teamQuery = OrganizationProfile::query()
-            ->notDeleted()
-            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
-            ->with([
-                'organizerType.choiceType',
-                'sector.choiceType',
-                'documents',
-                'user.interests',
-                'user.masterInterests.choiceType',
-                'user.badge',
-            ]);
-
-        if ($volunteerTeamType) {
-            $teamQuery->where('organizer_type_id', $volunteerTeamType->id);
-        } else {
-            $teamQuery->whereRaw('1 = 0');
-        }
-
-        $applySearch = function ($query, string $relation = 'user') use ($search, $name, $nickname) {
-            if ($search) {
-                $query->where(function ($q) use ($search, $relation) {
-                    $q->where('nickname', 'like', "%{$search}%")
-                        ->orWhereHas($relation, function ($uq) use ($search) {
-                            $uq->where('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%");
-                        });
-                });
-            }
-            if ($name) {
-                $query->whereHas($relation, function ($uq) use ($name) {
-                    $uq->where('first_name', 'like', "%{$name}%")
-                        ->orWhere('last_name', 'like', "%{$name}%");
-                });
-            }
-            if ($nickname) {
-                $query->where('nickname', 'like', "%{$nickname}%");
-            }
-        };
-
-        $applySearch($volunteerQuery);
-        $applySearch($orgQuery);
-        $applySearch($teamQuery);
+        $volunteerQuery = $this->applyProfileSearch($this->volunteerProfilesBaseQuery(), $request);
+        $orgQuery = $this->applyProfileSearch($this->organizationProfilesBaseQuery(), $request);
+        $teamQuery = $this->applyProfileSearch($this->organizationProfilesBaseQuery(volunteerTeamsOnly: true), $request);
 
         if ($userType === 'volunteer') {
             $orgQuery->whereRaw('1 = 0');
@@ -345,5 +274,144 @@ class OrganizationProfileController extends Controller
                 'timestamp' => now()->toIso8601String(),
             ],
         ], 'Profiles retrieved successfully.', 'تم استرجاع الملفات بنجاح.');
+    }
+
+    /** "عرض الكل" for the متطوع (volunteer) section — a single, fully paginated list. */
+    public function volunteerProfilesList(Request $request): JsonResponse
+    {
+        $query = $this->applyProfileSearch($this->volunteerProfilesBaseQuery(), $request);
+        $paginator = $this->paginateProfileQuery($query, $request);
+
+        return ApiResponse::paginated(
+            $paginator,
+            $paginator->getCollection()
+                ->map(fn ($profile) => (new WebsiteProfileListItemResource($profile, 'volunteer'))->resolve())
+                ->values(),
+            'Volunteers retrieved successfully.',
+            'تم استرجاع المتطوعين بنجاح.'
+        );
+    }
+
+    /** "عرض الكل" for the مؤسسة (organization) section — a single, fully paginated list. */
+    public function organizationProfilesList(Request $request): JsonResponse
+    {
+        $query = $this->applyProfileSearch($this->organizationProfilesBaseQuery(), $request);
+        $paginator = $this->paginateProfileQuery($query, $request);
+
+        return ApiResponse::paginated(
+            $paginator,
+            $paginator->getCollection()
+                ->map(fn ($profile) => (new WebsiteProfileListItemResource($profile, 'organization'))->resolve())
+                ->values(),
+            'Organizations retrieved successfully.',
+            'تم استرجاع المؤسسات بنجاح.'
+        );
+    }
+
+    /** "عرض الكل" for the فريق تطوعي (volunteer team) section — a single, fully paginated list. */
+    public function volunteerTeamProfilesList(Request $request): JsonResponse
+    {
+        $query = $this->applyProfileSearch($this->organizationProfilesBaseQuery(volunteerTeamsOnly: true), $request);
+        $paginator = $this->paginateProfileQuery($query, $request);
+
+        return ApiResponse::paginated(
+            $paginator,
+            $paginator->getCollection()
+                ->map(fn ($profile) => (new WebsiteProfileListItemResource($profile, 'organization'))->resolve())
+                ->values(),
+            'Volunteer teams retrieved successfully.',
+            'تم استرجاع فرق التطوع بنجاح.'
+        );
+    }
+
+    protected function volunteerTeamTypeId(): ?int
+    {
+        return MasterChoice::query()
+            ->notDeleted()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+            ->where('value_en', 'Volunteer Team')
+            ->value('id');
+    }
+
+    protected function volunteerProfilesBaseQuery()
+    {
+        return VolunteerProfile::query()
+            ->notDeleted()
+            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
+            ->with([
+                'user.interests',
+                'user.masterInterests.choiceType',
+                'user.badge',
+                'user.volunteerProfile.gender.choiceType',
+                'user.emergencyContactRelationship.choiceType',
+                'gender.choiceType',
+                'currentBadge',
+            ]);
+    }
+
+    protected function organizationProfilesBaseQuery(bool $volunteerTeamsOnly = false)
+    {
+        $query = OrganizationProfile::query()
+            ->notDeleted()
+            ->whereHas('user', fn ($q) => $q->where('is_deleted', false)->where('is_banned', false))
+            ->with([
+                'organizerType.choiceType',
+                'sector.choiceType',
+                'documents',
+                'user.interests',
+                'user.masterInterests.choiceType',
+                'user.badge',
+            ]);
+
+        $teamTypeId = $this->volunteerTeamTypeId();
+
+        if ($volunteerTeamsOnly) {
+            $teamTypeId ? $query->where('organizer_type_id', $teamTypeId) : $query->whereRaw('1 = 0');
+        } elseif ($teamTypeId) {
+            // `!=` alone silently drops rows where organizer_type_id is NULL
+            // (SQL's three-valued logic), so an org with no type set would
+            // vanish from both the organization and volunteer-team groups.
+            $query->where(function ($q) use ($teamTypeId) {
+                $q->where('organizer_type_id', '!=', $teamTypeId)->orWhereNull('organizer_type_id');
+            });
+        }
+
+        return $query;
+    }
+
+    protected function applyProfileSearch($query, Request $request, string $relation = 'user')
+    {
+        $search = $request->query('search');
+        $name = $request->query('name');
+        $nickname = $request->query('nickname');
+
+        if ($search) {
+            $query->where(function ($q) use ($search, $relation) {
+                $q->where('nickname', 'like', "%{$search}%")
+                    ->orWhereHas($relation, function ($uq) use ($search) {
+                        $uq->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+        if ($name) {
+            $query->whereHas($relation, function ($uq) use ($name) {
+                $uq->where('first_name', 'like', "%{$name}%")
+                    ->orWhere('last_name', 'like', "%{$name}%");
+            });
+        }
+        if ($nickname) {
+            $query->where('nickname', 'like', "%{$nickname}%");
+        }
+
+        return $query;
+    }
+
+    protected function paginateProfileQuery($query, Request $request)
+    {
+        $page = max(1, (int) $request->query('page', 1));
+        $limit = min(100, max(1, (int) $request->query('limit', 20)));
+
+        return $query->latest('updated_at')->paginate($limit, ['*'], 'page', $page);
     }
 }
