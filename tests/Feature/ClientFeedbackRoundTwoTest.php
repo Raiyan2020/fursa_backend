@@ -99,6 +99,35 @@ class ClientFeedbackRoundTwoTest extends TestCase
         $this->assertSame($emergency->id, $ids[0] ?? null);
     }
 
+    public function test_same_day_due_date_at_midnight_still_ranks_as_open(): void
+    {
+        [$org] = $this->createOrganizationActor();
+
+        $stale = $this->makeOpportunity($org, [
+            'title_en' => 'Long finished',
+            'opportunity_status' => OpportunityStatus::COMPLETED,
+            'start_date' => now()->subMonths(6)->toDateString(),
+            'end_date' => now()->subMonths(6)->addDay()->toDateString(),
+            'due_date' => now()->subMonths(6)->toDateString(),
+        ]);
+
+        $dueToday = $this->makeOpportunity($org, [
+            'title_en' => 'Due today at midnight',
+            'opportunity_status' => OpportunityStatus::UPCOMING,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->toDateString(),
+            'due_date' => now()->startOfDay(),
+        ]);
+
+        $ids = array_column($this->getJson('/api/list-volunteer-opportunities/')->json('data') ?? [], 'id');
+
+        $this->assertLessThan(
+            array_search($stale->id, $ids, true),
+            array_search($dueToday->id, $ids, true),
+            'A due_date at midnight on the current day must still rank as open, not fall behind long-completed opportunities.'
+        );
+    }
+
     public function test_beneficiaries_count_is_kept_only_for_charity_category(): void
     {
         [$org, $token] = $this->createOrganizationActor();

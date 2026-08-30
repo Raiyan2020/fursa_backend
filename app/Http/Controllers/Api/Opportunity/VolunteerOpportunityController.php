@@ -199,7 +199,11 @@ class VolunteerOpportunityController extends Controller
             return $filtered;
         }
 
-        $now = now();
+        // `due_date` closes at the END of that calendar day (see
+        // HasRegistrationWindow::registrationClosesAt()), so bucket on the date
+        // only — comparing the raw timestamp against now() would mark a same-day
+        // due_date as already expired the moment midnight passes.
+        $today = now()->toDateString();
         $filtered = $filtered
             ->select('volunteer_opportunities.*')
             ->selectRaw('(SELECT COUNT(*) FROM volunteer_opportunity_registrations r WHERE r.opportunity_id = volunteer_opportunities.id AND r.is_deleted = 0) as current_registrations')
@@ -211,18 +215,18 @@ class VolunteerOpportunityController extends Controller
                 CASE
                     WHEN (is_emergency = 1 OR is_urgent = 1) AND opportunity_status = 'upcoming'
                         AND (participants_needed = 0 OR current_registrations < participants_needed)
-                        AND (due_date IS NULL OR due_date >= ?)
+                        AND (due_date IS NULL OR DATE(due_date) >= ?)
                         AND opportunity_status != 'completed' THEN 0
                     WHEN opportunity_status = 'upcoming'
                         AND (participants_needed = 0 OR current_registrations < participants_needed)
-                        AND (due_date IS NULL OR due_date >= ?) THEN 1
+                        AND (due_date IS NULL OR DATE(due_date) >= ?) THEN 1
                     WHEN (participants_needed > 0 AND current_registrations >= participants_needed)
-                        AND (due_date IS NULL OR due_date >= ?) THEN 2
+                        AND (due_date IS NULL OR DATE(due_date) >= ?) THEN 2
                     WHEN opportunity_status = 'inprogress'
                         AND (participants_needed = 0 OR current_registrations < participants_needed) THEN 3
                     ELSE 4
                 END ASC
-            ", [$now, $now, $now])
+            ", [$today, $today, $today])
             ->orderBy('start_date');
 
         $paginator = $this->paginateQuery($filtered, $request);
