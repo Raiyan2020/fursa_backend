@@ -55,14 +55,52 @@
         <input type="text" name="civil_id" class="form-control" value="{{ old('civil_id', $user->civil_id ?? '') }}">
         @error('civil_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
+    @php
+        // Volunteer and entity are different kinds of account, not interchangeable
+        // field sets, so an existing account cannot cross that boundary. The
+        // controller enforces this; the options are disabled here so the reason
+        // is visible before submitting.
+        $isExisting = ! empty($user);
+        $onVolunteerSide = $accountType === 'volunteer';
+        $onOrganizationSide = in_array($accountType, ['organization', 'volunteer_team'], true);
+        $lockCrossSide = $isExisting && ($onVolunteerSide || $onOrganizationSide);
+
+        $blockedOption = function (string $value) use ($lockCrossSide, $onVolunteerSide, $onOrganizationSide) {
+            if (! $lockCrossSide) {
+                return false;
+            }
+            if ($onVolunteerSide) {
+                return in_array($value, ['organization', 'volunteer_team'], true);
+            }
+            if ($onOrganizationSide) {
+                return $value === 'volunteer';
+            }
+
+            return false;
+        };
+    @endphp
     <div class="col-md-6 mb-1">
         <label>{{ __('user type') }} <span class="text-danger">*</span></label>
         <select name="account_type" id="account_type" class="form-control" required>
-            <option value="volunteer" {{ $accountType === 'volunteer' ? 'selected' : '' }}>{{ __('admin.user_types.volunteer') }}</option>
-            <option value="organization" {{ $accountType === 'organization' ? 'selected' : '' }}>{{ __('admin.user_types.organization') }}</option>
-            <option value="volunteer_team" {{ $accountType === 'volunteer_team' ? 'selected' : '' }}>{{ __('admin.user_types.volunteer_team') }}</option>
-            <option value="admin" {{ $accountType === 'admin' ? 'selected' : '' }}>{{ __('admin.user_types.admin') }}</option>
+            @foreach ([
+                'volunteer' => __('admin.user_types.volunteer'),
+                'organization' => __('admin.user_types.organization'),
+                'volunteer_team' => __('admin.user_types.volunteer_team'),
+                'admin' => __('admin.user_types.admin'),
+            ] as $value => $label)
+                <option value="{{ $value }}"
+                    {{ $accountType === $value ? 'selected' : '' }}
+                    {{ $blockedOption($value) ? 'disabled' : '' }}>
+                    {{ $label }}
+                </option>
+            @endforeach
         </select>
+        @if ($lockCrossSide)
+            <small class="text-muted d-block mt-half">
+                {{ __('An account cannot be switched between volunteer and entity. Register a separate account instead.') }}
+            </small>
+        @endif
+        @error('account_type') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
     <div class="col-md-6 mb-1 js-org-fields">
         <label>{{ __('company name') }}</label>

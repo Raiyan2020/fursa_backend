@@ -10,6 +10,7 @@ use App\Models\OrganizationProfile;
 use App\Enums\Nationality;
 use App\Models\User;
 use App\Models\VolunteerProfile;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -153,6 +154,10 @@ class UserController extends Controller
     {
         $data = $this->validated($request, $user);
 
+        if ($blocked = $this->rejectUnsupportedAccountTypeChange($user, $data['account_type'])) {
+            return $blocked;
+        }
+
         DB::transaction(function () use ($data, $request, $user) {
             [$userType] = $this->resolveAccountType($data['account_type']);
 
@@ -222,6 +227,68 @@ class UserController extends Controller
     /**
      * @return array{0: UserType, 1: bool}
      */
+    /**
+     * Blocks switching an existing account between volunteer and organization.
+     *
+     * The two are different kinds of entity, not one entity with different
+     * fields: a volunteer owns personally-earned hours, certificates and badges,
+     * while an organization owns a licence, registration number and the
+     * opportunities it publishes. Flipping the type stranded the volunteer's
+     * record behind the organization profile template, and — worse — set
+     * organization_status to APPROVED, skipping licence verification entirely.
+     *
+     * Someone who runs an organization registers a separate account for it.
+     */
+    protected function rejectUnsupportedAccountTypeChange(User $user, string $requestedType): ?RedirectResponse
+    {
+        $current = $this->currentAccountType($user);
+
+        if ($current === null || $current === $requestedType) {
+            return null;
+        }
+
+        $volunteerSide = ['volunteer'];
+        $organizationSide = ['organization', 'volunteer_team'];
+
+        $crossesBoundary =
+            (in_array($current, $volunteerSide, true) && in_array($requestedType, $organizationSide, true))
+            || (in_array($current, $organizationSide, true) && in_array($requestedType, $volunteerSide, true));
+
+        if (! $crossesBoundary) {
+            return null;
+        }
+
+        return back()
+            ->withInput()
+            ->withErrors([
+                'account_type' => __('An account cannot be switched between volunteer and entity. Register a separate account instead.'),
+            ]);
+    }
+
+    /**
+     * The account_type the form would show for this user right now.
+     */
+    protected function currentAccountType(User $user): ?string
+    {
+        if ($user->user_type === UserType::VOLUNTEER) {
+            return 'volunteer';
+        }
+
+        if ($user->user_type === UserType::ADMIN) {
+            return 'admin';
+        }
+
+        if ($user->user_type === UserType::ORGANIZATION) {
+            $volunteerTeamId = $this->volunteerTeamTypeId();
+
+            return $volunteerTeamId && (int) $user->organizationProfile?->organizer_type_id === (int) $volunteerTeamId
+                ? 'volunteer_team'
+                : 'organization';
+        }
+
+        return null;
+    }
+
     protected function resolveAccountType(string $accountType): array
     {
         return match ($accountType) {
