@@ -120,6 +120,8 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::put('volunteer-opportunities/{opportunity}', [VolunteerOpportunityController::class, 'update'])->name('volunteer-opportunities.update');
     Route::delete('volunteer-opportunities/{opportunity}', [VolunteerOpportunityController::class, 'destroy'])->name('volunteer-opportunities.destroy');
     Route::delete('volunteer-opportunities/{opportunity}/images/{image}', [VolunteerOpportunityController::class, 'destroyImage'])->name('volunteer-opportunities.images.destroy');
+    Route::post('volunteer-opportunities/{opportunity}/sponsors', [VolunteerOpportunityController::class, 'storeSponsor'])->name('volunteer-opportunities.sponsors.store');
+    Route::delete('volunteer-opportunities/{opportunity}/sponsors/{sponsor}', [VolunteerOpportunityController::class, 'destroySponsor'])->name('volunteer-opportunities.sponsors.destroy');
     Route::post('volunteer-opportunities/{opportunity}/approve', [VolunteerOpportunityController::class, 'approve'])->name('volunteer-opportunities.approve');
     Route::post('volunteer-opportunities/{opportunity}/reject', [VolunteerOpportunityController::class, 'reject'])->name('volunteer-opportunities.reject');
     Route::post('volunteer-opportunities/{opportunity}/approve-deletion', [VolunteerOpportunityController::class, 'approveDeletion'])->name('volunteer-opportunities.approve-deletion');
@@ -136,6 +138,8 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::put('learn-serve-opportunities/{opportunity}', [LearnServeOpportunityController::class, 'update'])->name('learn-serve-opportunities.update');
     Route::delete('learn-serve-opportunities/{opportunity}', [LearnServeOpportunityController::class, 'destroy'])->name('learn-serve-opportunities.destroy');
     Route::delete('learn-serve-opportunities/{opportunity}/images/{image}', [LearnServeOpportunityController::class, 'destroyImage'])->name('learn-serve-opportunities.images.destroy');
+    Route::post('learn-serve-opportunities/{opportunity}/sponsors', [LearnServeOpportunityController::class, 'storeSponsor'])->name('learn-serve-opportunities.sponsors.store');
+    Route::delete('learn-serve-opportunities/{opportunity}/sponsors/{sponsor}', [LearnServeOpportunityController::class, 'destroySponsor'])->name('learn-serve-opportunities.sponsors.destroy');
     Route::post('learn-serve-opportunities/{opportunity}/approve', [LearnServeOpportunityController::class, 'approve'])->name('learn-serve-opportunities.approve');
     Route::post('learn-serve-opportunities/{opportunity}/reject', [LearnServeOpportunityController::class, 'reject'])->name('learn-serve-opportunities.reject');
     Route::post('learn-serve-opportunities/{opportunity}/approve-deletion', [LearnServeOpportunityController::class, 'approveDeletion'])->name('learn-serve-opportunities.approve-deletion');

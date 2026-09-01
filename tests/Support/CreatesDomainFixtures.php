@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\UserType;
 use App\Models\Admin;
 use App\Models\ExpiringToken;
+use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
 use App\Models\User;
 use App\Models\VolunteerProfile;
@@ -74,6 +75,28 @@ trait CreatesDomainFixtures
         $token = ExpiringToken::issueFor($user, 30);
 
         return [$user->fresh('organizationProfile'), $token->key];
+    }
+
+    /**
+     * An organization actor whose organizer_type is "Volunteer Team" —
+     * excluded from sponsor pickers and from the plain organizations group.
+     *
+     * @return array{0: User, 1: string}
+     */
+    protected function createVolunteerTeamActor(?string $email = null): array
+    {
+        [$user, $token] = $this->createOrganizationActor($email ?? 'team.'.Str::lower(Str::random(6)).'@test.com');
+
+        $teamType = MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+            ->where('value_en', 'Volunteer Team')
+            ->firstOrFail();
+
+        OrganizationProfile::query()
+            ->where('user_id', $user->id)
+            ->update(['organizer_type_id' => $teamType->id]);
+
+        return [$user->fresh('organizationProfile'), $token];
     }
 
     protected function adminActor(): Admin

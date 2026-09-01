@@ -32,6 +32,44 @@ trait BuildsWebsiteFields
         ])->values()->all();
     }
 
+    /**
+     * Per-item status tag for a profile's "opportunities" tab. Only computed
+     * when the resource was built with a `$profileOwnerId` (i.e. this list is
+     * someone's profile activity, not the general public feed).
+     *
+     * Client rule: the profile owner sees "registered" for a pending
+     * registration; anyone else viewing the profile never sees "registered"
+     * — only "attended" (or, for a development opportunity, "participant" /
+     * "provider") once it's real, completed activity.
+     */
+    protected function profileActivityTag(
+        ?int $profileOwnerId,
+        Request $request,
+        bool $isCreator,
+        bool $isRegistered,
+        bool $isAttended,
+        bool $isDevelopment
+    ): ?string {
+        if ($profileOwnerId === null) {
+            return null;
+        }
+
+        if ($isDevelopment && $isCreator) {
+            return 'provider';
+        }
+
+        if ($isAttended) {
+            return $isDevelopment ? 'participant' : 'attended';
+        }
+
+        $viewerIsOwner = $request->user() && (int) $request->user()->id === $profileOwnerId;
+        if ($isRegistered && $viewerIsOwner) {
+            return 'registered';
+        }
+
+        return null;
+    }
+
     protected function websiteImageList($images): array
     {
         return collect($images)->map(fn ($img) => [

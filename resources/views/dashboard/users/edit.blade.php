@@ -6,7 +6,7 @@
             <div class="card">
                 <div class="card-header"><h4 class="card-title">{{ __('users') }} - {{ __('edit') }}</h4></div>
                 <div class="card-content"><div class="card-body">
-                    <form action="{{ route('admin.users.update', $user) }}" method="POST">
+                    <form action="{{ route('admin.users.update', $user) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
                         @include('dashboard.users.form')

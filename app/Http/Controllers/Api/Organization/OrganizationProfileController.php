@@ -181,6 +181,16 @@ class OrganizationProfileController extends Controller
             ->where('organization_status', ApprovalStatus::APPROVED)
             ->whereHas('user', fn ($q) => $q->where('is_banned', false)->where('is_deleted', false)->where('id', '!=', $request->user()->id));
 
+        // Sponsor pickers must not offer "Volunteer Team" organizations.
+        if ($request->boolean('for_sponsorship')) {
+            $teamTypeId = $this->volunteerTeamTypeId();
+            if ($teamTypeId) {
+                $query->where(function ($q) use ($teamTypeId) {
+                    $q->where('organizer_type_id', '!=', $teamTypeId)->orWhereNull('organizer_type_id');
+                });
+            }
+        }
+
         if ($name) {
             $query->where(function ($q) use ($name) {
                 $q->where('company_name', 'like', "%{$name}%")

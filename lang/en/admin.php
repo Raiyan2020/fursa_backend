@@ -59,8 +59,10 @@ return [
         'is_verified' => 'Verified',
         'current_badge_id' => 'Badge',
         'company_name' => 'Entity name',
+        'sponsor_organization' => 'Sponsor organization',
         'registration_number' => 'Registration number',
         'license_number' => 'License number',
+        'license_documents' => 'License documents',
         'organization_status' => 'Entity status',
         'reason' => 'Reason',
         'title_en' => 'Title (English)',
@@ -165,6 +167,7 @@ return [
         'rejection_reason_required' => 'Rejection reason is required.',
         'required' => 'The :attribute field is required.',
         'boolean' => 'The :attribute field must be true or false.',
+        'sponsor_already_added' => 'This organization is already a sponsor of this opportunity.',
     ],
     'nationalities' => [
         'kuwaitis' => 'Kuwaitis',
@@ -176,6 +179,10 @@ return [
         'organization' => 'Entity',
         'volunteer_team' => 'Volunteer Team',
         'admin' => 'Admin',
+    ],
+    'residency_statuses' => [
+        'resident' => 'Resident',
+        'non_resident' => 'Non-resident',
     ],
     'statuses' => [
         'approved' => 'Approved',

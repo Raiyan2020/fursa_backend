@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Interest;
 use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
+use App\Models\OpportunitySponsorImage;
 use App\Models\OrganizationProfile;
 use App\Models\VolunteerOpportunity;
 use App\Services\Opportunity\OpportunityAudienceNotifier;
@@ -116,7 +117,7 @@ class VolunteerOpportunityController extends Controller
 
     public function edit(VolunteerOpportunity $opportunity)
     {
-        $opportunity->load(['interests', 'images', 'creator']);
+        $opportunity->load(['interests', 'images', 'creator', 'sponsorImages' => fn ($q) => $q->where('is_deleted', false), 'sponsorImages.organization']);
 
         return view('dashboard.volunteer-opportunities.edit', array_merge(
             compact('opportunity'),
@@ -170,6 +171,62 @@ class VolunteerOpportunityController extends Controller
         deleted();
 
         return back();
+    }
+
+    public function storeSponsor(Request $request, VolunteerOpportunity $opportunity)
+    {
+        $data = $request->validate([
+            'organization_id' => [
+                'required',
+                'integer',
+                Rule::in($this->sponsorEligibleOrganizationIds()),
+            ],
+        ], [], [
+            'organization_id' => __('admin.attributes.sponsor_organization'),
+        ]);
+
+        if ($opportunity->sponsorImages()->where('is_deleted', false)->where('organization_id', $data['organization_id'])->exists()) {
+            return back()->withErrors(['organization_id' => __('admin.messages.sponsor_already_added')]);
+        }
+
+        $opportunity->sponsorImages()->create(['organization_id' => $data['organization_id']]);
+        added();
+
+        return back();
+    }
+
+    public function destroySponsor(VolunteerOpportunity $opportunity, OpportunitySponsorImage $sponsor)
+    {
+        abort_unless((int) $sponsor->volunteer_opportunity_id === (int) $opportunity->id, 404);
+
+        $sponsor->softDeleteFlags();
+        deleted();
+
+        return back();
+    }
+
+    /**
+     * Organizations eligible to be picked as a sponsor — the client asked
+     * that "Volunteer Team" organizations never appear in this picker.
+     *
+     * @return array<int, int>
+     */
+    protected function sponsorEligibleOrganizationIds(): array
+    {
+        $teamTypeId = MasterChoice::query()
+            ->notDeleted()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+            ->where('value_en', 'Volunteer Team')
+            ->value('id');
+
+        return OrganizationProfile::query()
+            ->notDeleted()
+            ->where('organization_status', ApprovalStatus::APPROVED)
+            ->when($teamTypeId, fn ($q) => $q->where(function ($inner) use ($teamTypeId) {
+                $inner->where('organizer_type_id', '!=', $teamTypeId)->orWhereNull('organizer_type_id');
+            }))
+            ->pluck('id')
+            ->all();
     }
 
     /**
@@ -258,6 +315,11 @@ class VolunteerOpportunityController extends Controller
                 ->where('interest_type', InterestType::VOLUNTEER)
                 ->orderBy('name_en')
                 ->get(),
+            'sponsorOrganizations' => OrganizationProfile::query()
+                ->notDeleted()
+                ->whereIn('id', $this->sponsorEligibleOrganizationIds())
+                ->orderBy('company_name')
+                ->get(['id', 'company_name', 'nickname']),
         ];
     }
 

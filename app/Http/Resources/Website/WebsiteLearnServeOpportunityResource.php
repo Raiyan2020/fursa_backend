@@ -12,6 +12,16 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
 {
     use BuildsWebsiteFields;
 
+    /**
+     * @param  int|null  $profileOwnerId  Set only when this card is rendered
+     *                                    inside someone's profile activity tab
+     *                                    — enables `profile_activity_tag`.
+     */
+    public function __construct($resource, protected ?int $profileOwnerId = null)
+    {
+        parent::__construct($resource);
+    }
+
     public function toArray(Request $request): array
     {
         /** @var LearnServeOpportunity $opportunity */
@@ -25,6 +35,10 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
         $isRegistered = $viewer !== null
             && $opportunity->created_by !== $viewer->id
             && $registrations->contains(fn ($registration) => (int) $registration->user_id === (int) $viewer->id);
+
+        $ownerRegistration = $this->profileOwnerId
+            ? $registrations->first(fn ($r) => (int) $r->user_id === $this->profileOwnerId)
+            : null;
 
         return [
             'id' => $opportunity->id,
@@ -48,6 +62,7 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'location_url' => $opportunity->location_url ?: $opportunity->link,
             'is_registration_closed' => (bool) $opportunity->is_registration_closed,
             'is_registration_open' => $opportunity->isRegistrationOpen(),
+            'is_paid' => (bool) $opportunity->is_paid,
             'participants_needed' => ar_num($opportunity->participants_needed),
             'registered_volunteers_count' => ar_num($registrations->count()),
             'opportunity_images' => $this->websiteImageList(opportunity_card_images($images)),
@@ -65,6 +80,14 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'is_full' => $opportunity->isAtCapacity($registrations->count()),
             'has_started' => $opportunity->hasStarted(),
             'has_ended' => $opportunity->hasEnded(),
+            'profile_activity_tag' => $this->profileActivityTag(
+                $this->profileOwnerId,
+                $request,
+                isCreator: $this->profileOwnerId !== null && (int) $opportunity->created_by === $this->profileOwnerId,
+                isRegistered: $ownerRegistration !== null,
+                isAttended: (bool) $ownerRegistration?->is_attended,
+                isDevelopment: true
+            ),
         ];
     }
 }

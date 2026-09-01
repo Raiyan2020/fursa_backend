@@ -55,6 +55,18 @@ class WebsitePublicProfileResource extends JsonResource
                 'total_opportunities' => ar_num(round((float) ($profile?->total_opportunities ?? 0), 2)),
                 'total_certificates' => ar_num($profile?->total_certificates ?? 0),
                 'opportunities_organized' => ar_num(round((float) ($profile?->opportunities_organized ?? 0), 2)),
+                // Replaces the certificates counter on the profile card —
+                // see VolunteerProfileResource for the same field on the
+                // owner's own view. Certificates keep their own tab.
+                'is_expert' => $this->isExpert($user),
+                'development_opportunities_count' => $this->developmentActivityCount($user),
+                'counter_visibility' => [
+                    'volunteer_hours' => true,
+                    'volunteer_opportunities' => true,
+                    'development' => $this->developmentActivityCount($user) > 0,
+                    'certificates' => false,
+                    'sponsorship' => false,
+                ],
                 'statistics' => [
                     'all_time' => [
                         'total_hours' => ar_num(round((float) ($profile?->total_volunteer_hours ?? 0), 2)),

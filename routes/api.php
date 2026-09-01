@@ -113,6 +113,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration']);
     Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit']);
     Route::post('volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages']);
+    Route::post('volunteer-opportunities/{id}/sponsors/', [VolunteerOpportunityController::class, 'addSponsor']);
+    Route::delete('volunteer-opportunities/{id}/sponsors/{sponsorId}/', [VolunteerOpportunityController::class, 'removeSponsor']);
     Route::delete('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'destroy']);
     Route::match(['delete', 'post'], 'volunteer-opportunities/{opportunity_id}/unregister/', [VolunteerOpportunityRegistrationController::class, 'unregister']);
 
@@ -121,6 +123,8 @@ Route::middleware('auth:api')->group(function () {
     Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update']);
     Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration']);
     Route::patch('learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages']);
+    Route::post('learn-serve-opportunities/{id}/sponsors/', [LearnServeOpportunityController::class, 'addSponsor']);
+    Route::delete('learn-serve-opportunities/{id}/sponsors/{sponsorId}/', [LearnServeOpportunityController::class, 'removeSponsor']);
     Route::delete('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'destroy']);
     Route::match(['delete', 'post'], 'learn-serve-opportunities/{opportunity_id}/unregister/', [LearnServeRegistrationController::class, 'unregister']);
 

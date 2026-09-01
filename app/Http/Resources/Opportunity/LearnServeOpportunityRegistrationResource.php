@@ -22,6 +22,7 @@ class LearnServeOpportunityRegistrationResource extends JsonResource
             'user_name' => $this->fullName($this->user),
             'user_email' => $this->user?->email,
             'civil_id' => $this->user?->civil_id,
+            'passport_number' => $this->user?->passport_number,
             'registration_date' => optional($this->registration_date)?->toIso8601String(),
             'status' => $this->status?->value,
             'is_attended' => $this->is_attended,

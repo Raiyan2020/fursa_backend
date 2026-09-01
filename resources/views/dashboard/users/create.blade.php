@@ -6,7 +6,7 @@
             <div class="card">
                 <div class="card-header"><h4 class="card-title">{{ __('users') }} - {{ __('add new') }}</h4></div>
                 <div class="card-content"><div class="card-body">
-                    <form action="{{ route('admin.users.store') }}" method="POST">
+                    <form action="{{ route('admin.users.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @include('dashboard.users.form')
                     </form>

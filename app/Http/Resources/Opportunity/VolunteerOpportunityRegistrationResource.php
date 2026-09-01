@@ -76,6 +76,7 @@ class VolunteerOpportunityRegistrationResource extends JsonResource
             'created_at' => optional($this->created_at)?->toIso8601String(),
             'phone_number' => $user?->phone_number,
             'civil_id' => $user?->civil_id,
+            'passport_number' => $user?->passport_number,
         ];
     }
 }

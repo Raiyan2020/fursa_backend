@@ -7,6 +7,7 @@ use App\Enums\VolunteerCategory;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
+use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
@@ -28,6 +29,7 @@ class VolunteerOpportunityController extends Controller
 {
     use HandlesMapLocation;
     use HandlesOpportunities;
+    use HandlesOpportunitySponsors;
 
     public function index(Request $request): JsonResponse
     {
@@ -207,6 +209,34 @@ class VolunteerOpportunityController extends Controller
         );
     }
 
+    public function addSponsor(Request $request, int $id): JsonResponse
+    {
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        return $this->attachSponsor($request, $opportunity, 'volunteer_opportunity_id');
+    }
+
+    public function removeSponsor(Request $request, int $id, int $sponsorId): JsonResponse
+    {
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        return $this->detachSponsor($opportunity, $sponsorId);
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         $opportunity = VolunteerOpportunity::query()
@@ -285,7 +315,7 @@ class VolunteerOpportunityController extends Controller
                     ELSE 4
                 END ASC
             ", [$today, $today, $today])
-            ->orderBy('start_date');
+            ->orderBy('start_date', $request->query('sort_by') === 'newest' ? 'desc' : 'asc');
 
         $paginator = $this->paginateQuery($filtered, $request);
 
@@ -341,12 +371,14 @@ class VolunteerOpportunityController extends Controller
         }
 
         $combined = collect()
-            ->merge(WebsiteVolunteerOpportunityResource::collection(
-                $volunteerQuery->with(['creator', 'gender.choiceType', 'interests', 'images', 'registrations'])->get()
-            )->resolve())
-            ->merge(WebsiteLearnServeOpportunityResource::collection(
+            ->merge(
+                $volunteerQuery->with(['creator', 'gender.choiceType', 'interests', 'images', 'registrations.attendances'])->get()
+                    ->map(fn ($item) => (new WebsiteVolunteerOpportunityResource($item, $user->id))->resolve())
+            )
+            ->merge(
                 $learnQuery->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])->get()
-            )->resolve())
+                    ->map(fn ($item) => (new WebsiteLearnServeOpportunityResource($item, $user->id))->resolve())
+            )
             ->merge(WebsiteEventResource::collection(
                 $eventQuery->with([
                     'images',
@@ -440,8 +472,10 @@ class VolunteerOpportunityController extends Controller
         }
 
         $combined = collect()
-            ->merge(WebsiteVolunteerOpportunityResource::collection($volunteerQuery->with(['creator', 'interests', 'images', 'registrations'])->get())->resolve())
-            ->merge(WebsiteLearnServeOpportunityResource::collection($learnQuery->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])->get())->resolve())
+            ->merge($volunteerQuery->with(['creator', 'interests', 'images', 'registrations.attendances'])->get()
+                ->map(fn ($item) => (new WebsiteVolunteerOpportunityResource($item, $user->id))->resolve()))
+            ->merge($learnQuery->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])->get()
+                ->map(fn ($item) => (new WebsiteLearnServeOpportunityResource($item, $user->id))->resolve()))
             ->sortBy(fn ($item) => match ($item['opportunity_status'] ?? '') {
                 'upcoming' => 1,
                 'inprogress' => 2,

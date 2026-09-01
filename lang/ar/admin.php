@@ -59,8 +59,10 @@ return [
     'is_verified' => 'موثّق',
     'current_badge_id' => 'الشارة',
     'company_name' => 'اسم الجهة',
+    'sponsor_organization' => 'الجهة الراعية',
     'registration_number' => 'رقم التسجيل',
     'license_number' => 'رقم الترخيص',
+    'license_documents' => 'مستندات الترخيص',
     'organization_status' => 'حالة الجهة',
     'reason' => 'السبب',
     'title_en' => 'العنوان بالإنجليزية',
@@ -165,6 +167,7 @@ return [
     'rejection_reason_required' => 'سبب الرفض مطلوب.',
     'required' => 'حقل :attribute مطلوب.',
     'boolean' => 'حقل :attribute يجب أن يكون صح أو خطأ.',
+    'sponsor_already_added' => 'هذه الجهة راعية بالفعل لهذه الفرصة.',
   ],
   'nationalities' => [
     'kuwaitis' => 'كويتيون',
@@ -176,6 +179,10 @@ return [
     'organization' => 'جهة',
     'volunteer_team' => 'فريق تطوعي',
     'admin' => 'مشرف',
+  ],
+  'residency_statuses' => [
+    'resident' => 'مقيم',
+    'non_resident' => 'غير مقيم',
   ],
   'statuses' => [
     'approved' => 'مقبول',

@@ -72,6 +72,29 @@
         <label>{{ __('nickname') }}</label>
         <input type="text" name="nickname" class="form-control" value="{{ old('nickname', $user->organizationProfile->nickname ?? $user->volunteerProfile->nickname ?? '') }}">
     </div>
+    <div class="col-md-6 mb-1 js-org-fields">
+        <label>{{ __('admin.attributes.license_number') }}</label>
+        <input type="text" name="license_number" class="form-control" value="{{ old('license_number', $user->organizationProfile->license_number ?? '') }}">
+        @error('license_number') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+    </div>
+    <div class="col-md-6 mb-1 js-org-fields">
+        <label>{{ __('admin.attributes.license_documents') }}</label>
+        <input type="file" name="license_documents[]" class="form-control" accept="image/*,.pdf" multiple>
+        @error('license_documents') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+        @error('license_documents.*') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+        @if (! empty($user) && $user->organizationProfile)
+            @php $currentDocuments = $user->organizationProfile->documents()->where('is_deleted', false)->get(); @endphp
+            @if ($currentDocuments->isNotEmpty())
+                <div class="d-flex flex-wrap mt-1">
+                    @foreach ($currentDocuments as $document)
+                        <a href="{{ getimg($document->document) }}" target="_blank" class="btn btn-sm btn-outline-primary mr-1 mb-1">
+                            {{ __('admin.attributes.license_documents') }} #{{ $loop->iteration }}
+                        </a>
+                    @endforeach
+                </div>
+            @endif
+        @endif
+    </div>
     <div class="col-md-6 mb-1">
         <label>{{ __('preferred language') }} <span class="text-danger">*</span></label>
         @php $currentLang = old('preferred_language', $user->preferred_language?->value ?? $user->preferred_language ?? 'en'); @endphp

@@ -116,6 +116,40 @@ class OwnerReportBackendTest extends TestCase
             ->assertJsonPath('data.course', 'دورة القيادة');
     }
 
+    public function test_certificates_tab_includes_the_organizing_entity_name(): void
+    {
+        [$org, $organizationToken] = $this->createOrganizationActor('certname.org@test.com');
+        $org->organizationProfile->update(['company_name' => 'Fursa Academy']);
+        [$volunteer, $volunteerToken] = $this->createVolunteerActor('certname.vol@test.com');
+
+        $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
+            'title_en' => 'Leadership Course',
+            'title_ar' => 'دورة القيادة',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(2)->toDateString(),
+            'participants_needed' => 5,
+        ]);
+        $opportunityId = (int) $create->json('data.id');
+
+        LearnServeOpportunityRegistration::query()->create([
+            'opportunity_id' => $opportunityId,
+            'user_id' => $volunteer->id,
+            'registration_date' => now(),
+            'status' => ApprovalStatus::APPROVED,
+            'is_certified' => true,
+        ]);
+
+        $tab = $this->getJson('/api/user-certificates/?user_id='.$volunteer->id);
+        $this->assertSuccessEnvelope($tab);
+        $tab->assertJsonPath('data.0.organizer_name', 'Fursa Academy');
+
+        $detail = $this->api($volunteerToken)->getJson('/api/volunteer-detail/');
+        $this->assertSuccessEnvelope($detail);
+        $detail->assertJsonPath('data.opportunities.data.0.organizer_name', 'Fursa Academy');
+    }
+
     public function test_volunteer_report_includes_civil_id(): void
     {
         [, $organizationToken] = $this->createOrganizationActor('civil.org@test.com');
@@ -226,6 +260,52 @@ class OwnerReportBackendTest extends TestCase
         $this->assertDatabaseHas('organization_statistics', [
             'user_id' => $org->id,
             'learn_opportunity_organized' => 1,
+        ]);
+    }
+
+    public function test_sync_excludes_paid_development_opportunities_from_sponsorship_count(): void
+    {
+        [$sponsor] = $this->createOrganizationActor('sponsor.counter@test.com');
+        [$creator] = $this->createOrganizationActor('ls.creator@test.com');
+
+        $paid = LearnServeOpportunity::query()->create([
+            'created_by' => $creator->id,
+            'title_en' => 'Paid Course',
+            'title_ar' => 'دورة مدفوعة',
+            'description_en' => 'd',
+            'description_ar' => 'و',
+            'start_date' => now()->subDays(10)->toDateString(),
+            'end_date' => now()->subDays(3)->toDateString(),
+            'participants_needed' => 5,
+            'opportunity_status' => OpportunityStatus::COMPLETED,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'is_paid' => true,
+        ]);
+
+        $free = LearnServeOpportunity::query()->create([
+            'created_by' => $creator->id,
+            'title_en' => 'Free Course',
+            'title_ar' => 'دورة مجانية',
+            'description_en' => 'd',
+            'description_ar' => 'و',
+            'start_date' => now()->subDays(10)->toDateString(),
+            'end_date' => now()->subDays(3)->toDateString(),
+            'participants_needed' => 5,
+            'opportunity_status' => OpportunityStatus::COMPLETED,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'is_paid' => false,
+        ]);
+
+        $paid->sponsorImages()->create(['organization_id' => $sponsor->organizationProfile->id]);
+        $free->sponsorImages()->create(['organization_id' => $sponsor->organizationProfile->id]);
+
+        $this->assertTrue(SyncService::syncOrganization($sponsor->id));
+
+        $this->assertDatabaseHas('organization_statistics', [
+            'user_id' => $sponsor->id,
+            'year' => (int) $free->end_date->year,
+            'month' => (int) $free->end_date->month,
+            'sponsored' => 1,
         ]);
     }
 

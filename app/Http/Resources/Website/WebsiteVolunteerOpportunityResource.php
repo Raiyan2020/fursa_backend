@@ -13,6 +13,16 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
     use BuildsWebsiteFields;
 
     /**
+     * @param  int|null  $profileOwnerId  Set only when this card is rendered
+     *                                    inside someone's profile activity tab
+     *                                    — enables `profile_activity_tag`.
+     */
+    public function __construct($resource, protected ?int $profileOwnerId = null)
+    {
+        parent::__construct($resource);
+    }
+
+    /**
      * @param  \Illuminate\Support\Collection<int, \App\Models\VolunteerOpportunityRegistration>  $registrations
      */
     protected function isRegisteredInLoaded(
@@ -34,9 +44,13 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
         /** @var VolunteerOpportunity $opportunity */
         $opportunity = $this->resource;
 
-        $opportunity->loadMissing(['creator', 'interests', 'images', 'registrations']);
+        $opportunity->loadMissing(['creator', 'interests', 'images', 'registrations.attendances']);
         $images = $opportunity->images?->filter(fn ($image) => ! $image->is_deleted) ?? collect();
         $registrations = $opportunity->registrations?->filter(fn ($registration) => ! $registration->is_deleted) ?? collect();
+
+        $ownerRegistration = $this->profileOwnerId
+            ? $registrations->first(fn ($r) => (int) $r->user_id === $this->profileOwnerId)
+            : null;
 
         return [
             'id' => $opportunity->id,
@@ -93,6 +107,14 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
                 ? ar_num((int) ($opportunity->beneficiaries_count ?? 0))
                 : null,
             'all_registered_user' => $this->websiteRegisteredUserIds($registrations),
+            'profile_activity_tag' => $this->profileActivityTag(
+                $this->profileOwnerId,
+                $request,
+                isCreator: $this->profileOwnerId !== null && (int) $opportunity->created_by === $this->profileOwnerId,
+                isRegistered: $ownerRegistration !== null,
+                isAttended: (bool) $ownerRegistration?->attendances?->contains(fn ($a) => $a->is_attended),
+                isDevelopment: false
+            ),
         ];
     }
 }

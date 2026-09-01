@@ -426,6 +426,40 @@
                     </div>
                 </div>
             @endif
+
+            @isset($opportunity)
+                <div class="col-md-12 mb-1">
+                    <label>{{ __('sponsors') }}</label>
+                    <div class="d-flex flex-wrap mb-1">
+                        @forelse ($opportunity->sponsorImages ?? [] as $sponsor)
+                            <div class="badge badge-light-primary mr-2 mb-2 p-1">
+                                {{ $sponsor->organization?->company_name ?: $sponsor->organization?->nickname }}
+                                @include('dashboard.partials.nested-delete-form', [
+                                    'formId' => 'delete-volunteer-sponsor-'.$sponsor->id,
+                                    'action' => route('admin.volunteer-opportunities.sponsors.destroy', [$opportunity, $sponsor]),
+                                ])
+                            </div>
+                        @empty
+                            <span class="text-muted">{{ __('no sponsors yet') }}</span>
+                        @endforelse
+                    </div>
+                    <div class="d-flex">
+                        <select form="add-volunteer-sponsor-form" name="organization_id" class="form-control{{ $invalid('organization_id') }} mr-1" style="max-width:320px;">
+                            <option value="">{{ __('select a sponsor organization') }}</option>
+                            @foreach ($sponsorOrganizations as $org)
+                                <option value="{{ $org->id }}">{{ $org->company_name ?: $org->nickname }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" form="add-volunteer-sponsor-form" class="btn btn-outline-primary">{{ __('add sponsor') }}</button>
+                    </div>
+                    @error('organization_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                    @push('forms')
+                        <form id="add-volunteer-sponsor-form" action="{{ route('admin.volunteer-opportunities.sponsors.store', $opportunity) }}" method="POST">
+                            @csrf
+                        </form>
+                    @endpush
+                </div>
+            @endisset
         </div>
     </div>
 </div>

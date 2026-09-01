@@ -31,7 +31,7 @@ trait ResolvesOpportunitySerializerFields
 
     protected function opportunitySponsorImagesPayload($sponsorImages): array
     {
-        return collect($sponsorImages)->map(function ($obj) {
+        return collect($sponsorImages)->filter(fn ($obj) => ! $obj->is_deleted)->map(function ($obj) {
             $org = $obj->organization;
             $image = null;
 

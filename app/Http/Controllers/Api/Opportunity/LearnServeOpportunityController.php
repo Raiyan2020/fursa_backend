@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
+use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
@@ -22,6 +23,7 @@ class LearnServeOpportunityController extends Controller
 {
     use HandlesMapLocation;
     use HandlesOpportunities;
+    use HandlesOpportunitySponsors;
 
     public function index(Request $request): JsonResponse
     {
@@ -146,6 +148,34 @@ class LearnServeOpportunityController extends Controller
             'Registration closed successfully.',
             'تم إغلاق التسجيل بنجاح.'
         );
+    }
+
+    public function addSponsor(Request $request, int $id): JsonResponse
+    {
+        $opportunity = LearnServeOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        return $this->attachSponsor($request, $opportunity, 'learn_serve_opportunity_id');
+    }
+
+    public function removeSponsor(Request $request, int $id, int $sponsorId): JsonResponse
+    {
+        $opportunity = LearnServeOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        return $this->detachSponsor($opportunity, $sponsorId);
     }
 
     public function destroy(Request $request, int $id): JsonResponse
@@ -314,6 +344,7 @@ class LearnServeOpportunityController extends Controller
             'link' => ['nullable', 'url'],
             'location_url' => ['nullable', 'url'],
             'is_registration_closed' => ['nullable', 'boolean'],
+            'is_paid' => ['nullable', 'boolean'],
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'is_kuwaitis' => ['nullable', 'boolean'],

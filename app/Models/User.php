@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\Language;
 use App\Enums\Nationality;
+use App\Enums\ResidencyStatus;
 use App\Enums\SocialMediaProvider;
 use App\Enums\UserType;
 use App\Models\Concerns\HasSoftFlags;
@@ -53,8 +54,10 @@ class User extends Authenticatable
         'preferred_language',
         'password_length',
         'nationality',
+        'residency_status',
         'birth_year',
         'civil_id',
+        'passport_number',
         'emergency_contact_name',
         'emergency_contact_phone',
         'emergency_contact_country_code',
@@ -86,6 +89,7 @@ class User extends Authenticatable
         'is_banned' => 'boolean',
         'manually_banned' => 'boolean',
         'user_type' => UserType::class,
+        'residency_status' => ResidencyStatus::class,
         'social_media_provider' => SocialMediaProvider::class,
         'preferred_language' => Language::class,
         'password' => 'hashed',

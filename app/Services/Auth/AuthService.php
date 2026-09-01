@@ -34,9 +34,11 @@ class AuthService
         $user->user_type = $userType;
         $user->preferred_language = $data['preferred_language'] ?? 'en';
         $user->nationality = $data['nationality'] ?? null;
+        $user->residency_status = $data['residency_status'] ?? null;
         $user->birth_year = $data['birth_year'] ?? null;
         $user->dob = $data['dob'] ?? null;
         $user->civil_id = $data['civil_id'] ?? null;
+        $user->passport_number = $data['passport_number'] ?? null;
         $user->emergency_contact_name = $data['emergency_contact_name'] ?? null;
         $user->emergency_contact_phone = $data['emergency_contact_phone'] ?? null;
         $user->emergency_contact_country_code = $data['emergency_contact_country_code'] ?? null;

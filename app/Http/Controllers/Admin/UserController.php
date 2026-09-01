@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Models\MasterChoice;
+use App\Models\OrganizationDocument;
 use App\Models\OrganizationProfile;
 use App\Enums\Nationality;
 use App\Models\User;
@@ -57,6 +58,8 @@ class UserController extends Controller
                 __('country code'),
                 __('nationality'),
                 __('civil id'),
+                __('residency status'),
+                __('passport number'),
                 __('user type'),
                 __('status'),
                 __('banned'),
@@ -79,6 +82,8 @@ class UserController extends Controller
                 echo '<td>'.e($user->country_code).'</td>';
                 echo '<td>'.e($this->nationalityLabel($user)).'</td>';
                 echo '<td>'.e($user->civil_id).'</td>';
+                echo '<td>'.e($user->residency_status?->label() ?? '').'</td>';
+                echo '<td>'.e($user->passport_number).'</td>';
                 echo '<td>'.e($user->accountTypeLabel()).'</td>';
                 echo '<td>'.e($user->is_active ? __('active') : __('inactive')).'</td>';
                 echo '<td>'.e($user->is_banned ? __('banned') : __('active')).'</td>';
@@ -258,10 +263,21 @@ class UserController extends Controller
             $profile->company_name = $data['company_name'] ?? $profile->company_name ?? trim(($data['first_name'] ?? '').' '.($data['last_name'] ?? ''));
             $profile->nickname = $data['nickname'] ?? $profile->nickname;
             $profile->organizer_type_id = $organizerTypeId;
+            $profile->license_number = $data['license_number'] ?? $profile->license_number;
             if (! $profile->exists || $creating) {
                 $profile->organization_status = ApprovalStatus::APPROVED;
             }
             $profile->save();
+
+            if (! empty($data['license_documents'])) {
+                foreach ($data['license_documents'] as $document) {
+                    OrganizationDocument::query()->create([
+                        'organizer_profile_id' => $profile->id,
+                        'document' => uploader($document, 'org_documents'),
+                        'uploaded_at' => now(),
+                    ]);
+                }
+            }
         }
     }
 
@@ -302,6 +318,9 @@ class UserController extends Controller
             'is_active' => ['nullable', 'boolean'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'nickname' => ['nullable', 'string', 'max:255'],
+            'license_number' => ['nullable', 'string', 'max:100'],
+            'license_documents' => ['nullable', 'array'],
+            'license_documents.*' => ['file', 'max:10240'],
         ], [], [
             'first_name' => __('admin.attributes.first_name'),
             'last_name' => __('admin.attributes.last_name'),
@@ -313,6 +332,8 @@ class UserController extends Controller
             'nickname' => __('admin.attributes.nickname'),
             'nationality' => __('nationality'),
             'civil_id' => __('civil id'),
+            'license_number' => __('admin.attributes.license_number'),
+            'license_documents' => __('admin.attributes.license_documents'),
         ]);
     }
 }

@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
 use App\Enums\VolunteerCategory;
 use App\Models\Config;
+use App\Models\Interest;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\User;
@@ -128,6 +129,174 @@ class ClientFeedbackRoundTwoTest extends TestCase
         );
     }
 
+    public function test_sort_by_newest_reverses_the_default_oldest_first_order(): void
+    {
+        [$org] = $this->createOrganizationActor();
+
+        $earlier = $this->makeOpportunity($org, [
+            'title_en' => 'Earlier',
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+        ]);
+        $later = $this->makeOpportunity($org, [
+            'title_en' => 'Later',
+            'start_date' => now()->addDays(9)->toDateString(),
+            'end_date' => now()->addDays(10)->toDateString(),
+        ]);
+
+        $oldestFirst = array_column($this->getJson('/api/list-volunteer-opportunities/')->json('data'), 'id');
+        $this->assertLessThan(
+            array_search($later->id, $oldestFirst, true),
+            array_search($earlier->id, $oldestFirst, true),
+            'Default order (no sort_by) must rank the earlier start_date first.'
+        );
+
+        $newestFirst = array_column($this->getJson('/api/list-volunteer-opportunities/?sort_by=newest')->json('data'), 'id');
+        $this->assertLessThan(
+            array_search($earlier->id, $newestFirst, true),
+            array_search($later->id, $newestFirst, true),
+            'sort_by=newest must rank the later start_date first.'
+        );
+    }
+
+    public function test_opportunity_details_includes_interest_display(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+
+        $interest = Interest::query()->create([
+            'name_en' => 'Environment',
+            'name_ar' => 'البيئة',
+            'interest_type' => \App\Enums\InterestType::VOLUNTEER,
+        ]);
+
+        $opportunity = $this->makeOpportunity($org);
+        $opportunity->interests()->sync([$interest->id]);
+
+        $response = $this->api($token)->getJson("/api/opportunities/{$opportunity->id}/details/");
+        $this->assertSuccessEnvelope($response);
+
+        $response->assertJsonPath('data.interest_display', [[
+            'id' => $interest->id,
+            'choice_type' => 'volunteer_opportunity_interest',
+            'value_en' => 'Environment',
+            'value_ar' => 'البيئة',
+        ]]);
+    }
+
+    public function test_profile_activity_tag_shows_registered_to_owner_only(): void
+    {
+        [$org] = $this->createOrganizationActor();
+        [$volunteer, $volunteerToken] = $this->createVolunteerActor();
+        [, $strangerToken] = $this->createVolunteerActor('stranger@test.com');
+
+        $opportunity = $this->makeOpportunity($org);
+        $this->registerVolunteer($opportunity, $volunteer);
+
+        $ownView = $this->api($volunteerToken)
+            ->getJson('/api/list-user-opportunities/?user_id='.$volunteer->id.'&filter_type=registered');
+        $ownItem = collect($ownView->json('data'))->firstWhere('id', $opportunity->id);
+        $this->assertSame('registered', $ownItem['profile_activity_tag']);
+
+        $publicView = $this->api($strangerToken)
+            ->getJson('/api/list-user-opportunities/?user_id='.$volunteer->id.'&filter_type=registered');
+        $publicItem = collect($publicView->json('data'))->firstWhere('id', $opportunity->id);
+        $this->assertNull($publicItem['profile_activity_tag'], 'A public viewer must never see the "registered" tag.');
+    }
+
+    public function test_profile_activity_tag_shows_attended_to_everyone(): void
+    {
+        [$org] = $this->createOrganizationActor();
+        [$volunteer] = $this->createVolunteerActor();
+        [, $strangerToken] = $this->createVolunteerActor('stranger2@test.com');
+
+        $opportunity = $this->makeOpportunity($org);
+        $registration = $this->registerVolunteer($opportunity, $volunteer);
+        $registration->attendances()->create([
+            'attended_date' => now()->toDateString(),
+            'total_hours' => 2,
+            'is_attended' => true,
+        ]);
+
+        $publicView = $this->api($strangerToken)
+            ->getJson('/api/list-user-opportunities/?user_id='.$volunteer->id.'&filter_type=registered');
+        $publicItem = collect($publicView->json('data'))->firstWhere('id', $opportunity->id);
+        $this->assertSame('attended', $publicItem['profile_activity_tag']);
+    }
+
+    public function test_profile_activity_tag_uses_provider_and_participant_for_development_opportunities(): void
+    {
+        [$provider, $providerToken] = $this->createOrganizationActor('ls-provider@test.com');
+        [$participant] = $this->createVolunteerActor('ls-participant@test.com');
+        [, $strangerToken] = $this->createVolunteerActor('ls-stranger@test.com');
+
+        $course = LearnServeOpportunity::query()->create([
+            'title_en' => 'Leadership Course', 'title_ar' => 'دورة القيادة',
+            'description_en' => 'd', 'description_ar' => 'و',
+            'created_by' => $provider->id,
+            'approval_status' => \App\Enums\ApprovalStatus::APPROVED,
+            'opportunity_status' => \App\Enums\OpportunityStatus::UPCOMING,
+            'participants_needed' => 5,
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+        ]);
+        LearnServeOpportunityRegistration::query()->create([
+            'opportunity_id' => $course->id,
+            'user_id' => $participant->id,
+            'registration_date' => now(),
+            'status' => \App\Enums\ApprovalStatus::APPROVED,
+            'is_attended' => true,
+        ]);
+
+        // The provider isn't "registered" for their own course — they created
+        // it — so `list-user-opportunities` (registration-based) won't surface
+        // it; `list-all-opportunities` includes anything the profile owner
+        // created too.
+        $providerFeed = $this->api($strangerToken)
+            ->getJson('/api/list-all-opportunities/?user_id='.$provider->id.'&opportunity_type=learn');
+        $providerItem = collect($providerFeed->json('data'))->firstWhere('id', $course->id);
+        $this->assertSame('provider', $providerItem['profile_activity_tag']);
+
+        $participantView = $this->api($strangerToken)
+            ->getJson('/api/list-user-opportunities/?user_id='.$participant->id.'&filter_type=registered&opportunity_type=learn');
+        $participantItem = collect($participantView->json('data'))->firstWhere('id', $course->id);
+        $this->assertSame('participant', $participantItem['profile_activity_tag']);
+    }
+
+    public function test_development_opportunities_counter_replaces_certificates_counter(): void
+    {
+        [$provider] = $this->createOrganizationActor('dev-counter-provider@test.com');
+        [$volunteer, $volunteerToken] = $this->createVolunteerActor('dev-counter-vol@test.com');
+
+        $course = LearnServeOpportunity::query()->create([
+            'title_en' => 'Leadership Course', 'title_ar' => 'دورة القيادة',
+            'description_en' => 'd', 'description_ar' => 'و',
+            'created_by' => $provider->id,
+            'approval_status' => \App\Enums\ApprovalStatus::APPROVED,
+            'opportunity_status' => \App\Enums\OpportunityStatus::UPCOMING,
+            'participants_needed' => 5,
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+        ]);
+        LearnServeOpportunityRegistration::query()->create([
+            'opportunity_id' => $course->id,
+            'user_id' => $volunteer->id,
+            'registration_date' => now(),
+            'status' => \App\Enums\ApprovalStatus::APPROVED,
+            'is_attended' => true,
+            'is_certified' => true,
+        ]);
+
+        $profile = $this->api($volunteerToken)->getJson('/api/volunteer-profile/');
+        $this->assertSuccessEnvelope($profile);
+        $profile->assertJsonPath('data.development_opportunities_count', 1);
+        $profile->assertJsonPath('data.counter_visibility.certificates', false);
+        $profile->assertJsonPath('data.counter_visibility.development', true);
+
+        // The certificates tab itself is untouched by hiding the counter.
+        $certificatesTab = $this->getJson('/api/user-certificates/?user_id='.$volunteer->id);
+        $this->assertCount(1, $certificatesTab->json('data'));
+    }
+
     public function test_organizer_can_reopen_closed_registration(): void
     {
         [$org, $token] = $this->createOrganizationActor();
@@ -181,6 +350,79 @@ class ClientFeedbackRoundTwoTest extends TestCase
             ->assertStatus(400);
 
         $this->assertSame(ApprovalStatus::APPROVED, $opportunity->fresh()->approval_status);
+    }
+
+    public function test_organizer_can_add_and_remove_a_sponsor_on_a_volunteer_opportunity(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+        [$sponsorOrg] = $this->createOrganizationActor('sponsor.eligible@test.com');
+        $opportunity = $this->makeOpportunity($org);
+
+        $add = $this->api($token)->postJson("/api/volunteer-opportunities/{$opportunity->id}/sponsors/", [
+            'organization_id' => $sponsorOrg->organizationProfile->id,
+        ]);
+        $this->assertSuccessEnvelope($add, 201, 'Sponsor added successfully.');
+
+        $show = $this->api($token)->getJson("/api/volunteer-opportunities/{$opportunity->id}/");
+        $this->assertCount(1, $show->json('data.opportunity_sponsor_images'));
+
+        $sponsorId = $add->json('data.id');
+        $remove = $this->api($token)->deleteJson("/api/volunteer-opportunities/{$opportunity->id}/sponsors/{$sponsorId}/");
+        $this->assertSuccessEnvelope($remove, 200, 'Sponsor removed successfully.');
+
+        $show = $this->api($token)->getJson("/api/volunteer-opportunities/{$opportunity->id}/");
+        $this->assertCount(0, $show->json('data.opportunity_sponsor_images'));
+    }
+
+    public function test_volunteer_team_cannot_be_added_as_a_sponsor(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+        [$team] = $this->createVolunteerTeamActor();
+        $opportunity = $this->makeOpportunity($org);
+
+        $this->api($token)->postJson("/api/volunteer-opportunities/{$opportunity->id}/sponsors/", [
+            'organization_id' => $team->organizationProfile->id,
+        ])->assertStatus(422);
+    }
+
+    public function test_sponsoring_the_same_organization_twice_is_rejected(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+        [$sponsorOrg] = $this->createOrganizationActor('sponsor.dup@test.com');
+        $opportunity = $this->makeOpportunity($org);
+
+        $this->api($token)->postJson("/api/volunteer-opportunities/{$opportunity->id}/sponsors/", [
+            'organization_id' => $sponsorOrg->organizationProfile->id,
+        ])->assertCreated();
+
+        $this->api($token)->postJson("/api/volunteer-opportunities/{$opportunity->id}/sponsors/", [
+            'organization_id' => $sponsorOrg->organizationProfile->id,
+        ])->assertStatus(400);
+    }
+
+    public function test_organizer_can_add_a_sponsor_on_a_development_opportunity(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+        [$sponsorOrg] = $this->createOrganizationActor('sponsor.learn@test.com');
+
+        $create = $this->api($token)->postJson('/api/learn-serve-opportunities/', [
+            'title_en' => 'Leadership Course',
+            'title_ar' => 'دورة القيادة',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->addDays(2)->toDateString(),
+            'end_date' => now()->addDays(5)->toDateString(),
+            'participants_needed' => 8,
+        ]);
+        $opportunityId = (int) $create->json('data.id');
+
+        $add = $this->api($token)->postJson("/api/learn-serve-opportunities/{$opportunityId}/sponsors/", [
+            'organization_id' => $sponsorOrg->organizationProfile->id,
+        ]);
+        $this->assertSuccessEnvelope($add, 201, 'Sponsor added successfully.');
+
+        $show = $this->api($token)->getJson("/api/learn-serve-opportunities/{$opportunityId}/");
+        $this->assertCount(1, $show->json('data.opportunity_sponsor_images'));
     }
 
     public function test_beneficiaries_count_is_kept_only_for_charity_category(): void

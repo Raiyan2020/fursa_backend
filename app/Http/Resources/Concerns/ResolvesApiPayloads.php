@@ -2,11 +2,56 @@
 
 namespace App\Http\Resources\Concerns;
 
+use App\Enums\ApprovalStatus;
+use App\Models\LearnServeOpportunity;
+use App\Models\LearnServeOpportunityRegistration;
 use App\Models\MasterChoice;
 use App\Models\User;
 
 trait ResolvesApiPayloads
 {
+    /**
+     * "خبير / Expert": a volunteer who runs their own workshops, courses or
+     * consultations (created at least one approved development opportunity).
+     */
+    protected function isExpert(?User $user): bool
+    {
+        return $this->expertOpportunitiesCount($user) > 0;
+    }
+
+    protected function expertOpportunitiesCount(?User $user): int
+    {
+        if (! $user) {
+            return 0;
+        }
+
+        return (int) LearnServeOpportunity::query()
+            ->where('created_by', $user->id)
+            ->where('is_deleted', false)
+            ->where('approval_status', ApprovalStatus::APPROVED)
+            ->count();
+    }
+
+    /**
+     * Development activity = development opportunities the volunteer
+     * attended, plus any they ran themselves. Powers the "development
+     * opportunities" counter that replaces the certificates counter on the
+     * profile card (certificates themselves still live in their own tab).
+     */
+    protected function developmentActivityCount(?User $user): int
+    {
+        if (! $user) {
+            return 0;
+        }
+
+        $attended = (int) LearnServeOpportunityRegistration::query()
+            ->where('user_id', $user->id)
+            ->where('is_deleted', false)
+            ->where('is_attended', true)
+            ->count();
+
+        return $attended + $this->expertOpportunitiesCount($user);
+    }
     protected function masterChoicePayload(?MasterChoice $choice): ?array
     {
         if (! $choice) {
@@ -74,6 +119,25 @@ trait ResolvesApiPayloads
             'name_ar' => $interest->name_ar,
             'interest_type' => $interest->interest_type?->value ?? $interest->interest_type,
         ];
+    }
+
+    /**
+     * Same interests as `interestPayload`, reshaped to match the
+     * MasterChoice-style display other `interest_display` fields use
+     * app-wide (id / choice_type / value_en / value_ar).
+     */
+    protected function interestDisplayPayload($interests, string $choiceType): ?array
+    {
+        if ($interests === null || (is_countable($interests) && count($interests) === 0)) {
+            return null;
+        }
+
+        return collect($interests)->map(fn ($interest) => [
+            'id' => $interest->id,
+            'choice_type' => $choiceType,
+            'value_en' => $interest->name_en,
+            'value_ar' => $interest->name_ar,
+        ])->values()->all();
     }
 
     protected function badgeInfoPayload($badge): ?array

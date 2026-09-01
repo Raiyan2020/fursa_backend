@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Enums\Nationality;
+use App\Enums\ResidencyStatus;
 use App\Enums\UserType;
 use App\Http\Requests\BaseRequest;
 use App\Models\User;
@@ -44,11 +45,13 @@ class RegisterRequest extends BaseRequest
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
             'nationality' => ['nullable', 'string', Rule::in(Nationality::values())],
+            'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
             'birth_year' => ['nullable', 'integer'],
             'dob' => ['nullable', 'date'],
             'preferred_language' => ['nullable', 'in:en,ar'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'civil_id' => ['nullable', 'string', 'max:12'],
+            'passport_number' => ['nullable', 'string', 'max:20'],
             'volunteer_is_verified' => ['nullable', 'boolean'],
             'emergency_contact_name' => ['nullable', 'string', 'max:100'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
@@ -84,23 +87,9 @@ class RegisterRequest extends BaseRequest
     {
         $validator->after(function (Validator $validator) {
             $userType = $this->input('user_type', UserType::VOLUNTEER->value);
-            $civilId = trim((string) $this->input('civil_id', ''));
 
             if ($userType === UserType::VOLUNTEER->value) {
-                if ($civilId === '') {
-                    $validator->errors()->add(
-                        'civil_id',
-                        __('validation.required', ['attribute' => $this->attributeLabel('civil_id')])
-                    );
-                } elseif (User::query()
-                    ->where('civil_id', $civilId)
-                    ->where('email', '!=', strtolower(trim((string) $this->input('email', ''))))
-                    ->exists()) {
-                    $validator->errors()->add(
-                        'civil_id',
-                        __('validation.unique', ['attribute' => $this->attributeLabel('civil_id')])
-                    );
-                }
+                $this->validateIdentityDocument($validator);
 
                 $age = null;
                 if ($this->filled('dob')) {
@@ -147,6 +136,7 @@ class RegisterRequest extends BaseRequest
             'phone_number',
             'country_code',
             'civil_id',
+            'passport_number',
             'emergency_contact_phone',
             'emergency_contact_country_code',
             'emergency_contact_civil_id',
@@ -156,6 +146,91 @@ class RegisterRequest extends BaseRequest
         ]);
 
         $this->normalizeDocumentUploads();
+    }
+
+    /**
+     * A Kuwaiti (or a client that never sends `nationality`, preserving the
+     * original behavior) must provide civil_id, same as before. A non-Kuwaiti
+     * must first declare residency_status, which then decides whether
+     * civil_id (resident) or passport_number (non_resident) is required.
+     */
+    protected function validateIdentityDocument(Validator $validator): void
+    {
+        $nationality = Nationality::tryFromInput($this->input('nationality'));
+        $isNonKuwaiti = $nationality !== null && $nationality !== Nationality::KUWAITIS;
+
+        if (! $isNonKuwaiti) {
+            $this->requireUniqueCivilId($validator);
+
+            return;
+        }
+
+        $residencyStatus = ResidencyStatus::tryFrom((string) $this->input('residency_status', ''));
+
+        if ($residencyStatus === null) {
+            $validator->errors()->add(
+                'residency_status',
+                __('validation.required', ['attribute' => $this->attributeLabel('residency_status')])
+            );
+
+            return;
+        }
+
+        if ($residencyStatus === ResidencyStatus::NON_RESIDENT) {
+            $this->requireUniquePassportNumber($validator);
+
+            return;
+        }
+
+        $this->requireUniqueCivilId($validator);
+    }
+
+    protected function requireUniqueCivilId(Validator $validator): void
+    {
+        $civilId = trim((string) $this->input('civil_id', ''));
+
+        if ($civilId === '') {
+            $validator->errors()->add(
+                'civil_id',
+                __('validation.required', ['attribute' => $this->attributeLabel('civil_id')])
+            );
+
+            return;
+        }
+
+        if (User::query()
+            ->where('civil_id', $civilId)
+            ->where('email', '!=', strtolower(trim((string) $this->input('email', ''))))
+            ->exists()) {
+            $validator->errors()->add(
+                'civil_id',
+                __('validation.unique', ['attribute' => $this->attributeLabel('civil_id')])
+            );
+        }
+    }
+
+    protected function requireUniquePassportNumber(Validator $validator): void
+    {
+        $passportNumber = trim((string) $this->input('passport_number', ''));
+
+        if ($passportNumber === '') {
+            $validator->errors()->add(
+                'passport_number',
+                __('validation.required', ['attribute' => $this->attributeLabel('passport_number')])
+            );
+
+            return;
+        }
+
+        if (User::query()
+            ->where('passport_number', $passportNumber)
+            ->where('email', '!=', strtolower(trim((string) $this->input('email', ''))))
+            ->exists()) {
+            $validator->errors()->add(
+                'passport_number',
+                __('validation.unique', ['attribute' => $this->attributeLabel('passport_number')])
+            );
+        }
     }
 
     protected function rejectDuplicateEmergencyContact(Validator $validator): void

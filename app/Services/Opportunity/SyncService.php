@@ -291,6 +291,10 @@ class SyncService
 
             foreach ($sponsoredImages as $img) {
                 $opp = $img->volunteerOpportunity ?? $img->learnServeOpportunity;
+                // Paid development opportunities don't count toward sponsorship.
+                if ($opp instanceof LearnServeOpportunity && $opp->is_paid) {
+                    continue;
+                }
                 if ($opp && ! $opp->is_deleted && $opp->end_date && $opp->opportunity_status === OpportunityStatus::COMPLETED) {
                     $y = $opp->end_date->year;
                     $m = $opp->end_date->month;

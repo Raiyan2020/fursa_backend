@@ -396,6 +396,61 @@ class AdminFlowTest extends TestCase
         $this->assertTrue((bool) $opportunity->fresh()->is_deleted);
     }
 
+    public function test_admin_can_add_and_remove_a_volunteer_opportunity_sponsor(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        [$orgUser] = $this->createOrganizationActor('sponsor-owner@fursa.test');
+        [$sponsorOrgUser] = $this->createOrganizationActor('sponsor-eligible@fursa.test');
+        [$teamUser] = $this->createVolunteerTeamActor('sponsor-team@fursa.test');
+
+        $opportunity = \App\Models\VolunteerOpportunity::query()->create([
+            'title_en' => 'Beach Cleanup',
+            'title_ar' => 'تنظيف الشاطئ',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'created_by' => $orgUser->id,
+            'approval_status' => 'approved',
+            'opportunity_status' => 'upcoming',
+            'participants_needed' => 10,
+            'start_date' => now()->addDays(5)->toDateString(),
+            'end_date' => now()->addDays(6)->toDateString(),
+        ]);
+
+        $edit = $this->get('/dashboard/volunteer-opportunities/'.$opportunity->id.'/edit');
+        $edit->assertOk();
+
+        // Scope the assertion to the sponsor picker itself — the team org
+        // legitimately still appears elsewhere on the page (e.g. as a
+        // possible `created_by` owner), just not as a sponsor candidate.
+        $body = $edit->getContent();
+        $sponsorSelectStart = strpos($body, 'name="organization_id"');
+        $sponsorSelectEnd = strpos($body, '</select>', $sponsorSelectStart);
+        $sponsorSelectHtml = substr($body, $sponsorSelectStart, $sponsorSelectEnd - $sponsorSelectStart);
+
+        $this->assertStringContainsString($sponsorOrgUser->organizationProfile->company_name, $sponsorSelectHtml);
+        $this->assertStringNotContainsString($teamUser->organizationProfile->company_name, $sponsorSelectHtml);
+
+        // A volunteer-team organization must be rejected as a sponsor.
+        $this->post('/dashboard/volunteer-opportunities/'.$opportunity->id.'/sponsors', [
+            'organization_id' => $teamUser->organizationProfile->id,
+        ])->assertSessionHasErrors(['organization_id']);
+
+        $this->post('/dashboard/volunteer-opportunities/'.$opportunity->id.'/sponsors', [
+            'organization_id' => $sponsorOrgUser->organizationProfile->id,
+        ])->assertRedirect();
+
+        $sponsor = \App\Models\OpportunitySponsorImage::query()
+            ->where('volunteer_opportunity_id', $opportunity->id)
+            ->where('organization_id', $sponsorOrgUser->organizationProfile->id)
+            ->firstOrFail();
+        $this->assertFalse((bool) $sponsor->is_deleted);
+
+        $this->delete('/dashboard/volunteer-opportunities/'.$opportunity->id.'/sponsors/'.$sponsor->id)
+            ->assertRedirect();
+        $this->assertTrue((bool) $sponsor->fresh()->is_deleted);
+    }
+
     public function test_admin_learn_serve_opportunities_crud_flow(): void
     {
         $this->actingAs($this->adminActor(), 'admin');
@@ -476,6 +531,56 @@ class AdminFlowTest extends TestCase
         $this->assertTrue((bool) $opportunity->fresh()->is_deleted);
     }
 
+    public function test_admin_can_add_and_remove_a_learn_serve_opportunity_sponsor(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        [$orgUser] = $this->createOrganizationActor('ls-sponsor-owner@fursa.test');
+        [$sponsorOrgUser] = $this->createOrganizationActor('ls-sponsor-eligible@fursa.test');
+        [$teamUser] = $this->createVolunteerTeamActor('ls-sponsor-team@fursa.test');
+
+        $opportunity = \App\Models\LearnServeOpportunity::query()->create([
+            'title_en' => 'First Aid Workshop',
+            'title_ar' => 'ورشة إسعافات أولية',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'created_by' => $orgUser->id,
+            'approval_status' => 'approved',
+            'opportunity_status' => 'upcoming',
+            'participants_needed' => 10,
+            'start_date' => now()->addDays(5)->toDateString(),
+            'end_date' => now()->addDays(6)->toDateString(),
+        ]);
+
+        $edit = $this->get('/dashboard/learn-serve-opportunities/'.$opportunity->id.'/edit');
+        $edit->assertOk();
+
+        $body = $edit->getContent();
+        $sponsorSelectStart = strpos($body, 'name="organization_id"');
+        $sponsorSelectEnd = strpos($body, '</select>', $sponsorSelectStart);
+        $sponsorSelectHtml = substr($body, $sponsorSelectStart, $sponsorSelectEnd - $sponsorSelectStart);
+
+        $this->assertStringContainsString($sponsorOrgUser->organizationProfile->company_name, $sponsorSelectHtml);
+        $this->assertStringNotContainsString($teamUser->organizationProfile->company_name, $sponsorSelectHtml);
+
+        $this->post('/dashboard/learn-serve-opportunities/'.$opportunity->id.'/sponsors', [
+            'organization_id' => $teamUser->organizationProfile->id,
+        ])->assertSessionHasErrors(['organization_id']);
+
+        $this->post('/dashboard/learn-serve-opportunities/'.$opportunity->id.'/sponsors', [
+            'organization_id' => $sponsorOrgUser->organizationProfile->id,
+        ])->assertRedirect();
+
+        $sponsor = \App\Models\OpportunitySponsorImage::query()
+            ->where('learn_serve_opportunity_id', $opportunity->id)
+            ->where('organization_id', $sponsorOrgUser->organizationProfile->id)
+            ->firstOrFail();
+
+        $this->delete('/dashboard/learn-serve-opportunities/'.$opportunity->id.'/sponsors/'.$sponsor->id)
+            ->assertRedirect();
+        $this->assertTrue((bool) $sponsor->fresh()->is_deleted);
+    }
+
     public function test_admin_users_create_with_volunteer_team_and_email_update(): void
     {
         $this->actingAs($this->adminActor(), 'admin');
@@ -520,6 +625,36 @@ class AdminFlowTest extends TestCase
             'id' => $user->id,
             'email' => 'team-new-email@fursa.test',
         ]);
+    }
+
+    public function test_admin_can_set_license_number_and_upload_license_documents_for_an_entity(): void
+    {
+        $this->actingAs($this->adminActor(), 'admin');
+
+        $document = UploadedFile::fake()->create('license.pdf', 200, 'application/pdf');
+
+        $this->post('/dashboard/users', [
+            'first_name' => 'New',
+            'last_name' => 'Entity',
+            'email' => 'license-entity@fursa.test',
+            'password' => 'Password1',
+            'password_confirmation' => 'Password1',
+            'account_type' => 'organization',
+            'preferred_language' => 'ar',
+            'company_name' => 'Licensed Co',
+            'nickname' => 'licensed_co',
+            'license_number' => 'LIC-12345',
+            'license_documents' => [$document],
+            'is_active' => '1',
+        ])->assertRedirect(route('admin.users.index'));
+
+        $user = \App\Models\User::query()->where('email', 'license-entity@fursa.test')->firstOrFail();
+        $this->assertSame('LIC-12345', $user->organizationProfile->license_number);
+        $this->assertTrue($user->organizationProfile->documents()->where('is_deleted', false)->exists());
+
+        $edit = $this->get('/dashboard/users/'.$user->id.'/edit');
+        $edit->assertOk();
+        $edit->assertSee('LIC-12345');
     }
 
     public function test_admin_users_excel_export_downloads(): void

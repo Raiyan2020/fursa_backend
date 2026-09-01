@@ -117,6 +117,100 @@ class AuthApiTest extends TestCase
         $this->assertFalse($newUser->is_deleted);
     }
 
+    public function test_non_kuwaiti_registration_requires_residency_status(): void
+    {
+        $this->seed();
+
+        $response = $this->postJson('/api/register/', [
+            'email' => 'nonkuwaiti1@test.com',
+            'password' => 'Password1',
+            'user_type' => 'volunteer',
+            'nationality' => 'other',
+            'birth_year' => 1995,
+        ], ['Lang' => 'ar']);
+
+        $this->assertErrorEnvelope($response, 422);
+        $this->assertNotEmpty($response->json('response_status.validation_errors.residency_status'));
+    }
+
+    public function test_non_kuwaiti_resident_still_requires_civil_id(): void
+    {
+        $this->seed();
+
+        $response = $this->postJson('/api/register/', [
+            'email' => 'nonkuwaiti2@test.com',
+            'password' => 'Password1',
+            'user_type' => 'volunteer',
+            'nationality' => 'other',
+            'residency_status' => 'resident',
+            'birth_year' => 1995,
+        ]);
+
+        $this->assertErrorEnvelope($response, 422);
+        $this->assertNotEmpty($response->json('response_status.validation_errors.civil_id'));
+        $this->assertEmpty($response->json('response_status.validation_errors.passport_number') ?? []);
+    }
+
+    public function test_non_kuwaiti_non_resident_requires_passport_number_instead_of_civil_id(): void
+    {
+        $this->seed();
+
+        $response = $this->postJson('/api/register/', [
+            'email' => 'nonkuwaiti3@test.com',
+            'password' => 'Password1',
+            'user_type' => 'volunteer',
+            'nationality' => 'other',
+            'residency_status' => 'non_resident',
+            'birth_year' => 1995,
+        ]);
+
+        $this->assertErrorEnvelope($response, 422);
+        $this->assertNotEmpty($response->json('response_status.validation_errors.passport_number'));
+        $this->assertEmpty($response->json('response_status.validation_errors.civil_id') ?? []);
+    }
+
+    public function test_non_kuwaiti_non_resident_registers_successfully_with_passport_number(): void
+    {
+        config(['mail.default' => 'array']);
+        $this->seed();
+
+        $response = $this->postJson('/api/register/', [
+            'email' => 'nonkuwaiti4@test.com',
+            'password' => 'Password1',
+            'user_type' => 'volunteer',
+            'first_name' => 'Passport',
+            'last_name' => 'Holder',
+            'nationality' => 'other',
+            'residency_status' => 'non_resident',
+            'passport_number' => 'P1234567',
+            'birth_year' => 1995,
+        ]);
+
+        $this->assertSuccessEnvelope($response, 201, 'OTP has been sent to the email address.');
+
+        $user = User::query()->where('email', 'nonkuwaiti4@test.com')->firstOrFail();
+        $this->assertSame('non_resident', $user->residency_status->value);
+        $this->assertSame('P1234567', $user->passport_number);
+        $this->assertNull($user->civil_id);
+    }
+
+    public function test_kuwaiti_registration_is_unaffected_by_residency_fields(): void
+    {
+        config(['mail.default' => 'array']);
+        $this->seed();
+
+        $response = $this->postJson('/api/register/', [
+            'email' => 'kuwaiti.unaffected@test.com',
+            'password' => 'Password1',
+            'user_type' => 'volunteer',
+            'nationality' => 'kuwaitis',
+            'civil_id' => '111122223333',
+            'birth_year' => 1995,
+        ]);
+
+        $this->assertSuccessEnvelope($response, 201, 'OTP has been sent to the email address.');
+    }
+
     public function test_forgot_password_rejects_unregistered_email(): void
     {
         $this->seed();

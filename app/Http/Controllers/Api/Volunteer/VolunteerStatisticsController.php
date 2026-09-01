@@ -358,13 +358,14 @@ class VolunteerStatisticsController extends Controller
                             ->where('certificate_image', '!=', '');
                     });
             })
-            ->with('opportunity')
+            ->with('opportunity.creator.organizationProfile')
             ->get()
             ->map(fn ($row) => [
                 'registration_id' => $row->id,
                 'certificate_image' => getimg($row->certificate_image),
                 'opportunity__title_en' => $row->opportunity?->title_en,
                 'opportunity__title_ar' => $row->opportunity?->title_ar,
+                'organizer_name' => $this->certificateOrganizerName($row->opportunity),
             ]);
 
         return ApiResponse::success($certificates, 'Certificates retrieved successfully.', 'تم استرجاع الشهادات بنجاح.');
@@ -401,7 +402,7 @@ class VolunteerStatisticsController extends Controller
                             ->where('certificate_image', '!=', '');
                     });
             })
-            ->with('opportunity')
+            ->with('opportunity.creator.organizationProfile')
             ->latest();
 
         $total = (clone $coursesQuery)->count();
@@ -413,6 +414,7 @@ class VolunteerStatisticsController extends Controller
                 'title_en' => $registration->opportunity?->title_en,
                 'title_ar' => $registration->opportunity?->title_ar,
                 'year' => optional($registration->registration_date)?->format('Y'),
+                'organizer_name' => $this->certificateOrganizerName($registration->opportunity),
             ])
             ->values();
 
@@ -421,6 +423,7 @@ class VolunteerStatisticsController extends Controller
             'total_opportunities' => $profile->total_opportunities,
             'total_certificates' => $profile->total_certificates,
             'civil_id' => $request->user()->civil_id,
+            'passport_number' => $request->user()->passport_number,
             'full_name' => trim(($request->user()->first_name ?? '').' '.($request->user()->last_name ?? '')),
             'opportunities' => [
                 'data' => $courses,
@@ -485,6 +488,22 @@ class VolunteerStatisticsController extends Controller
         }
 
         return ApiResponse::success(null, 'Statistics sync triggered successfully.', 'تم تفعيل مزامنة الإحصائيات بنجاح.');
+    }
+
+    /**
+     * The organizing entity's display name for a certificate — same
+     * company_name-first fallback CertificateRenderer uses, so the tab list
+     * and the rendered certificate always agree.
+     */
+    protected function certificateOrganizerName(?LearnServeOpportunity $opportunity): ?string
+    {
+        $organizer = $opportunity?->creator;
+        $name = trim(
+            ($organizer?->organizationProfile?->company_name ?? '')
+                ?: (($organizer?->first_name ?? '').' '.($organizer?->last_name ?? ''))
+        );
+
+        return $name !== '' ? $name : null;
     }
 
     protected function badgeInfo($user): ?array

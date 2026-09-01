@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\MasterChoice;
-use App\Models\OrganizationProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\AssertsDjangoApiEnvelope;
 use Tests\Support\CreatesDomainFixtures;
@@ -20,7 +18,7 @@ class ProfilesDirectoryTest extends TestCase
         $this->seed();
         [$volunteer] = $this->createVolunteerActor();
         [$org] = $this->createOrganizationActor();
-        $team = $this->createVolunteerTeamActor();
+        [$team] = $this->createVolunteerTeamActor();
 
         $response = $this->getJson('/api/all-profiles/?limit=10');
         $this->assertSuccessEnvelope($response, 200, 'Profiles retrieved successfully.');
@@ -64,7 +62,7 @@ class ProfilesDirectoryTest extends TestCase
     {
         $this->seed();
         [$org] = $this->createOrganizationActor();
-        $team = $this->createVolunteerTeamActor();
+        [$team] = $this->createVolunteerTeamActor();
 
         $response = $this->getJson('/api/profiles/organizations/?limit=5');
         $this->assertSuccessEnvelope($response, 200, 'Organizations retrieved successfully.');
@@ -78,7 +76,7 @@ class ProfilesDirectoryTest extends TestCase
     {
         $this->seed();
         [$org] = $this->createOrganizationActor();
-        $team = $this->createVolunteerTeamActor();
+        [$team] = $this->createVolunteerTeamActor();
 
         $response = $this->getJson('/api/profiles/volunteer-teams/?limit=5');
         $this->assertSuccessEnvelope($response, 200, 'Volunteer teams retrieved successfully.');
@@ -108,21 +106,5 @@ class ProfilesDirectoryTest extends TestCase
     protected function userIds(array $items): array
     {
         return array_map(fn ($item) => $item['user_details']['id'], $items);
-    }
-
-    protected function createVolunteerTeamActor()
-    {
-        [$user] = $this->createOrganizationActor('team.'.uniqid().'@test.com');
-
-        $teamType = MasterChoice::query()
-            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-            ->where('value_en', 'Volunteer Team')
-            ->firstOrFail();
-
-        OrganizationProfile::query()
-            ->where('user_id', $user->id)
-            ->update(['organizer_type_id' => $teamType->id]);
-
-        return $user->fresh();
     }
 }

@@ -28,7 +28,7 @@ class LearnServeOpportunity extends Model
         'rejected_reason', 'location_en', 'location_ar', 'map_desc', 'opportunity_nationality',
         'deletion_status', 'deletion_rejected_reason', 'is_kuwaitis', 'created_by',
         'learning_type_id', 'gender_id', 'format_id', 'certificate_type_id',
-        'license_image', 'location_url', 'is_registration_closed', 'is_deleted', 'deleted_at',
+        'license_image', 'location_url', 'is_registration_closed', 'is_paid', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
@@ -44,6 +44,7 @@ class LearnServeOpportunity extends Model
         'is_calendar' => 'boolean',
         'is_kuwaitis' => 'boolean',
         'is_registration_closed' => 'boolean',
+        'is_paid' => 'boolean',
     ];
 
     /**

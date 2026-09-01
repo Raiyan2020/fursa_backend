@@ -87,9 +87,9 @@ class AdminStatisticsExportTest extends TestCase
         // Assert on data, not header text: the dashboard locale varies.
         $this->assertStringContainsString('200000000001', $body);
         $this->assertSame(
-            15,
+            17,
             substr_count(substr($body, 0, (int) strpos($body, '</tr>')), '<th>'),
-            'The export should carry 15 columns, including nationality and civil id.'
+            'The export should carry 17 columns, including nationality, civil id, residency status, and passport number.'
         );
     }
 
