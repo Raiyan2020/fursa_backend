@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
+use App\Models\MasterChoice;
 use App\Models\Post;
 use App\Models\Sponsor;
 use App\Models\VolunteerOpportunity;
@@ -63,6 +64,26 @@ class PublicAndCommunityFlowTest extends TestCase
         $this->getJson('/api/sponsors/'.$sponsorId.'/')
             ->assertOk()
             ->assertJsonPath('data.person_name', 'Updated Contact');
+
+        $orgType = MasterChoice::query()->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))->firstOrFail();
+        $sponsorType = MasterChoice::query()->whereHas('choiceType', fn ($q) => $q->where('name', 'sponsor_type'))->firstOrFail();
+        $typeOfSupport = MasterChoice::query()->whereHas('choiceType', fn ($q) => $q->where('name', 'type_of_support'))->firstOrFail();
+
+        $underscoreSponsor = $this->postJson('/api/sponsors/', [
+            'org_name' => 'Underscore Sponsor',
+            'person_name' => 'Underscore Contact',
+            'email' => 'sponsor-underscore@test.com',
+            '_org_type_id' => $orgType->id,
+            '_sponsor_type_id' => $sponsorType->id,
+            '_type_of_support_id' => $typeOfSupport->id,
+        ]);
+        $this->assertSuccessEnvelope($underscoreSponsor, 201);
+        $this->assertDatabaseHas('sponsors', [
+            'id' => (int) $underscoreSponsor->json('data.id'),
+            'org_type_id' => $orgType->id,
+            'sponsor_type_id' => $sponsorType->id,
+            'type_of_support_id' => $typeOfSupport->id,
+        ]);
 
         $contact = $this->postJson('/api/contact-us/', [
             'name_en' => 'Cycle User',
@@ -128,6 +149,7 @@ class PublicAndCommunityFlowTest extends TestCase
             'description_ar' => 'لا يجب أن تظهر',
             'participants_needed' => 10,
             'is_public' => true,
+            'volunteer_category' => 'environmental',
         ]));
         $this->assertSuccessEnvelope($opportunity, 201);
         $opportunityId = (int) $opportunity->json('data.id');

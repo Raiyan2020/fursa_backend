@@ -61,6 +61,8 @@ class SponsorController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->mergeUnderscorePrefixedChoiceFields($request);
+
         $data = $request->validate([
             'sponsor_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'org_name' => ['required', 'string', 'max:255'],
@@ -108,6 +110,8 @@ class SponsorController extends Controller
             return ApiResponse::error('Sponsor not found.', 'الراعي غير موجود.', 404);
         }
 
+        $this->mergeUnderscorePrefixedChoiceFields($request);
+
         $data = $request->validate([
             'sponsor_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'org_name' => ['nullable', 'string', 'max:255'],
@@ -145,6 +149,21 @@ class SponsorController extends Controller
             'Sponsor updated successfully.',
             'تم تحديث الراعي بنجاح.'
         );
+    }
+
+    /**
+     * The sponsorship form (Partner.tsx / SponsorshipForm.tsx) sends these three
+     * choice fields with a leading underscore, but every other field/endpoint in
+     * this API uses the plain column name. Accept both so those submissions stop
+     * silently dropping the org type / sponsor type / support type.
+     */
+    protected function mergeUnderscorePrefixedChoiceFields(Request $request): void
+    {
+        foreach (['org_type_id', 'sponsor_type_id', 'type_of_support_id'] as $field) {
+            if (! $request->has($field) && $request->has("_{$field}")) {
+                $request->merge([$field => $request->input("_{$field}")]);
+            }
+        }
     }
 
     public function destroy(int $id): JsonResponse
