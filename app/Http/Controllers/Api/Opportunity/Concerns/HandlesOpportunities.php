@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Opportunity\Concerns;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
+use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
 use App\Models\MasterChoice;
@@ -128,6 +129,14 @@ trait HandlesOpportunities
                 if ($bool !== null) {
                     $query->where($boolField, $bool);
                 }
+            }
+        }
+
+        if ($category = $request->query('volunteer_category')) {
+            if (VolunteerCategory::tryFrom($category)) {
+                $query->where('volunteer_category', $category);
+            } else {
+                $query->whereRaw('0 = 1');
             }
         }
 

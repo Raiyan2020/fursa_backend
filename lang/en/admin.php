@@ -59,6 +59,7 @@ return [
         'is_verified' => 'Verified',
         'current_badge_id' => 'Badge',
         'company_name' => 'Entity name',
+        'volunteer_category' => 'Volunteer category',
         'sponsor_organization' => 'Sponsor organization',
         'registration_number' => 'Registration number',
         'license_number' => 'License number',

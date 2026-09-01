@@ -7,6 +7,7 @@ enum VolunteerCategory: string
     case ENVIRONMENTAL = 'environmental';
     case CHARITY = 'charity';
     case ORGANIZATIONAL = 'organizational';
+    case EDUCATIONAL = 'educational';
 
     public static function values(): array
     {
@@ -19,6 +20,7 @@ enum VolunteerCategory: string
             self::ENVIRONMENTAL => 'Environmental',
             self::CHARITY => 'Charity',
             self::ORGANIZATIONAL => 'Organizational',
+            self::EDUCATIONAL => 'Educational',
         };
     }
 
@@ -28,6 +30,7 @@ enum VolunteerCategory: string
             self::ENVIRONMENTAL => 'بيئي',
             self::CHARITY => 'خيري',
             self::ORGANIZATIONAL => 'تنظيمي',
+            self::EDUCATIONAL => 'تعليمي',
         };
     }
 

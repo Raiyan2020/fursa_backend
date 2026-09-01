@@ -23,7 +23,6 @@
     $invalid = fn (string $field) => $errors->has($field) ? ' is-invalid' : '';
     $selectedInterests = collect(old('interest_ids', optional($opportunity)->interests?->pluck('id')->all() ?? []))->map(fn ($id) => (string) $id);
     $checked = fn (string $field, $fallback = false) => old($field, optional($opportunity)->{$field} ?? $fallback) ? 'checked' : '';
-    $today = now()->format('Y-m-d');
 @endphp
 
 @if ($errors->any())
@@ -98,7 +97,7 @@
                 <input type="date" name="start_date" id="start_date"
                     class="form-control{{ $invalid('start_date') }}"
                     value="{{ $opportunityValue('start_date') }}"
-                    min="{{ $today }}" required>
+                    required>
                 @error('start_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-3 mb-1">
@@ -106,7 +105,7 @@
                 <input type="date" name="end_date" id="end_date"
                     class="form-control{{ $invalid('end_date') }}"
                     value="{{ $opportunityValue('end_date') }}"
-                    min="{{ $today }}" required>
+                    required>
                 @error('end_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-3 mb-1">
@@ -123,8 +122,7 @@
                 <label>{{ __('due date') }}</label>
                 <input type="date" name="due_date"
                     class="form-control{{ $invalid('due_date') }}"
-                    value="{{ $opportunityValue('due_date') }}"
-                    min="{{ $today }}">
+                    value="{{ $opportunityValue('due_date') }}">
                 @error('due_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
         </div>
@@ -202,6 +200,18 @@
                     @endforeach
                 </select>
                 @error('opportunity_nationality') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-3 mb-1">
+                <label>{{ __('volunteer category') }} <span class="text-danger">*</span></label>
+                <select name="volunteer_category" class="form-control{{ $invalid('volunteer_category') }}" required>
+                    <option value="">{{ __('select') }}</option>
+                    @foreach (\App\Enums\VolunteerCategory::cases() as $category)
+                        <option value="{{ $category->value }}" {{ $selected('volunteer_category') === $category->value ? 'selected' : '' }}>
+                            {{ $category->labelAr() }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('volunteer_category') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-3 mb-1">
                 <label>{{ __('participants needed') }} <span class="text-danger">*</span></label>

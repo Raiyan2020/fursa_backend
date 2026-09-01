@@ -46,6 +46,7 @@ class LifecycleFlowTest extends TestCase
             'participants_needed' => 10,
             'from_age' => 18,
             'is_public' => true,
+            'volunteer_category' => 'environmental',
         ];
 
         $volunteerCreate = $this->api($organizationToken)

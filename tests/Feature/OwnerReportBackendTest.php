@@ -336,6 +336,7 @@ class OwnerReportBackendTest extends TestCase
             'end_date' => now()->addDays(5)->toDateString(),
             'participants_needed' => 8,
             'from_age' => 16,
+            'volunteer_category' => 'environmental',
         ], $overrides);
     }
 

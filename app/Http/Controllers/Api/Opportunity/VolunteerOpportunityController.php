@@ -296,9 +296,10 @@ class VolunteerOpportunityController extends Controller
             ->select('volunteer_opportunities.*')
             ->selectRaw('(SELECT COUNT(*) FROM volunteer_opportunity_registrations r WHERE r.opportunity_id = volunteer_opportunities.id AND r.is_deleted = 0) as current_registrations')
             // Bucket order, per the client's feedback: emergency first, then
-            // opportunities you can still join, then full ones, and anything
-            // already started drops below all of those instead of near the top.
-            // Dead records (completed / cancelled / past due) stay last.
+            // opportunities you can still join, then full ones. Anything
+            // already in progress ranks dead last — even below completed /
+            // cancelled / past-due records — per the client's explicit ask
+            // that an ongoing opportunity move to the very end of the list.
             ->orderByRaw("
                 CASE
                     WHEN (is_emergency = 1 OR is_urgent = 1) AND opportunity_status = 'upcoming'
@@ -310,9 +311,8 @@ class VolunteerOpportunityController extends Controller
                         AND (due_date IS NULL OR DATE(due_date) >= ?) THEN 1
                     WHEN (participants_needed > 0 AND current_registrations >= participants_needed)
                         AND (due_date IS NULL OR DATE(due_date) >= ?) THEN 2
-                    WHEN opportunity_status = 'inprogress'
-                        AND (participants_needed = 0 OR current_registrations < participants_needed) THEN 3
-                    ELSE 4
+                    WHEN opportunity_status = 'inprogress' THEN 4
+                    ELSE 3
                 END ASC
             ", [$today, $today, $today])
             ->orderBy('start_date', $request->query('sort_by') === 'newest' ? 'desc' : 'asc');
@@ -521,7 +521,7 @@ class VolunteerOpportunityController extends Controller
             'is_relief' => ['nullable', 'boolean'],
             'is_urgent' => ['nullable', 'boolean'],
             'is_emergency' => ['nullable', 'boolean'],
-            'volunteer_category' => ['nullable', Rule::in(VolunteerCategory::values())],
+            'volunteer_category' => [$partial ? 'sometimes' : 'required', Rule::in(VolunteerCategory::values())],
             // Beneficiaries only apply to charity opportunities; enforced below.
             'beneficiaries_count' => ['nullable', 'integer', 'min:0'],
             'is_supports_disabled' => ['nullable', 'boolean'],

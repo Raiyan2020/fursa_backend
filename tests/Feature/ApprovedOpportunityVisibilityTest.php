@@ -38,6 +38,7 @@ class ApprovedOpportunityVisibilityTest extends TestCase
             'start_date' => now()->addDays(3)->toDateString(),
             'end_date' => now()->addDays(6)->toDateString(),
             'participants_needed' => 8,
+            'volunteer_category' => 'environmental',
         ]);
 
         $response->assertSuccessful();

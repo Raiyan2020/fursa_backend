@@ -59,6 +59,7 @@ return [
     'is_verified' => 'موثّق',
     'current_badge_id' => 'الشارة',
     'company_name' => 'اسم الجهة',
+    'volunteer_category' => 'تصنيف الفرصة',
     'sponsor_organization' => 'الجهة الراعية',
     'registration_number' => 'رقم التسجيل',
     'license_number' => 'رقم الترخيص',

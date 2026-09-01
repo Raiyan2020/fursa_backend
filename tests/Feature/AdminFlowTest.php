@@ -334,6 +334,7 @@ class AdminFlowTest extends TestCase
                 'participants_needed',
                 'approval_status',
                 'opportunity_status',
+                'volunteer_category',
             ]);
 
         $image = UploadedFile::fake()->image('volunteer.png', 800, 400);
@@ -357,6 +358,7 @@ class AdminFlowTest extends TestCase
             'primary_language' => 'ar',
             'approval_status' => 'approved',
             'opportunity_status' => 'upcoming',
+            'volunteer_category' => 'environmental',
             'is_public' => '1',
             'images' => [$image],
         ])->assertRedirect(route('admin.volunteer-opportunities.index'));
@@ -380,12 +382,14 @@ class AdminFlowTest extends TestCase
             'participants_needed' => 25,
             'approval_status' => 'approved',
             'opportunity_status' => 'upcoming',
+            'volunteer_category' => 'charity',
         ])->assertRedirect(route('admin.volunteer-opportunities.index'));
 
         $this->assertDatabaseHas('volunteer_opportunities', [
             'id' => $opportunity->id,
             'title_en' => 'Beach Cleanup Updated',
             'participants_needed' => 25,
+            'volunteer_category' => 'charity',
         ]);
 
         $imageId = $opportunity->images()->firstOrFail()->id;
