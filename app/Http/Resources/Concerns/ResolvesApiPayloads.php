@@ -161,12 +161,40 @@ trait ResolvesApiPayloads
         return getimg($path);
     }
 
+    /**
+     * A display name that is safe to render for any account type.
+     *
+     * Organizations keep their name in organization_profiles.company_name and
+     * commonly leave users.first_name/last_name null, which made this return an
+     * empty string for the publisher of most opportunities. Fall back to the
+     * company name so every payload carries something displayable.
+     */
     protected function fullName(?User $user): string
     {
         if (! $user) {
             return '';
         }
 
-        return trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+        $name = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        if ($user->isOrganization()) {
+            $user->loadMissing('organizationProfile');
+
+            $companyName = trim((string) ($user->organizationProfile->company_name ?? ''));
+            if ($companyName !== '') {
+                return $companyName;
+            }
+
+            $nickname = trim((string) ($user->organizationProfile->nickname ?? ''));
+            if ($nickname !== '') {
+                return $nickname;
+            }
+        }
+
+        return '';
     }
 }
