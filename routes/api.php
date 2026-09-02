@@ -133,6 +133,8 @@ Route::middleware('auth:api')->group(function () {
     Route::patch('volunteer-opportunity-registrations/', [VolunteerOpportunityRegistrationController::class, 'updateAssignment']);
     Route::post('volunteer-opportunity-registrations/direct-register/', [VolunteerOpportunityRegistrationController::class, 'directRegister']);
     Route::post('volunteer-opportunity-registrations/direct-unregister/', [VolunteerOpportunityRegistrationController::class, 'directUnregister']);
+    Route::patch('volunteer-opportunities/{opportunity_id}/registrations/status/', [VolunteerOpportunityRegistrationController::class, 'bulkStatus']);
+    Route::post('volunteer-opportunities/{opportunity_id}/registrations/message/', [VolunteerOpportunityRegistrationController::class, 'messageRegistrants']);
     Route::get('volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'show']);
     Route::match(['put', 'patch'], 'volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'update']);
     Route::delete('volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'destroy']);
@@ -159,6 +161,8 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('learn-serve-opportunity-registrations/', [LearnServeRegistrationController::class, 'register']);
     Route::get('learn-serve-opportunities/{opportunity_id}/registrations/', [LearnServeRegistrationController::class, 'list']);
+    Route::patch('learn-serve-opportunities/{opportunity_id}/registrations/status/', [LearnServeRegistrationController::class, 'bulkStatus']);
+    Route::post('learn-serve-opportunities/{opportunity_id}/registrations/message/', [LearnServeRegistrationController::class, 'messageRegistrants']);
     Route::patch('learn-serve-opportunities/{opportunity_id}/update-attendance/', [LearnServeRegistrationController::class, 'updateAttendance']);
     Route::delete('learnserve/{opportunity_id}/unregister/{user_id}/', [LearnServeRegistrationController::class, 'unregisterUser']);
 

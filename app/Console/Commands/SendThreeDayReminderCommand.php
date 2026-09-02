@@ -30,7 +30,7 @@ class SendThreeDayReminderCommand extends Command
             ->notDeleted()
             ->whereDate('start_date', $target)
             ->where('opportunity_status', OpportunityStatus::UPCOMING)
-            ->with(['registrations' => fn ($q) => $q->notDeleted()->with('user')])
+            ->with(['registrations' => fn ($q) => $q->notDeleted()->where('status', ApprovalStatus::APPROVED)->with('user')])
             ->get()
             ->each(function (VolunteerOpportunity $opp) use (&$count) {
                 foreach ($opp->registrations as $reg) {
@@ -57,7 +57,7 @@ class SendThreeDayReminderCommand extends Command
             ->notDeleted()
             ->whereDate('start_date', $target)
             ->where('opportunity_status', OpportunityStatus::UPCOMING)
-            ->with(['registrations' => fn ($q) => $q->notDeleted()->with('user')])
+            ->with(['registrations' => fn ($q) => $q->notDeleted()->where('status', ApprovalStatus::APPROVED)->with('user')])
             ->get()
             ->each(function (LearnServeOpportunity $opp) use (&$count) {
                 foreach ($opp->registrations as $reg) {
