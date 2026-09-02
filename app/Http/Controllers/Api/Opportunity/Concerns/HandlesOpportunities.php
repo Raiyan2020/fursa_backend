@@ -171,8 +171,22 @@ trait HandlesOpportunities
         return $user && $opportunity->created_by === $user->id;
     }
 
-    protected function computeAttendanceHours(VolunteerOpportunity $opportunity): float
+    /**
+     * Hours to credit for attending on a given date.
+     *
+     * When the opportunity has a per-day schedule, that day's slot wins, since
+     * each day may run different hours. Otherwise the opportunity-wide
+     * start_time/end_time applies as before.
+     */
+    protected function computeAttendanceHours(VolunteerOpportunity $opportunity, ?string $date = null): float
     {
+        if ($date !== null) {
+            $slot = $opportunity->slotForDate($date);
+            if ($slot) {
+                return $slot->durationInHours();
+            }
+        }
+
         if (! $opportunity->start_time || ! $opportunity->end_time) {
             return 0;
         }

@@ -55,7 +55,7 @@ class VolunteerOpportunityController extends Controller
         $opportunity = VolunteerOpportunity::query()
             ->notDeleted()
             ->where('created_by', $request->user()->id)
-            ->with(['creator', 'gender.choiceType', 'interests', 'images', 'roles', 'teams'])
+            ->with(['creator', 'gender.choiceType', 'interests', 'images', 'roles', 'teams', 'timeSlots'])
             ->withCount(['registrations' => fn ($q) => $q->notDeleted()])
             ->find($id);
 
@@ -84,9 +84,14 @@ class VolunteerOpportunityController extends Controller
         ]));
 
         $this->syncInterests($opportunity, $request->input('interest_ids', []));
+
+        if (! empty($data['time_slots'])) {
+            $this->syncTimeSlots($opportunity, $data['time_slots']);
+        }
+
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
 
-        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
+        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots']);
 
         return ApiResponse::success(
             new VolunteerOpportunityResource($opportunity),
@@ -117,9 +122,13 @@ class VolunteerOpportunityController extends Controller
             $this->syncInterests($opportunity, $request->input('interest_ids', []));
         }
 
+        if ($request->has('time_slots')) {
+            $this->syncTimeSlots($opportunity, $data['time_slots'] ?? []);
+        }
+
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
 
-        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
+        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots']);
 
         return ApiResponse::success(
             new VolunteerOpportunityResource($opportunity),
@@ -330,7 +339,7 @@ class VolunteerOpportunityController extends Controller
     public function opportunityDetails(Request $request, int $opportunity_id): JsonResponse
     {
         $opportunity = VolunteerOpportunity::query()
-            ->with(['creator', 'gender.choiceType', 'interests', 'images', 'roles', 'teams'])
+            ->with(['creator', 'gender.choiceType', 'interests', 'images', 'roles', 'teams', 'timeSlots'])
             ->withCount(['registrations' => fn ($q) => $q->notDeleted()])
             ->find($opportunity_id);
 
@@ -522,6 +531,12 @@ class VolunteerOpportunityController extends Controller
             'is_urgent' => ['nullable', 'boolean'],
             'is_emergency' => ['nullable', 'boolean'],
             'volunteer_category' => [$partial ? 'sometimes' : 'required', Rule::in(VolunteerCategory::values())],
+            // Optional per-day schedule: supports non-consecutive days and
+            // different hours per day. Omitting it keeps the single time range.
+            'time_slots' => ['nullable', 'array'],
+            'time_slots.*.date' => ['required', 'date'],
+            'time_slots.*.start_time' => ['nullable', 'string'],
+            'time_slots.*.end_time' => ['nullable', 'string'],
             // Beneficiaries only apply to charity opportunities; enforced below.
             'beneficiaries_count' => ['nullable', 'integer', 'min:0'],
             'is_supports_disabled' => ['nullable', 'boolean'],
@@ -557,6 +572,50 @@ class VolunteerOpportunityController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * Replace the opportunity's per-day schedule.
+     *
+     * Days are soft-deleted rather than removed so historical attendance keeps
+     * resolving against the slot it was recorded under.
+     *
+     * @param  list<array{date: string, start_time?: string|null, end_time?: string|null}>  $slots
+     */
+    protected function syncTimeSlots(VolunteerOpportunity $opportunity, array $slots): void
+    {
+        // Track kept rows by id: the date column stores a full timestamp, so
+        // comparing it against 'Y-m-d' strings would match nothing and wipe
+        // every slot we just wrote.
+        $keptIds = [];
+
+        foreach ($slots as $slot) {
+            $date = \Carbon\Carbon::parse($slot['date'])->toDateString();
+
+            $existing = $opportunity->timeSlots()->whereDate('date', $date)->first();
+
+            $attributes = [
+                'start_time' => $slot['start_time'] ?? $opportunity->start_time,
+                'end_time' => $slot['end_time'] ?? $opportunity->end_time,
+                'is_deleted' => false,
+                'deleted_at' => null,
+            ];
+
+            if ($existing) {
+                $existing->update($attributes);
+                $keptIds[] = $existing->id;
+
+                continue;
+            }
+
+            $created = $opportunity->timeSlots()->create($attributes + ['date' => $date]);
+            $keptIds[] = $created->id;
+        }
+
+        $opportunity->timeSlots()
+            ->notDeleted()
+            ->when($keptIds !== [], fn ($q) => $q->whereNotIn('id', $keptIds))
+            ->update(['is_deleted' => true, 'deleted_at' => now()]);
     }
 
     protected function syncInterests(VolunteerOpportunity $opportunity, array $interestIds): void

@@ -93,6 +93,14 @@ trait HasRegistrationWindow
     {
         $check = $date ? Carbon::parse($date)->startOfDay() : now()->startOfDay();
 
+        // An opportunity that scheduled specific days only runs on those days,
+        // so a check-in on a gap day is not valid attendance.
+        if (method_exists($this, 'hasCustomSchedule') && $this->hasCustomSchedule()) {
+            if (! $this->slotForDate($check->toDateString())) {
+                return false;
+            }
+        }
+
         if ($this->start_date && $check->lt(Carbon::parse($this->start_date)->startOfDay())) {
             return false;
         }

@@ -171,4 +171,54 @@ class VolunteerOpportunity extends Model
     {
         return $this->hasMany(ScanPermission::class, 'opportunity_id');
     }
+
+    public function timeSlots(): HasMany
+    {
+        return $this->hasMany(VolunteerOpportunityTimeSlot::class, 'opportunity_id');
+    }
+
+    /**
+     * True when the organiser scheduled specific days rather than relying on a
+     * single time range across start_date..end_date.
+     */
+    public function hasCustomSchedule(): bool
+    {
+        return $this->timeSlots()->notDeleted()->exists();
+    }
+
+    /**
+     * The slot covering a given date, if the opportunity uses a custom schedule.
+     */
+    public function slotForDate(string $date): ?VolunteerOpportunityTimeSlot
+    {
+        return $this->timeSlots()
+            ->notDeleted()
+            ->whereDate('date', $date)
+            ->first();
+    }
+
+    /**
+     * Whether the opportunity actually runs on this date.
+     *
+     * With a custom schedule only the scheduled days count, which is what makes
+     * non-consecutive days work. Without one, the whole start..end range counts.
+     */
+    public function runsOnDate(string $date): bool
+    {
+        if ($this->hasCustomSchedule()) {
+            return $this->slotForDate($date) !== null;
+        }
+
+        $check = \Carbon\Carbon::parse($date)->startOfDay();
+
+        if ($this->start_date && $check->lt(\Carbon\Carbon::parse($this->start_date)->startOfDay())) {
+            return false;
+        }
+
+        if ($this->end_date && $check->gt(\Carbon\Carbon::parse($this->end_date)->startOfDay())) {
+            return false;
+        }
+
+        return true;
+    }
 }
