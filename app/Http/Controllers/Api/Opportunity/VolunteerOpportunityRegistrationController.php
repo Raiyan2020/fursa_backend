@@ -9,17 +9,22 @@ use App\Http\Resources\Opportunity\VolunteerOpportunityRegistrationResource;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAssignment;
+use App\Models\VolunteerOpportunityAttendance;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerOpportunityRole;
 use App\Models\VolunteerOpportunityTeam;
 use App\Services\Mail\DynamicEmailService;
 use App\Services\Notification\NotificationService;
 use App\Services\Opportunity\RegistrationManagementService;
+use App\Services\Opportunity\AttendanceService;
 use App\Support\ApiResponse;
+use App\Support\XlsxExport;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class VolunteerOpportunityRegistrationController extends Controller
@@ -55,6 +60,10 @@ class VolunteerOpportunityRegistrationController extends Controller
             });
         }
 
+        if ($request->boolean('download')) {
+            return $this->downloadRegistrations($request, $query->distinct());
+        }
+
         $paginator = $this->paginateQuery($query->distinct(), $request);
 
         return ApiResponse::paginated(
@@ -63,6 +72,117 @@ class VolunteerOpportunityRegistrationController extends Controller
             'Registrations retrieved successfully.',
             'تم استرجاع التسجيلات بنجاح.'
         );
+    }
+
+    protected function downloadRegistrations(Request $request, Builder $query): JsonResponse
+    {
+        $data = validator($request->query(), [
+            'opportunity_id' => ['required', 'integer', 'exists:volunteer_opportunities,id'],
+            'mark_attendance' => ['nullable', Rule::in(['true', 'false', '1', '0', 1, 0, true, false])],
+            'date' => ['nullable', 'date'],
+        ])->validate();
+
+        $markAttendance = $request->boolean('mark_attendance');
+        if ($markAttendance && empty($data['date'])) {
+            return ApiResponse::error(
+                'The date field is required when mark_attendance is true.',
+                'حقل التاريخ مطلوب عند تفعيل تسجيل الحضور.',
+                422
+            );
+        }
+
+        $opportunity = VolunteerOpportunity::query()->notDeleted()->find($data['opportunity_id']);
+        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+            return ApiResponse::error(
+                'Only the opportunity creator can download its registration sheet.',
+                'يمكن لمنشئ الفرصة فقط تنزيل كشف المسجلين.',
+                403
+            );
+        }
+
+        $registrations = $query->get();
+        $attendanceDate = ! empty($data['date'])
+            ? \Carbon\Carbon::parse($data['date'])->toDateString()
+            : null;
+        $markedCount = 0;
+        $alreadyMarkedCount = 0;
+
+        if ($markAttendance && $attendanceDate) {
+            if (! $opportunity->isWithinPreparationWindow($attendanceDate)) {
+                return ApiResponse::error(
+                    'The attendance date is outside the allowed check-in window.',
+                    'تاريخ الحضور خارج نافذة تسجيل الحضور المسموح بها.',
+                    400
+                );
+            }
+
+            foreach ($registrations->where('status', ApprovalStatus::APPROVED) as $registration) {
+                $alreadyMarked = VolunteerOpportunityAttendance::query()
+                    ->notDeleted()
+                    ->where('registration_id', $registration->id)
+                    ->whereDate('attended_date', $attendanceDate)
+                    ->where('is_attended', true)
+                    ->exists();
+
+                if ($alreadyMarked) {
+                    $alreadyMarkedCount++;
+                    continue;
+                }
+
+                AttendanceService::record(
+                    $registration,
+                    $opportunity,
+                    $attendanceDate,
+                    $this->computeAttendanceHours($opportunity),
+                    AttendanceService::VIA_MANUAL,
+                    $request->user()->id
+                );
+                $markedCount++;
+            }
+        }
+
+        $rows = $registrations->map(function (VolunteerOpportunityRegistration $registration) use ($attendanceDate) {
+            $user = $registration->user;
+            $assignment = $registration->assignment;
+            $attended = $attendanceDate
+                ? VolunteerOpportunityAttendance::query()->notDeleted()
+                    ->where('registration_id', $registration->id)
+                    ->whereDate('attended_date', $attendanceDate)
+                    ->where('is_attended', true)
+                    ->exists()
+                : false;
+
+            return [
+                $registration->id,
+                trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')),
+                $user?->email,
+                trim(($user?->country_code ?? '').($user?->phone_number ?? '')),
+                $registration->status?->value ?? (string) $registration->status,
+                $assignment?->role?->role_name_en,
+                $assignment?->team?->team_name_en,
+                $user?->civil_id,
+                $user?->passport_number,
+                optional($registration->registration_date)?->toIso8601String(),
+                $attendanceDate,
+                $attendanceDate ? ($attended ? 'Yes' : 'No') : '',
+            ];
+        });
+
+        $path = 'exports/volunteer-opportunity-'.$opportunity->id.'-registrations-'
+            .now()->format('Ymd-His').'-'.Str::lower(Str::random(6)).'.xlsx';
+        $downloadUrl = XlsxExport::store($path, [
+            'Registration ID', 'Full Name', 'Email', 'Phone', 'Status', 'Role', 'Team',
+            'Civil ID', 'Passport Number', 'Registration Date', 'Attendance Date', 'Attended',
+        ], $rows, 'Registered Volunteers');
+
+        return ApiResponse::success([
+            'downloadUrl' => $downloadUrl,
+            'download_url' => $downloadUrl,
+            'file_format' => 'xlsx',
+            'registrations_count' => $registrations->count(),
+            'attendance_marked_count' => $markedCount,
+            'attendance_already_marked_count' => $alreadyMarkedCount,
+        ], 'Registration sheet generated successfully.', 'تم إنشاء كشف المسجلين بنجاح.');
     }
 
     public function store(Request $request): JsonResponse

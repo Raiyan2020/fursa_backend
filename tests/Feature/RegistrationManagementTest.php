@@ -12,8 +12,10 @@ use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\CreatesDomainFixtures;
 use Tests\TestCase;
+use ZipArchive;
 
 class RegistrationManagementTest extends TestCase
 {
@@ -159,6 +161,66 @@ class RegistrationManagementTest extends TestCase
         $this->assertTrue(UserNotification::query()->where('user_id', $approved->id)->exists());
         $this->assertFalse(UserNotification::query()->where('user_id', $rejected->id)->exists());
         $this->assertFalse(UserNotification::query()->where('user_id', $cancelled->id)->exists());
+    }
+
+    public function test_download_returns_real_xlsx_and_marks_only_approved_registrations(): void
+    {
+        Storage::fake('public');
+        [$owner, $token] = $this->createOrganizationActor();
+        [$approved] = $this->createVolunteerActor();
+        [$rejected] = $this->createVolunteerActor();
+        $opportunity = $this->volunteerOpportunity($owner, [
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+            'start_time' => '09:00:00',
+            'end_time' => '13:00:00',
+        ]);
+        $approvedRegistration = VolunteerOpportunityRegistration::query()->create([
+            'opportunity_id' => $opportunity->id, 'user_id' => $approved->id, 'status' => ApprovalStatus::APPROVED,
+        ]);
+        $rejectedRegistration = VolunteerOpportunityRegistration::query()->create([
+            'opportunity_id' => $opportunity->id, 'user_id' => $rejected->id, 'status' => ApprovalStatus::REJECTED,
+        ]);
+
+        $response = $this->api($token)->getJson('/api/volunteer-opportunity-registrations/?'.http_build_query([
+            'opportunity_id' => $opportunity->id,
+            'download' => 'true',
+            'mark_attendance' => 'true',
+            'date' => now()->toDateString(),
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('data.file_format', 'xlsx')
+            ->assertJsonPath('data.registrations_count', 2)
+            ->assertJsonPath('data.attendance_marked_count', 1);
+        $this->assertNotEmpty($response->json('data.downloadUrl'));
+        $this->assertDatabaseHas('volunteer_opportunity_attendances', [
+            'registration_id' => $approvedRegistration->id,
+            'is_attended' => true,
+        ]);
+        $this->assertDatabaseMissing('volunteer_opportunity_attendances', [
+            'registration_id' => $rejectedRegistration->id,
+        ]);
+
+        $files = Storage::disk('public')->allFiles('exports');
+        $this->assertCount(1, $files);
+        $temporary = tempnam(sys_get_temp_dir(), 'verify_xlsx_');
+        file_put_contents($temporary, Storage::disk('public')->get($files[0]));
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($temporary) === true);
+        $this->assertNotFalse($zip->getFromName('xl/worksheets/sheet1.xml'));
+        $zip->close();
+        @unlink($temporary);
+
+        $second = $this->api($token)->getJson('/api/volunteer-opportunity-registrations/?'.http_build_query([
+            'opportunity_id' => $opportunity->id,
+            'download' => 'true',
+            'mark_attendance' => 'true',
+            'date' => now()->toDateString(),
+        ]));
+        $second->assertOk()
+            ->assertJsonPath('data.attendance_marked_count', 0)
+            ->assertJsonPath('data.attendance_already_marked_count', 1);
     }
 
     protected function volunteerOpportunity(User $owner, array $overrides = []): VolunteerOpportunity
