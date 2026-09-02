@@ -397,5 +397,6 @@
     "event registrations": "Event registrations",
     "map description": "Location description",
     "e.g. Jumhuriya St., Mansoura": "e.g. Jumhuriya St., Mansoura",
-    "An account cannot be switched between volunteer and entity. Register a separate account instead.": "An account cannot be switched between volunteer and entity. Register a separate account instead."
+    "An account cannot be switched between volunteer and entity. Register a separate account instead.": "An account cannot be switched between volunteer and entity. Register a separate account instead.",
+    "Provide either permissions[] or user_ids[] with is_allowed.": "Provide either permissions[] or user_ids[] with is_allowed."
 }
