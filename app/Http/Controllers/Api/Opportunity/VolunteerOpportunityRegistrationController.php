@@ -20,6 +20,7 @@ use App\Services\Opportunity\AttendanceService;
 use App\Support\ApiResponse;
 use App\Support\XlsxExport;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -271,24 +272,77 @@ class VolunteerOpportunityRegistrationController extends Controller
             }
         }
 
-        $registration = DB::transaction(function () use ($user, $opportunity, $role, $team) {
-            $registration = VolunteerOpportunityRegistration::create([
+        try {
+            $registration = DB::transaction(function () use ($user, $opportunity, $role, $team) {
+                // A unique index covers (opportunity_id, user_id) and unregister
+                // only soft-deletes, so a volunteer who cancels and signs up again
+                // must revive their existing row rather than insert a second one.
+                $registration = VolunteerOpportunityRegistration::query()
+                    ->where('opportunity_id', $opportunity->id)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                $attributes = [
+                    'registration_date' => now(),
+                    'status' => ApprovalStatus::PENDING,
+                    'is_deleted' => false,
+                    'deleted_at' => null,
+                ];
+
+                if ($registration) {
+                    $registration->update($attributes);
+                } else {
+                    $registration = VolunteerOpportunityRegistration::create($attributes + [
+                        'opportunity_id' => $opportunity->id,
+                        'user_id' => $user->id,
+                    ]);
+                }
+
+                // volunteer_opportunity_assignments is unique on
+                // registration_id, and the registration row is reused above, so
+                // an assignment left over from the cancelled sign-up has to be
+                // updated in place instead of inserted alongside.
+                $existingAssignment = VolunteerOpportunityAssignment::query()
+                    ->where('registration_id', $registration->id)
+                    ->first();
+
+                if ($role || $team) {
+                    $assignmentAttributes = [
+                        'role_id' => $role?->id,
+                        'team_id' => $team?->id,
+                        'is_deleted' => false,
+                        'deleted_at' => null,
+                    ];
+
+                    if ($existingAssignment) {
+                        $existingAssignment->update($assignmentAttributes);
+                    } else {
+                        VolunteerOpportunityAssignment::create(
+                            $assignmentAttributes + ['registration_id' => $registration->id]
+                        );
+                    }
+                } elseif ($existingAssignment) {
+                    // Re-registering with no role/team clears the old one.
+                    $existingAssignment->softDeleteFlags();
+                }
+
+                return $registration;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // Belt and braces: two concurrent sign-ups can still race past the
+            // revive above. Fail as a normal validation error rather than
+            // leaking a driver-level 1062 and a stack trace to the client.
+            Log::warning('Duplicate volunteer registration blocked', [
                 'opportunity_id' => $opportunity->id,
                 'user_id' => $user->id,
-                'registration_date' => now(),
-                'status' => ApprovalStatus::PENDING,
             ]);
 
-            if ($role || $team) {
-                VolunteerOpportunityAssignment::create([
-                    'registration_id' => $registration->id,
-                    'role_id' => $role?->id,
-                    'team_id' => $team?->id,
-                ]);
-            }
-
-            return $registration;
-        });
+            return ApiResponse::error(
+                'You are already registered for this opportunity.',
+                'أنت مسجل بالفعل في هذه الفرصة.',
+                422
+            );
+        }
 
         $registration->load(['user', 'assignment.role', 'assignment.team']);
         $totalAssigned = VolunteerOpportunityRegistration::query()
