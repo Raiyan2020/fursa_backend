@@ -7,6 +7,7 @@ use App\Enums\OpportunityStatus;
 use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
+use App\Models\Interest;
 use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
 use App\Models\User;
@@ -141,8 +142,8 @@ trait HandlesOpportunities
         }
 
         if ($request->boolean('match_my_interest') && $request->user()) {
-            $userInterestIds = $request->user()->interests()->pluck('interests.id');
-            if ($userInterestIds->isEmpty()) {
+            $userInterestIds = $this->resolveUserInterestIds($request->user());
+            if ($userInterestIds === []) {
                 $query->whereRaw('0 = 1');
             } else {
                 $query->whereHas('interests', fn ($q) => $q->whereIn('interests.id', $userInterestIds));
@@ -156,6 +157,49 @@ trait HandlesOpportunities
         }
 
         return $query;
+    }
+
+    /**
+     * The Interest ids to match an opportunity against for "match my interest".
+     *
+     * A user's interests are stored in one of two places depending on which ids
+     * the profile screen submitted:
+     *
+     *  - `masterInterests` — MasterChoice rows of choice type `user_interest`.
+     *    This is what the current profile UI writes.
+     *  - `interests` — the legacy Interest table, which is also what
+     *    opportunities are tagged with.
+     *
+     * Opportunities are only ever tagged with Interest rows, so a user who
+     * picked interests through the normal UI had nothing to intersect against
+     * and the filter returned zero for everyone. Master choices are therefore
+     * translated to their Interest equivalents by name, and the two sets are
+     * merged.
+     *
+     * @return list<int>
+     */
+    protected function resolveUserInterestIds(User $user): array
+    {
+        $legacyIds = $user->interests()->pluck('interests.id')->all();
+
+        $masterNames = $user->masterInterests()
+            ->pluck('master_choices.value_en')
+            ->filter()
+            ->all();
+
+        $translatedIds = [];
+        if ($masterNames !== []) {
+            $translatedIds = Interest::query()
+                ->where(function ($query) use ($masterNames) {
+                    foreach ($masterNames as $name) {
+                        $query->orWhereRaw('LOWER(TRIM(name_en)) = ?', [mb_strtolower(trim((string) $name))]);
+                    }
+                })
+                ->pluck('id')
+                ->all();
+        }
+
+        return array_values(array_unique(array_map('intval', array_merge($legacyIds, $translatedIds))));
     }
 
     protected function canViewVolunteerOpportunity(VolunteerOpportunity $opportunity, ?User $user): bool
