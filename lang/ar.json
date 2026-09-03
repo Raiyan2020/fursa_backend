@@ -397,5 +397,6 @@
     "event registrations": "تسجيلات الفعاليات",
     "map description": "وصف الموقع",
     "e.g. Jumhuriya St., Mansoura": "مثال: شارع الجمهورية، المنصورة",
-    "An account cannot be switched between volunteer and entity. Register a separate account instead.": "لا يمكن تحويل الحساب بين متطوع وجهة. يُرجى إنشاء حساب منفصل بدلاً من ذلك."
+    "An account cannot be switched between volunteer and entity. Register a separate account instead.": "لا يمكن تحويل الحساب بين متطوع وجهة. يُرجى إنشاء حساب منفصل بدلاً من ذلك.",
+    "Provide either permissions[] or user_ids[] with is_allowed.": "يجب توفير permissions[] أو user_ids[] مع is_allowed."
 }

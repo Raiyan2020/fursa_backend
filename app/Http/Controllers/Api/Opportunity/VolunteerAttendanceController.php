@@ -129,7 +129,7 @@ class VolunteerAttendanceController extends Controller
                 $registration,
                 $opportunity,
                 $attendanceDate,
-                $this->computeAttendanceHours($opportunity),
+                $this->computeAttendanceHours($opportunity, $attendanceDate),
                 AttendanceService::VIA_QR,
                 $request->user()->id
             );
@@ -283,7 +283,7 @@ class VolunteerAttendanceController extends Controller
 
         $hours = array_key_exists('total_hours', $data) && $data['total_hours'] !== null
             ? round((float) $data['total_hours'], 2)
-            : $this->computeAttendanceHours($opportunity);
+            : $this->computeAttendanceHours($opportunity, $attendanceDate);
 
         $attendance = AttendanceService::record(
             $registration,

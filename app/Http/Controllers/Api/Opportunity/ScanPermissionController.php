@@ -16,12 +16,24 @@ class ScanPermissionController extends Controller
 {
     public function bulkUpdate(Request $request): JsonResponse
     {
+        // Two accepted shapes for the same operation:
+        //
+        //   permissions: [{user_id, is_allowed}, ...]   per-entry flags, can mix
+        //                                               grants and revokes
+        //   user_ids: [...] + is_allowed: bool          one flag for the batch
+        //
+        // The second is normalised into the first below. Grant and revoke are
+        // the same call in both forms.
+        $this->normalizeBulkPermissions($request);
+
         $data = $request->validate([
             'opportunity_id' => ['nullable', 'integer', 'exists:volunteer_opportunities,id'],
             'event_id' => ['nullable', 'integer', 'exists:events,id'],
             'permissions' => ['required', 'array', 'min:1'],
             'permissions.*.user_id' => ['required', 'integer', 'exists:users,id'],
             'permissions.*.is_allowed' => ['required', 'boolean'],
+        ], [
+            'permissions.required' => __('Provide either permissions[] or user_ids[] with is_allowed.'),
         ]);
 
         if (empty($data['opportunity_id']) && empty($data['event_id'])) {
@@ -69,6 +81,50 @@ class ScanPermissionController extends Controller
         }
 
         return ApiResponse::success($results, 'Scan permissions updated successfully.', 'تم تحديث أذونات المسح بنجاح.');
+    }
+
+    /**
+     * Accept the flat `user_ids` + `is_allowed` form by rewriting it into the
+     * canonical `permissions` array before validation runs.
+     *
+     * Leaves an explicit `permissions` payload untouched, so a caller can still
+     * mix grants and revokes in one request.
+     */
+    protected function normalizeBulkPermissions(Request $request): void
+    {
+        if ($request->has('permissions')) {
+            return;
+        }
+
+        $userIds = $request->input('user_ids');
+        if ($userIds === null) {
+            return;
+        }
+
+        if (! is_array($userIds)) {
+            $userIds = [$userIds];
+        }
+
+        // Absent is_allowed means "grant", matching the Add Permission flow.
+        $isAllowed = $request->has('is_allowed')
+            ? $request->boolean('is_allowed')
+            : true;
+
+        $permissions = [];
+        foreach ($userIds as $userId) {
+            if ($userId === null || $userId === '') {
+                continue;
+            }
+
+            $permissions[] = [
+                'user_id' => (int) $userId,
+                'is_allowed' => $isAllowed,
+            ];
+        }
+
+        if ($permissions !== []) {
+            $request->merge(['permissions' => $permissions]);
+        }
     }
 
     public function list(Request $request): JsonResponse

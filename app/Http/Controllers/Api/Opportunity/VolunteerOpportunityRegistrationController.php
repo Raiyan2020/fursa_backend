@@ -9,16 +9,24 @@ use App\Http\Resources\Opportunity\VolunteerOpportunityRegistrationResource;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAssignment;
+use App\Models\VolunteerOpportunityAttendance;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerOpportunityRole;
 use App\Models\VolunteerOpportunityTeam;
 use App\Services\Mail\DynamicEmailService;
 use App\Services\Notification\NotificationService;
+use App\Services\Opportunity\RegistrationManagementService;
+use App\Services\Opportunity\AttendanceService;
 use App\Support\ApiResponse;
+use App\Support\XlsxExport;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class VolunteerOpportunityRegistrationController extends Controller
 {
@@ -32,6 +40,10 @@ class VolunteerOpportunityRegistrationController extends Controller
 
         if ($opportunityId = $request->query('opportunity_id')) {
             $query->where('opportunity_id', $opportunityId);
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
         }
 
         foreach (['role_id', 'team_id'] as $param) {
@@ -49,6 +61,10 @@ class VolunteerOpportunityRegistrationController extends Controller
             });
         }
 
+        if ($request->boolean('download')) {
+            return $this->downloadRegistrations($request, $query->distinct());
+        }
+
         $paginator = $this->paginateQuery($query->distinct(), $request);
 
         return ApiResponse::paginated(
@@ -57,6 +73,117 @@ class VolunteerOpportunityRegistrationController extends Controller
             'Registrations retrieved successfully.',
             'تم استرجاع التسجيلات بنجاح.'
         );
+    }
+
+    protected function downloadRegistrations(Request $request, Builder $query): JsonResponse
+    {
+        $data = validator($request->query(), [
+            'opportunity_id' => ['required', 'integer', 'exists:volunteer_opportunities,id'],
+            'mark_attendance' => ['nullable', Rule::in(['true', 'false', '1', '0', 1, 0, true, false])],
+            'date' => ['nullable', 'date'],
+        ])->validate();
+
+        $markAttendance = $request->boolean('mark_attendance');
+        if ($markAttendance && empty($data['date'])) {
+            return ApiResponse::error(
+                'The date field is required when mark_attendance is true.',
+                'حقل التاريخ مطلوب عند تفعيل تسجيل الحضور.',
+                422
+            );
+        }
+
+        $opportunity = VolunteerOpportunity::query()->notDeleted()->find($data['opportunity_id']);
+        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+            return ApiResponse::error(
+                'Only the opportunity creator can download its registration sheet.',
+                'يمكن لمنشئ الفرصة فقط تنزيل كشف المسجلين.',
+                403
+            );
+        }
+
+        $registrations = $query->get();
+        $attendanceDate = ! empty($data['date'])
+            ? \Carbon\Carbon::parse($data['date'])->toDateString()
+            : null;
+        $markedCount = 0;
+        $alreadyMarkedCount = 0;
+
+        if ($markAttendance && $attendanceDate) {
+            if (! $opportunity->isWithinPreparationWindow($attendanceDate)) {
+                return ApiResponse::error(
+                    'The attendance date is outside the allowed check-in window.',
+                    'تاريخ الحضور خارج نافذة تسجيل الحضور المسموح بها.',
+                    400
+                );
+            }
+
+            foreach ($registrations->where('status', ApprovalStatus::APPROVED) as $registration) {
+                $alreadyMarked = VolunteerOpportunityAttendance::query()
+                    ->notDeleted()
+                    ->where('registration_id', $registration->id)
+                    ->whereDate('attended_date', $attendanceDate)
+                    ->where('is_attended', true)
+                    ->exists();
+
+                if ($alreadyMarked) {
+                    $alreadyMarkedCount++;
+                    continue;
+                }
+
+                AttendanceService::record(
+                    $registration,
+                    $opportunity,
+                    $attendanceDate,
+                    $this->computeAttendanceHours($opportunity),
+                    AttendanceService::VIA_MANUAL,
+                    $request->user()->id
+                );
+                $markedCount++;
+            }
+        }
+
+        $rows = $registrations->map(function (VolunteerOpportunityRegistration $registration) use ($attendanceDate) {
+            $user = $registration->user;
+            $assignment = $registration->assignment;
+            $attended = $attendanceDate
+                ? VolunteerOpportunityAttendance::query()->notDeleted()
+                    ->where('registration_id', $registration->id)
+                    ->whereDate('attended_date', $attendanceDate)
+                    ->where('is_attended', true)
+                    ->exists()
+                : false;
+
+            return [
+                $registration->id,
+                trim(($user?->first_name ?? '').' '.($user?->last_name ?? '')),
+                $user?->email,
+                trim(($user?->country_code ?? '').($user?->phone_number ?? '')),
+                $registration->status?->value ?? (string) $registration->status,
+                $assignment?->role?->role_name_en,
+                $assignment?->team?->team_name_en,
+                $user?->civil_id,
+                $user?->passport_number,
+                optional($registration->registration_date)?->toIso8601String(),
+                $attendanceDate,
+                $attendanceDate ? ($attended ? 'Yes' : 'No') : '',
+            ];
+        });
+
+        $path = 'exports/volunteer-opportunity-'.$opportunity->id.'-registrations-'
+            .now()->format('Ymd-His').'-'.Str::lower(Str::random(6)).'.xlsx';
+        $downloadUrl = XlsxExport::store($path, [
+            'Registration ID', 'Full Name', 'Email', 'Phone', 'Status', 'Role', 'Team',
+            'Civil ID', 'Passport Number', 'Registration Date', 'Attendance Date', 'Attended',
+        ], $rows, 'Registered Volunteers');
+
+        return ApiResponse::success([
+            'downloadUrl' => $downloadUrl,
+            'download_url' => $downloadUrl,
+            'file_format' => 'xlsx',
+            'registrations_count' => $registrations->count(),
+            'attendance_marked_count' => $markedCount,
+            'attendance_already_marked_count' => $alreadyMarkedCount,
+        ], 'Registration sheet generated successfully.', 'تم إنشاء كشف المسجلين بنجاح.');
     }
 
     public function store(Request $request): JsonResponse
@@ -129,7 +256,9 @@ class VolunteerOpportunityRegistrationController extends Controller
             $assigned = VolunteerOpportunityAssignment::query()
                 ->notDeleted()
                 ->where('role_id', $role->id)
-                ->whereHas('registration', fn ($q) => $q->notDeleted()->where('opportunity_id', $opportunity->id))
+                ->whereHas('registration', fn ($q) => $q->notDeleted()
+                    ->where('opportunity_id', $opportunity->id)
+                    ->whereIn('status', [ApprovalStatus::PENDING, ApprovalStatus::APPROVED]))
                 ->count();
             if ($assigned >= $role->participants_needed) {
                 return ApiResponse::error('The role has no remaining slots available.', 'الدور ليس لديه أي فتحات متبقية متاحة.', 400);
@@ -143,34 +272,86 @@ class VolunteerOpportunityRegistrationController extends Controller
             }
         }
 
-        $registration = DB::transaction(function () use ($user, $opportunity, $role, $team) {
-            $registration = VolunteerOpportunityRegistration::create([
+        try {
+            $registration = DB::transaction(function () use ($user, $opportunity, $role, $team) {
+                // A unique index covers (opportunity_id, user_id) and unregister
+                // only soft-deletes, so a volunteer who cancels and signs up again
+                // must revive their existing row rather than insert a second one.
+                $registration = VolunteerOpportunityRegistration::query()
+                    ->where('opportunity_id', $opportunity->id)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                $attributes = [
+                    'registration_date' => now(),
+                    'status' => ApprovalStatus::PENDING,
+                    'is_deleted' => false,
+                    'deleted_at' => null,
+                ];
+
+                if ($registration) {
+                    $registration->update($attributes);
+                } else {
+                    $registration = VolunteerOpportunityRegistration::create($attributes + [
+                        'opportunity_id' => $opportunity->id,
+                        'user_id' => $user->id,
+                    ]);
+                }
+
+                // volunteer_opportunity_assignments is unique on
+                // registration_id, and the registration row is reused above, so
+                // an assignment left over from the cancelled sign-up has to be
+                // updated in place instead of inserted alongside.
+                $existingAssignment = VolunteerOpportunityAssignment::query()
+                    ->where('registration_id', $registration->id)
+                    ->first();
+
+                if ($role || $team) {
+                    $assignmentAttributes = [
+                        'role_id' => $role?->id,
+                        'team_id' => $team?->id,
+                        'is_deleted' => false,
+                        'deleted_at' => null,
+                    ];
+
+                    if ($existingAssignment) {
+                        $existingAssignment->update($assignmentAttributes);
+                    } else {
+                        VolunteerOpportunityAssignment::create(
+                            $assignmentAttributes + ['registration_id' => $registration->id]
+                        );
+                    }
+                } elseif ($existingAssignment) {
+                    // Re-registering with no role/team clears the old one.
+                    $existingAssignment->softDeleteFlags();
+                }
+
+                return $registration;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // Belt and braces: two concurrent sign-ups can still race past the
+            // revive above. Fail as a normal validation error rather than
+            // leaking a driver-level 1062 and a stack trace to the client.
+            Log::warning('Duplicate volunteer registration blocked', [
                 'opportunity_id' => $opportunity->id,
                 'user_id' => $user->id,
-                'registration_date' => now(),
-                'status' => ApprovalStatus::APPROVED,
             ]);
 
-            if ($role || $team) {
-                VolunteerOpportunityAssignment::create([
-                    'registration_id' => $registration->id,
-                    'role_id' => $role?->id,
-                    'team_id' => $team?->id,
-                ]);
-            }
-
-            return $registration;
-        });
+            return ApiResponse::error(
+                'You are already registered for this opportunity.',
+                'أنت مسجل بالفعل في هذه الفرصة.',
+                422
+            );
+        }
 
         $registration->load(['user', 'assignment.role', 'assignment.team']);
         $totalAssigned = VolunteerOpportunityRegistration::query()
             ->notDeleted()
             ->where('opportunity_id', $opportunity->id)
+            ->whereIn('status', [ApprovalStatus::PENDING, ApprovalStatus::APPROVED])
             ->count();
 
-        // Confirmation email + in-app notification. The template already
-        // existed but nothing ever sent it, so volunteers got no confirmation.
-        $this->sendRegistrationConfirmation($opportunity, $registration);
+        RegistrationManagementService::notifyStatus($registration->user, $opportunity, ApprovalStatus::PENDING);
 
         return ApiResponse::success([
             'registration' => (new VolunteerOpportunityRegistrationResource($registration))->resolve(),
@@ -180,7 +361,7 @@ class VolunteerOpportunityRegistrationController extends Controller
             'required_age_from' => $fromAge,
             'required_age_to' => $toAge,
             'meets_age_requirement' => true,
-        ], 'Successfully registered for the opportunity.', 'تم التسجيل بنجاح في الفرصة.', 201);
+        ], 'Registration submitted and is pending organizer approval.', 'تم إرسال التسجيل وهو قيد موافقة الجهة المنظمة.', 201);
     }
 
     /**
@@ -350,7 +531,10 @@ class VolunteerOpportunityRegistrationController extends Controller
             ];
         }
 
-        $totalAssigned = VolunteerOpportunityRegistration::query()->notDeleted()->where('opportunity_id', $opportunity->id)->count();
+        $totalAssigned = VolunteerOpportunityRegistration::query()->notDeleted()
+            ->where('opportunity_id', $opportunity->id)
+            ->whereIn('status', [ApprovalStatus::PENDING, ApprovalStatus::APPROVED])
+            ->count();
 
         return ApiResponse::success([
             'successful_registrations' => $successful,
@@ -390,19 +574,19 @@ class VolunteerOpportunityRegistrationController extends Controller
                 ->first();
 
             if ($registration) {
-                VolunteerOpportunityAssignment::query()
-                    ->where('registration_id', $registration->id)
-                    ->get()
-                    ->each->softDeleteFlags();
-                $registration->softDeleteFlags();
+                $registration->update(['status' => ApprovalStatus::REJECTED]);
+                $registration->loadMissing('user');
+                if ($registration->user) {
+                    RegistrationManagementService::notifyStatus($registration->user, $opportunity, ApprovalStatus::REJECTED);
+                }
                 $removed++;
             }
         }
 
         return ApiResponse::success(
-            ['removed_count' => $removed],
-            'Direct unregistration processed.',
-            'تمت معالجة إلغاء التسجيل المباشر.'
+            ['rejected_count' => $removed, 'removed_count' => $removed],
+            'Registrations rejected successfully.',
+            'تم رفض التسجيلات بنجاح.'
         );
     }
 
@@ -447,16 +631,25 @@ class VolunteerOpportunityRegistrationController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $registration = VolunteerOpportunityRegistration::query()->notDeleted()->find($id);
+        $registration = VolunteerOpportunityRegistration::query()->notDeleted()->with(['opportunity', 'user'])->find($id);
         if (! $registration) {
             return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
         }
 
+        if ($registration->opportunity?->created_by !== $request->user()->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
+
         $data = $request->validate([
-            'status' => ['sometimes', 'string'],
+            'status' => ['required', Rule::in(ApprovalStatus::values())],
         ]);
 
         $registration->update($data);
+        RegistrationManagementService::notifyStatus(
+            $registration->user,
+            $registration->opportunity,
+            ApprovalStatus::from($data['status'])
+        );
 
         return ApiResponse::success(
             new VolunteerOpportunityRegistrationResource($registration->fresh(['user.volunteerProfile', 'assignment.role', 'assignment.team'])),
@@ -465,19 +658,96 @@ class VolunteerOpportunityRegistrationController extends Controller
         );
     }
 
+    public function bulkStatus(Request $request, int $opportunity_id): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', Rule::in(ApprovalStatus::values())],
+            'registration_ids' => ['required', 'array', 'min:1'],
+            'registration_ids.*' => ['integer'],
+        ]);
+
+        $opportunity = VolunteerOpportunity::query()->notDeleted()->find($opportunity_id);
+        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
+
+        $registrations = VolunteerOpportunityRegistration::query()->notDeleted()
+            ->where('opportunity_id', $opportunity_id)
+            ->whereIn('id', $data['registration_ids'])
+            ->with('user')
+            ->get();
+        $status = ApprovalStatus::from($data['status']);
+
+        foreach ($registrations as $registration) {
+            $registration->update(['status' => $status]);
+            if ($registration->user) {
+                RegistrationManagementService::notifyStatus($registration->user, $opportunity, $status);
+            }
+        }
+
+        return ApiResponse::success(
+            ['updated_count' => $registrations->count(), 'status' => $status->value],
+            'Registration statuses updated successfully.',
+            'تم تحديث حالات التسجيل بنجاح.'
+        );
+    }
+
+    public function messageRegistrants(Request $request, int $opportunity_id): JsonResponse
+    {
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+            'message' => ['required', 'string', 'max:10000'],
+            'all' => ['nullable', 'boolean'],
+            'registration_ids' => ['nullable', 'array'],
+            'registration_ids.*' => ['integer'],
+            'status' => ['nullable', Rule::in(ApprovalStatus::values())],
+        ]);
+
+        $opportunity = VolunteerOpportunity::query()->notDeleted()->find($opportunity_id);
+        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
+
+        if (! ($data['all'] ?? false) && empty($data['registration_ids'])) {
+            return ApiResponse::error('Select registrations or set all to true.', 'اختر تسجيلات أو اجعل all تساوي true.', 400);
+        }
+
+        $query = VolunteerOpportunityRegistration::query()->notDeleted()
+            ->where('opportunity_id', $opportunity_id)
+            ->with('user');
+        if (! ($data['all'] ?? false)) {
+            $query->whereIn('id', $data['registration_ids']);
+        }
+        if (! empty($data['status'])) {
+            $query->where('status', $data['status']);
+        }
+
+        $sent = 0;
+        foreach ($query->get() as $registration) {
+            if ($registration->user && RegistrationManagementService::sendOrganizerMessage($registration->user, $data['subject'], $data['message'])) {
+                $sent++;
+            }
+        }
+
+        return ApiResponse::success(['sent_count' => $sent], 'Message sent successfully.', 'تم إرسال الرسالة بنجاح.');
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $registration = VolunteerOpportunityRegistration::query()->notDeleted()->find($id);
+        $registration = VolunteerOpportunityRegistration::query()->notDeleted()->with(['opportunity', 'user'])->find($id);
         if (! $registration) {
             return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
         }
 
-        VolunteerOpportunityAssignment::query()
-            ->where('registration_id', $registration->id)
-            ->get()
-            ->each->softDeleteFlags();
-        $registration->softDeleteFlags();
+        if ($registration->opportunity?->created_by !== $request->user()->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
 
-        return ApiResponse::success(null, 'Registration deleted successfully.', 'تم حذف التسجيل بنجاح.');
+        $registration->update(['status' => ApprovalStatus::REJECTED]);
+        if ($registration->user) {
+            RegistrationManagementService::notifyStatus($registration->user, $registration->opportunity, ApprovalStatus::REJECTED);
+        }
+
+        return ApiResponse::success(['status' => ApprovalStatus::REJECTED->value], 'Registration rejected successfully.', 'تم رفض التسجيل بنجاح.');
     }
 }

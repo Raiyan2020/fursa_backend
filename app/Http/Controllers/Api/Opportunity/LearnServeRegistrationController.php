@@ -11,10 +11,12 @@ use App\Models\LearnServeOpportunityAssignment;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\LearnServeOpportunityTimeSlot;
 use App\Services\Opportunity\SyncService;
+use App\Services\Opportunity\RegistrationManagementService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class LearnServeRegistrationController extends Controller
 {
@@ -48,6 +50,7 @@ class LearnServeRegistrationController extends Controller
         $totalRegistrations = LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('opportunity_id', $opportunity->id)
+            ->whereIn('status', [ApprovalStatus::PENDING, ApprovalStatus::APPROVED])
             ->count();
         if ($totalRegistrations >= $opportunity->participants_needed) {
             return ApiResponse::error('No remaining slots available.', 'لا توجد فتحات متبقية.', 400);
@@ -66,7 +69,7 @@ class LearnServeRegistrationController extends Controller
                 'opportunity_id' => $opportunity->id,
                 'user_id' => $user->id,
                 'registration_date' => now(),
-                'status' => ApprovalStatus::APPROVED,
+                'status' => ApprovalStatus::PENDING,
             ]);
 
             if ($timeSlot) {
@@ -80,12 +83,17 @@ class LearnServeRegistrationController extends Controller
         });
 
         $registration->load(['user', 'assignment.timeSlot']);
-        $remaining = max(0, $opportunity->participants_needed - LearnServeOpportunityRegistration::query()->notDeleted()->where('opportunity_id', $opportunity->id)->count());
+        RegistrationManagementService::notifyStatus($registration->user, $opportunity, ApprovalStatus::PENDING);
+        $remaining = max(0, $opportunity->participants_needed - LearnServeOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('opportunity_id', $opportunity->id)
+            ->whereIn('status', [ApprovalStatus::PENDING, ApprovalStatus::APPROVED])
+            ->count());
 
         return ApiResponse::success(
             (new LearnServeOpportunityRegistrationResource($registration))->resolve(),
-            'Successfully registered for the opportunity.',
-            'تم التسجيل بنجاح في الفرصة.',
+            'Registration submitted and is pending organizer approval.',
+            'تم إرسال التسجيل وهو قيد موافقة الجهة المنظمة.',
             201
         );
     }
@@ -108,6 +116,10 @@ class LearnServeRegistrationController extends Controller
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
         }
 
         $paginator = $this->paginateQuery($query, $request);
@@ -158,13 +170,86 @@ class LearnServeRegistrationController extends Controller
             return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
         }
 
-        LearnServeOpportunityAssignment::query()
-            ->where('registration_id', $registration->id)
-            ->get()
-            ->each->softDeleteFlags();
-        $registration->softDeleteFlags();
+        $registration->update(['status' => ApprovalStatus::REJECTED]);
+        $registration->loadMissing('user');
+        if ($registration->user) {
+            RegistrationManagementService::notifyStatus($registration->user, $opportunity, ApprovalStatus::REJECTED);
+        }
 
-        return ApiResponse::success(['user_id' => $user_id], 'User successfully removed from the opportunity.', 'تمت إزالة المستخدم من الفرصة بنجاح.');
+        return ApiResponse::success(['user_id' => $user_id, 'status' => ApprovalStatus::REJECTED->value], 'Registration rejected successfully.', 'تم رفض التسجيل بنجاح.');
+    }
+
+    public function bulkStatus(Request $request, int $opportunity_id): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['required', Rule::in(ApprovalStatus::values())],
+            'registration_ids' => ['required', 'array', 'min:1'],
+            'registration_ids.*' => ['integer'],
+        ]);
+
+        $opportunity = LearnServeOpportunity::query()->notDeleted()->find($opportunity_id);
+        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
+
+        $registrations = LearnServeOpportunityRegistration::query()->notDeleted()
+            ->where('opportunity_id', $opportunity_id)
+            ->whereIn('id', $data['registration_ids'])
+            ->with('user')
+            ->get();
+        $status = ApprovalStatus::from($data['status']);
+
+        foreach ($registrations as $registration) {
+            $registration->update(['status' => $status]);
+            if ($registration->user) {
+                RegistrationManagementService::notifyStatus($registration->user, $opportunity, $status);
+            }
+        }
+
+        return ApiResponse::success(
+            ['updated_count' => $registrations->count(), 'status' => $status->value],
+            'Registration statuses updated successfully.',
+            'تم تحديث حالات التسجيل بنجاح.'
+        );
+    }
+
+    public function messageRegistrants(Request $request, int $opportunity_id): JsonResponse
+    {
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+            'message' => ['required', 'string', 'max:10000'],
+            'all' => ['nullable', 'boolean'],
+            'registration_ids' => ['nullable', 'array'],
+            'registration_ids.*' => ['integer'],
+            'status' => ['nullable', Rule::in(ApprovalStatus::values())],
+        ]);
+
+        $opportunity = LearnServeOpportunity::query()->notDeleted()->find($opportunity_id);
+        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
+        if (! ($data['all'] ?? false) && empty($data['registration_ids'])) {
+            return ApiResponse::error('Select registrations or set all to true.', 'اختر تسجيلات أو اجعل all تساوي true.', 400);
+        }
+
+        $query = LearnServeOpportunityRegistration::query()->notDeleted()
+            ->where('opportunity_id', $opportunity_id)
+            ->with('user');
+        if (! ($data['all'] ?? false)) {
+            $query->whereIn('id', $data['registration_ids']);
+        }
+        if (! empty($data['status'])) {
+            $query->where('status', $data['status']);
+        }
+
+        $sent = 0;
+        foreach ($query->get() as $registration) {
+            if ($registration->user && RegistrationManagementService::sendOrganizerMessage($registration->user, $data['subject'], $data['message'])) {
+                $sent++;
+            }
+        }
+
+        return ApiResponse::success(['sent_count' => $sent], 'Message sent successfully.', 'تم إرسال الرسالة بنجاح.');
     }
 
     public function updateAttendance(Request $request, int $opportunity_id): JsonResponse

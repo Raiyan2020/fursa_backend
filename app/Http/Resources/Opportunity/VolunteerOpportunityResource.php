@@ -86,6 +86,21 @@ class VolunteerOpportunityResource extends JsonResource
             'preparation_valid_until' => optional($this->preparationValidUntil())?->toDateString(),
             'preparation_valid_until_at' => optional($this->preparationValidUntil())?->toIso8601String(),
             'is_preparation_window_closed' => $this->isPreparationWindowClosed(),
+            // Per-day schedule. Empty means the single start_time/end_time
+            // applies across the whole start_date..end_date range.
+            'has_custom_schedule' => $this->hasCustomSchedule(),
+            'time_slots' => $this->timeSlots
+                ? $this->timeSlots
+                    ->filter(fn ($slot) => ! $slot->is_deleted)
+                    ->sortBy('date')
+                    ->map(fn ($slot) => [
+                        'id' => $slot->id,
+                        'date' => optional($slot->date)->toDateString(),
+                        'start_time' => $slot->start_time,
+                        'end_time' => $slot->end_time,
+                        'hours' => $slot->durationInHours(),
+                    ])->values()
+                : [],
             'preparation_reopened_until' => optional($this->preparation_reopened_until)?->toIso8601String(),
             'is_emergency' => (bool) $this->is_emergency,
             'is_relief' => (bool) $this->is_relief,

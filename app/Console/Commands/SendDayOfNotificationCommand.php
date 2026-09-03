@@ -27,7 +27,7 @@ class SendDayOfNotificationCommand extends Command
             ->notDeleted()
             ->whereDate('start_date', $today)
             ->where('opportunity_status', OpportunityStatus::INPROGRESS)
-            ->with(['registrations' => fn ($q) => $q->notDeleted()->with('user')])
+            ->with(['registrations' => fn ($q) => $q->notDeleted()->where('status', ApprovalStatus::APPROVED)->with('user')])
             ->get()
             ->each(function (VolunteerOpportunity $opp) use (&$count) {
                 foreach ($opp->registrations as $reg) {
@@ -54,7 +54,7 @@ class SendDayOfNotificationCommand extends Command
             ->notDeleted()
             ->whereDate('start_date', $today)
             ->where('opportunity_status', OpportunityStatus::INPROGRESS)
-            ->with(['registrations' => fn ($q) => $q->notDeleted()->with('user')])
+            ->with(['registrations' => fn ($q) => $q->notDeleted()->where('status', ApprovalStatus::APPROVED)->with('user')])
             ->get()
             ->each(function (LearnServeOpportunity $opp) use (&$count) {
                 foreach ($opp->registrations as $reg) {
