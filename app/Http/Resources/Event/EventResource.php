@@ -19,7 +19,7 @@ class EventResource extends JsonResource
             'description_ar' => $this->description_ar,
             'approval_status' => $this->approval_status?->value,
             'deletion_status' => $this->deletion_status?->value,
-            'event_status' => $this->event_status?->value,
+            'event_status' => $this->resource->resolvedOpportunityStatus(),
             'from_age' => $this->from_age,
             'to_age' => $this->to_age,
             'gender_id' => $this->gender_id,

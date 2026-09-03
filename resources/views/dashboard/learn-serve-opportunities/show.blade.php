@@ -65,7 +65,7 @@
                                 </tr>
                                 <tr>
                                     <th>{{ __('opportunity status') }}</th>
-                                    <td>@include('dashboard.partials.status-badge', ['status' => $opportunity->opportunity_status])</td>
+                                    <td>@include('dashboard.partials.status-badge', ['status' => $opportunity->resolvedOpportunityStatus()])</td>
                                 </tr>
                                 <tr>
                                     <th>{{ __('approval status') }}</th>

@@ -30,7 +30,7 @@ class VolunteerOpportunityResource extends JsonResource
         return [
             'id' => $this->id,
             'approval_status' => $this->approval_status?->value ?? $this->approval_status,
-            'opportunity_status' => $this->opportunity_status?->value ?? $this->opportunity_status,
+            'opportunity_status' => $this->resource->resolvedOpportunityStatus(),
             'title_en' => $this->title_en,
             'title_ar' => $this->title_ar,
             'description_en' => $this->description_en,
