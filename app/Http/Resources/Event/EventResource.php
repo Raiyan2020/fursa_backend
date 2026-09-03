@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Event;
 
+use App\Http\Resources\Concerns\ResolvesApiPayloads;
 use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -9,6 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin Event */
 class EventResource extends JsonResource
 {
+    use ResolvesApiPayloads;
+
     public function toArray(Request $request): array
     {
         return [
@@ -59,7 +62,8 @@ class EventResource extends JsonResource
                 'id' => $img->id,
                 'image' => getimg($img->image),
             ])),
-            'interests' => $this->whenLoaded('interests', fn () => $this->interests->pluck('id')),
+            'interests' => $this->interests?->map(fn ($i) => $this->interestPayload($i))->values(),
+            'interest_display' => $this->interestDisplayPayload($this->interests, 'event_interest'),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             // One computed state so every screen renders the same button.

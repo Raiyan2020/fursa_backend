@@ -93,6 +93,7 @@ class WebsiteEventResource extends JsonResource
 
         if ($this->detail) {
             $payload = array_merge($payload, [
+                'interests' => $event->interests?->map(fn ($i) => $this->interestPayload($i))->values(),
                 'description_en' => $event->description_en,
                 'description_ar' => $event->description_ar,
                 'primary_language' => $event->primary_language?->value ?? $event->primary_language,
