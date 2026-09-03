@@ -45,7 +45,7 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'opportunity_type' => 'learn_serve_opportunity',
             'title_en' => $opportunity->title_en,
             'title_ar' => $opportunity->title_ar,
-            'opportunity_status' => $opportunity->opportunity_status?->value ?? $opportunity->opportunity_status,
+            'opportunity_status' => $opportunity->resolvedOpportunityStatus(),
             'due_date' => $this->formatDateTime($opportunity->due_date),
             'start_date' => $this->formatDate($opportunity->start_date),
             'end_date' => $this->formatDate($opportunity->end_date),

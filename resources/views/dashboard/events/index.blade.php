@@ -47,7 +47,7 @@
                                             <td>{{ $event->organization?->company_name }}</td>
                                             <td>{{ optional($event->start_date)->format('Y-m-d') }}</td>
                                             <td>@include('dashboard.partials.status-badge', ['status' => $event->approval_status])</td>
-                                            <td>@include('dashboard.partials.status-badge', ['status' => $event->event_status])</td>
+                                            <td>@include('dashboard.partials.status-badge', ['status' => $event->resolvedOpportunityStatus()])</td>
                                             <td class="product-action">
                                                 <a class="btn btn-info" href="{{ route('admin.events.show', $event) }}"><i class="feather icon-eye"></i></a>
                                                 <a class="btn btn-warning" href="{{ route('admin.events.edit', $event) }}"><i class="feather icon-edit"></i></a>

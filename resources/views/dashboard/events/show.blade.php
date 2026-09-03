@@ -107,7 +107,7 @@
                                 </tr>
                                 <tr>
                                     <th>{{ __('event status') }}</th>
-                                    <td>@include('dashboard.partials.status-badge', ['status' => $event->event_status])</td>
+                                    <td>@include('dashboard.partials.status-badge', ['status' => $event->resolvedOpportunityStatus()])</td>
                                 </tr>
                                 <tr>
                                     <th>{{ __('approval status') }}</th>

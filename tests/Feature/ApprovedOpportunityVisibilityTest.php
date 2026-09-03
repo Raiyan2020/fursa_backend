@@ -91,6 +91,50 @@ class ApprovedOpportunityVisibilityTest extends TestCase
         );
     }
 
+    public function test_opportunity_status_reflects_dates_even_when_the_daily_cron_has_not_run(): void
+    {
+        [$org] = $this->createOrganizationActor();
+
+        // opportunity_status is stuck at UPCOMING, as it would be if the daily
+        // `fursa:advance-statuses` cron hasn't advanced it yet, even though the
+        // dates say the opportunity already ended.
+        $ended = VolunteerOpportunity::query()->create([
+            'title_en' => 'Ended Opportunity',
+            'title_ar' => 'فرصة منتهية',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'created_by' => $org->id,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::UPCOMING,
+            'is_public' => true,
+            'participants_needed' => 8,
+            'start_date' => now()->subDays(5)->toDateString(),
+            'end_date' => now()->subDays(2)->toDateString(),
+        ]);
+
+        $inProgress = VolunteerOpportunity::query()->create([
+            'title_en' => 'In Progress Opportunity',
+            'title_ar' => 'فرصة جارية',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'created_by' => $org->id,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::UPCOMING,
+            'is_public' => true,
+            'participants_needed' => 8,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        $byId = collect(
+            $this->getJson('/api/list-all-opportunities/?filter_type=organized&user_id='.$org->id.'&page=1&limit=30')
+                ->json('data')
+        )->keyBy('id');
+
+        $this->assertSame('completed', $byId[$ended->id]['opportunity_status']);
+        $this->assertSame('inprogress', $byId[$inProgress->id]['opportunity_status']);
+    }
+
     protected function api(string $token)
     {
         $this->app['auth']->forgetGuards();

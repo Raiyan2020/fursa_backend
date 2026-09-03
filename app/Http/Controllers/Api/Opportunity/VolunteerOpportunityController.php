@@ -480,6 +480,11 @@ class VolunteerOpportunityController extends Controller
             $this->applyOpportunityStatusFilter($learnQuery, $status);
         }
 
+        $this->applyTagsFilter($volunteerQuery, $request);
+        $this->applyTagsFilter($learnQuery, $request);
+        $this->applyDateRangeFilter($volunteerQuery, $request);
+        $this->applyDateRangeFilter($learnQuery, $request);
+
         $combined = collect()
             ->merge($volunteerQuery->with(['creator', 'interests', 'images', 'registrations.attendances'])->get()
                 ->map(fn ($item) => (new WebsiteVolunteerOpportunityResource($item, $user->id))->resolve()))
@@ -492,6 +497,21 @@ class VolunteerOpportunityController extends Controller
                 default => 99,
             })
             ->values();
+
+        if ($request->query('page') || $request->query('limit')) {
+            $page = max(1, (int) $request->query('page', 1));
+            $limit = min(100, max(1, (int) $request->query('limit', 20)));
+            $total = $combined->count();
+            $items = $combined->slice(($page - 1) * $limit, $limit)->values();
+            $paginator = new \Illuminate\Pagination\LengthAwarePaginator($items, $total, $limit, $page);
+
+            return ApiResponse::paginated(
+                $paginator,
+                $items,
+                'Opportunities retrieved successfully.',
+                'تم استرجاع الفرص بنجاح.'
+            );
+        }
 
         return ApiResponse::success(
             $combined,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Event;
 
+use App\Http\Resources\Concerns\ResolvesApiPayloads;
 use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -9,6 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin Event */
 class EventResource extends JsonResource
 {
+    use ResolvesApiPayloads;
+
     public function toArray(Request $request): array
     {
         return [
@@ -19,7 +22,7 @@ class EventResource extends JsonResource
             'description_ar' => $this->description_ar,
             'approval_status' => $this->approval_status?->value,
             'deletion_status' => $this->deletion_status?->value,
-            'event_status' => $this->event_status?->value,
+            'event_status' => $this->resource->resolvedOpportunityStatus(),
             'from_age' => $this->from_age,
             'to_age' => $this->to_age,
             'gender_id' => $this->gender_id,
@@ -59,7 +62,8 @@ class EventResource extends JsonResource
                 'id' => $img->id,
                 'image' => getimg($img->image),
             ])),
-            'interests' => $this->whenLoaded('interests', fn () => $this->interests->pluck('id')),
+            'interests' => $this->interests?->map(fn ($i) => $this->interestPayload($i))->values(),
+            'interest_display' => $this->interestDisplayPayload($this->interests, 'event_interest'),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             // One computed state so every screen renders the same button.

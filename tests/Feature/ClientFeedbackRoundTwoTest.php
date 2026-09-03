@@ -183,6 +183,70 @@ class ClientFeedbackRoundTwoTest extends TestCase
         ]]);
     }
 
+    public function test_event_details_and_write_responses_include_interests_shape(): void
+    {
+        [$org, $token] = $this->createOrganizationActor();
+
+        $interest = Interest::query()->create([
+            'name_en' => 'Charity Work',
+            'name_ar' => 'أعمال خيرية',
+            'interest_type' => \App\Enums\InterestType::VOLUNTEER,
+        ]);
+
+        $event = \App\Models\Event::query()->create([
+            'created_by' => $org->organizationProfile->id,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'event_status' => 'upcoming',
+            'title_en' => 'Ramadan Meal Distribution',
+            'title_ar' => 'إفطار صائم',
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(2)->toDateString(),
+            'registration_required' => false,
+            'participants_needed' => 10,
+            'is_deleted' => false,
+        ]);
+        $event->interests()->sync([$interest->id]);
+
+        // GET /events/{id}/ (the correct detail endpoint for events) exposes
+        // the new `interests` shape, not just the legacy `interest_display`.
+        $show = $this->getJson("/api/events/{$event->id}/");
+        $this->assertSuccessEnvelope($show);
+        $show->assertJsonPath('data.interests', [[
+            'id' => $interest->id,
+            'name_en' => 'Charity Work',
+            'name_ar' => 'أعمال خيرية',
+            'interest_type' => 'volunteer',
+        ]]);
+        $show->assertJsonPath('data.interest_display', [[
+            'value_en' => 'Charity Work',
+            'value_ar' => 'أعمال خيرية',
+        ]]);
+
+        // The wrong-but-easily-confused endpoint (VolunteerOpportunity-only)
+        // must 404 for an event id rather than silently returning empty data.
+        $this->getJson("/api/opportunities/{$event->id}/details/")->assertNotFound();
+
+        // The write-path resource (create/update/close-registration) also
+        // used to return `interests` as a bare array of ids with no
+        // `interest_display` at all — now matches the read-path shape.
+        $update = $this->api($token)->patchJson("/api/events/{$event->id}/", [
+            'title_en' => 'Ramadan Meal Distribution (Updated)',
+        ]);
+        $update->assertSuccessful();
+        $update->assertJsonPath('data.interests', [[
+            'id' => $interest->id,
+            'name_en' => 'Charity Work',
+            'name_ar' => 'أعمال خيرية',
+            'interest_type' => 'volunteer',
+        ]]);
+        $update->assertJsonPath('data.interest_display', [[
+            'id' => $interest->id,
+            'choice_type' => 'event_interest',
+            'value_en' => 'Charity Work',
+            'value_ar' => 'أعمال خيرية',
+        ]]);
+    }
+
     public function test_profile_activity_tag_shows_registered_to_owner_only(): void
     {
         [$org] = $this->createOrganizationActor();
@@ -201,6 +265,53 @@ class ClientFeedbackRoundTwoTest extends TestCase
             ->getJson('/api/list-user-opportunities/?user_id='.$volunteer->id.'&filter_type=registered');
         $publicItem = collect($publicView->json('data'))->firstWhere('id', $opportunity->id);
         $this->assertNull($publicItem['profile_activity_tag'], 'A public viewer must never see the "registered" tag.');
+    }
+
+    public function test_list_user_opportunities_applies_tags_date_range_and_pagination(): void
+    {
+        [$org] = $this->createOrganizationActor();
+        [$volunteer, $volunteerToken] = $this->createVolunteerActor();
+
+        $tagged = $this->makeOpportunity($org, [
+            'title_en' => 'Tagged Opportunity',
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(12)->toDateString(),
+        ]);
+        $interest = Interest::query()->create([
+            'name_en' => 'rrr',
+            'name_ar' => 'rrr',
+            'interest_type' => \App\Enums\InterestType::VOLUNTEER,
+        ]);
+        $tagged->interests()->sync([$interest->id]);
+        $this->registerVolunteer($tagged, $volunteer);
+
+        $untagged = $this->makeOpportunity($org, [
+            'title_en' => 'Untagged Opportunity',
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(12)->toDateString(),
+        ]);
+        $this->registerVolunteer($untagged, $volunteer);
+
+        $base = '/api/list-user-opportunities/?user_id='.$volunteer->id.'&filter_type=registered';
+
+        // tags[]: only the tagged opportunity should come back.
+        $byTag = $this->api($volunteerToken)->getJson($base.'&tags[]=rrr');
+        $tagIds = collect($byTag->json('data'))->pluck('id');
+        $this->assertTrue($tagIds->contains($tagged->id));
+        $this->assertFalse($tagIds->contains($untagged->id));
+
+        // start_date/end_date: a window that excludes both opportunities.
+        $byDate = $this->api($volunteerToken)->getJson(
+            $base.'&start_date='.now()->addDays(30)->toDateString().'&end_date='.now()->addDays(40)->toDateString()
+        );
+        $dateIds = collect($byDate->json('data'))->pluck('id');
+        $this->assertFalse($dateIds->contains($tagged->id));
+        $this->assertFalse($dateIds->contains($untagged->id));
+
+        // page/limit: response is actually paginated, not the full unbounded list.
+        $paged = $this->api($volunteerToken)->getJson($base.'&page=1&limit=1');
+        $this->assertCount(1, $paged->json('data'));
+        $this->assertSame(2, $paged->json('meta.pagination.total'));
     }
 
     public function test_profile_activity_tag_shows_attended_to_everyone(): void

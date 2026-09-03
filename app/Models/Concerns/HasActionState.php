@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use App\Enums\OpportunityStatus;
 use Carbon\Carbon;
 
 /**
@@ -83,6 +84,47 @@ trait HasActionState
         $start = $this->start_date ?? null;
 
         return $start !== null && now()->gte(Carbon::parse($start)->startOfDay());
+    }
+
+    /**
+     * `opportunity_status`/`event_status` is a stored column only advanced by the
+     * daily `fursa:advance-statuses` cron, so it can drift out of sync with
+     * `hasStarted()`/`hasEnded()`, which are derived live from the dates on every
+     * request. Read this instead of the raw column wherever the status is shown
+     * to a client, so it always agrees with `action_state`/`has_started`/`has_ended`.
+     * A manually set `cancelled` status is preserved since it can't be derived from dates.
+     */
+    public function resolvedOpportunityStatus(): string
+    {
+        $stored = $this->opportunity_status ?? $this->event_status ?? null;
+        $storedValue = is_object($stored) && property_exists($stored, 'value')
+            ? $stored->value
+            : (string) $stored;
+
+        if ($storedValue === OpportunityStatus::CANCELLED->value) {
+            return $storedValue;
+        }
+
+        $start = $this->start_date ?? null;
+        $end = $this->end_date ?? null;
+
+        if (! $start || ! $end) {
+            return $storedValue !== '' ? $storedValue : OpportunityStatus::UPCOMING->value;
+        }
+
+        $today = now()->toDateString();
+        $startDate = Carbon::parse($start)->toDateString();
+        $endDate = Carbon::parse($end)->toDateString();
+
+        if ($startDate > $today) {
+            return OpportunityStatus::UPCOMING->value;
+        }
+
+        if ($endDate >= $today) {
+            return OpportunityStatus::INPROGRESS->value;
+        }
+
+        return OpportunityStatus::COMPLETED->value;
     }
 
     /**
