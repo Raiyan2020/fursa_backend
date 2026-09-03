@@ -203,6 +203,53 @@ class ClientFeedbackRoundTwoTest extends TestCase
         $this->assertNull($publicItem['profile_activity_tag'], 'A public viewer must never see the "registered" tag.');
     }
 
+    public function test_list_user_opportunities_applies_tags_date_range_and_pagination(): void
+    {
+        [$org] = $this->createOrganizationActor();
+        [$volunteer, $volunteerToken] = $this->createVolunteerActor();
+
+        $tagged = $this->makeOpportunity($org, [
+            'title_en' => 'Tagged Opportunity',
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(12)->toDateString(),
+        ]);
+        $interest = Interest::query()->create([
+            'name_en' => 'rrr',
+            'name_ar' => 'rrr',
+            'interest_type' => \App\Enums\InterestType::VOLUNTEER,
+        ]);
+        $tagged->interests()->sync([$interest->id]);
+        $this->registerVolunteer($tagged, $volunteer);
+
+        $untagged = $this->makeOpportunity($org, [
+            'title_en' => 'Untagged Opportunity',
+            'start_date' => now()->addDays(10)->toDateString(),
+            'end_date' => now()->addDays(12)->toDateString(),
+        ]);
+        $this->registerVolunteer($untagged, $volunteer);
+
+        $base = '/api/list-user-opportunities/?user_id='.$volunteer->id.'&filter_type=registered';
+
+        // tags[]: only the tagged opportunity should come back.
+        $byTag = $this->api($volunteerToken)->getJson($base.'&tags[]=rrr');
+        $tagIds = collect($byTag->json('data'))->pluck('id');
+        $this->assertTrue($tagIds->contains($tagged->id));
+        $this->assertFalse($tagIds->contains($untagged->id));
+
+        // start_date/end_date: a window that excludes both opportunities.
+        $byDate = $this->api($volunteerToken)->getJson(
+            $base.'&start_date='.now()->addDays(30)->toDateString().'&end_date='.now()->addDays(40)->toDateString()
+        );
+        $dateIds = collect($byDate->json('data'))->pluck('id');
+        $this->assertFalse($dateIds->contains($tagged->id));
+        $this->assertFalse($dateIds->contains($untagged->id));
+
+        // page/limit: response is actually paginated, not the full unbounded list.
+        $paged = $this->api($volunteerToken)->getJson($base.'&page=1&limit=1');
+        $this->assertCount(1, $paged->json('data'));
+        $this->assertSame(2, $paged->json('meta.pagination.total'));
+    }
+
     public function test_profile_activity_tag_shows_attended_to_everyone(): void
     {
         [$org] = $this->createOrganizationActor();

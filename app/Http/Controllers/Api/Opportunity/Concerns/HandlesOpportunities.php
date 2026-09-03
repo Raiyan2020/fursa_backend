@@ -74,12 +74,7 @@ trait HandlesOpportunities
             });
         }
 
-        if ($startDate = $request->query('start_date')) {
-            $query->whereDate('start_date', '>=', to_western_digits($startDate));
-        }
-        if ($endDate = $request->query('end_date')) {
-            $query->whereDate('end_date', '<=', to_western_digits($endDate));
-        }
+        $this->applyDateRangeFilter($query, $request);
 
         $minHours = filter_float($request->query('min_hours'));
         if ($minHours !== null) {
@@ -90,20 +85,7 @@ trait HandlesOpportunities
             $query->where('volunteer_hours_per_day', '<=', $maxHours);
         }
 
-        $tags = $request->query('tags', []);
-        if (! is_array($tags)) {
-            $tags = [$tags];
-        }
-        if ($tags) {
-            $query->whereHas('interests', function ($q) use ($tags) {
-                foreach ($tags as $tag) {
-                    $q->where(function ($iq) use ($tag) {
-                        $iq->where('name_en', 'like', "%{$tag}%")
-                            ->orWhere('name_ar', 'like', "%{$tag}%");
-                    });
-                }
-            });
-        }
+        $this->applyTagsFilter($query, $request);
 
         if ($location = $request->query('location')) {
             $query->where(function ($q) use ($location) {
@@ -156,6 +138,38 @@ trait HandlesOpportunities
         }
 
         return $query;
+    }
+
+    /**
+     * `interests` is a shared relation name on VolunteerOpportunity, LearnServeOpportunity,
+     * and Event, so this applies to any of their query builders.
+     */
+    protected function applyTagsFilter(Builder $query, Request $request): void
+    {
+        $tags = $request->query('tags', []);
+        if (! is_array($tags)) {
+            $tags = [$tags];
+        }
+        if ($tags) {
+            $query->whereHas('interests', function ($q) use ($tags) {
+                foreach ($tags as $tag) {
+                    $q->where(function ($iq) use ($tag) {
+                        $iq->where('name_en', 'like', "%{$tag}%")
+                            ->orWhere('name_ar', 'like', "%{$tag}%");
+                    });
+                }
+            });
+        }
+    }
+
+    protected function applyDateRangeFilter(Builder $query, Request $request): void
+    {
+        if ($startDate = $request->query('start_date')) {
+            $query->whereDate('start_date', '>=', to_western_digits($startDate));
+        }
+        if ($endDate = $request->query('end_date')) {
+            $query->whereDate('end_date', '<=', to_western_digits($endDate));
+        }
     }
 
     protected function canViewVolunteerOpportunity(VolunteerOpportunity $opportunity, ?User $user): bool
