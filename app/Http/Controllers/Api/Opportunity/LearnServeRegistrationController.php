@@ -108,7 +108,7 @@ class LearnServeRegistrationController extends Controller
         $query = LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('opportunity_id', $opportunity_id)
-            ->with(['user', 'assignment.timeSlot']);
+            ->with(['user.volunteerProfile', 'assignment.timeSlot']);
 
         if ($search = $request->query('search')) {
             $query->whereHas('user', function ($q) use ($search) {

@@ -13,16 +13,27 @@ class LearnServeOpportunityRegistrationResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $this->resource->loadMissing(['user', 'opportunity', 'assignment.timeSlot']);
+        $this->resource->loadMissing(['user.volunteerProfile', 'opportunity', 'assignment.timeSlot']);
+
+        $volunteerProfile = $this->user?->volunteerProfile;
+        $contact = $this->user?->phone_number
+            ? ($this->user->country_code ?? '').$this->user->phone_number
+            : null;
 
         return [
             'id' => $this->id,
             'opportunity_id' => $this->opportunity_id,
             'user_id' => $this->user_id,
             'user_name' => $this->fullName($this->user),
+            'full_name' => $this->fullName($this->user),
             'user_email' => $this->user?->email,
             'civil_id' => $this->user?->civil_id,
             'passport_number' => $this->user?->passport_number,
+            'phone_number' => $this->user?->phone_number,
+            'user_contact_number' => $contact,
+            'profile_pic' => $this->profilePicUrl($this->user),
+            'gender_display' => $this->masterChoicePayload($volunteerProfile?->gender),
+            'is_public' => (bool) ($volunteerProfile?->is_public ?? false),
             'registration_date' => optional($this->registration_date)?->toIso8601String(),
             'status' => $this->status?->value,
             'is_attended' => $this->is_attended,
