@@ -50,6 +50,15 @@ class PostController extends Controller
                     ->orWhere('last_name', 'like', "%{$userFilter}%");
             });
         }
+        if ($name = $request->query('name')) {
+            $query->whereHas('user', function ($q) use ($name) {
+                $q->where(function ($inner) use ($name) {
+                    $inner->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$name}%"])
+                        ->orWhereHas('volunteerProfile', fn ($p) => $p->where('nickname', 'like', "%{$name}%"))
+                        ->orWhereHas('organizationProfile', fn ($p) => $p->where('nickname', 'like', "%{$name}%"));
+                });
+            });
+        }
         if ($request->query('proposing_idea') === 'true') {
             $query->where('proposing_idea', true)->where('is_funding_required', false);
         }
