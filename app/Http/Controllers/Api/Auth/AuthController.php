@@ -484,6 +484,7 @@ class AuthController extends Controller
             'civil_id' => ['nullable', 'string', 'max:12'],
             'nickname' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string'],
+            'organizer_type' => ['nullable', 'integer', 'exists:master_choices,id'],
         ]);
 
         $email = strtolower(trim($data['email']));
