@@ -162,6 +162,25 @@ trait HandlesOpportunities
         }
     }
 
+    /**
+     * Callers disagree on vocabulary — the profile screens send the long form
+     * (`volunteer_opportunity`/`learn_serve_opportunity`, matching the
+     * `opportunity_type` value each resource reports on itself), the public
+     * listing screens send the short form (`volunteer`/`learn`/`event`).
+     * Accept both so neither caller silently no-ops.
+     */
+    protected function normalizeOpportunityTypeFilter(Request $request): ?string
+    {
+        $raw = strtolower((string) $request->query('opportunity_type', ''));
+
+        return match ($raw) {
+            'volunteer', 'volunteer_opportunity' => 'volunteer',
+            'learn', 'learn_serve_opportunity' => 'learn',
+            'event' => 'event',
+            default => null,
+        };
+    }
+
     protected function applyDateRangeFilter(Builder $query, Request $request): void
     {
         if ($startDate = $request->query('start_date')) {

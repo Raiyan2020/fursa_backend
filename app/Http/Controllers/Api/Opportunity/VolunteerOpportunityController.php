@@ -303,13 +303,22 @@ class VolunteerOpportunityController extends Controller
         $today = now()->toDateString();
         $filtered = $filtered
             ->select('volunteer_opportunities.*')
-            ->selectRaw('(SELECT COUNT(*) FROM volunteer_opportunity_registrations r WHERE r.opportunity_id = volunteer_opportunities.id AND r.is_deleted = 0) as current_registrations')
+            ->selectRaw('(SELECT COUNT(*) FROM volunteer_opportunity_registrations r WHERE r.opportunity_id = volunteer_opportunities.id AND r.is_deleted = 0) as current_registrations');
+
+        $sortBy = $request->query('sort_by');
+        if ($sortBy === 'newest' || $sortBy === 'oldest') {
+            // An explicit chronological sort request bypasses the status-relevance
+            // bucketing entirely — a secondary orderBy only breaks ties *within* a
+            // bucket, so it could never actually move an in-progress record above
+            // an upcoming one, which is what "newest first" means to the caller.
+            $filtered = $filtered->orderBy('created_at', $sortBy === 'newest' ? 'desc' : 'asc');
+        } else {
             // Bucket order, per the client's feedback: emergency first, then
             // opportunities you can still join, then full ones. Anything
             // already in progress ranks dead last — even below completed /
             // cancelled / past-due records — per the client's explicit ask
             // that an ongoing opportunity move to the very end of the list.
-            ->orderByRaw("
+            $filtered = $filtered->orderByRaw("
                 CASE
                     WHEN (is_emergency = 1 OR is_urgent = 1) AND opportunity_status = 'upcoming'
                         AND (participants_needed = 0 OR current_registrations < participants_needed)
@@ -323,8 +332,8 @@ class VolunteerOpportunityController extends Controller
                     WHEN opportunity_status = 'inprogress' THEN 4
                     ELSE 3
                 END ASC
-            ", [$today, $today, $today])
-            ->orderBy('start_date', $request->query('sort_by') === 'newest' ? 'desc' : 'asc');
+            ", [$today, $today, $today])->orderBy('start_date', 'asc');
+        }
 
         $paginator = $this->paginateQuery($filtered, $request);
 
@@ -457,7 +466,7 @@ class VolunteerOpportunityController extends Controller
             $this->applySponsoredOpportunityFilters($volunteerQuery, $learnQuery, $this->organizationProfileIdFor($user));
         }
 
-        $opportunityType = strtolower((string) $request->query('opportunity_type', ''));
+        $opportunityType = $this->normalizeOpportunityTypeFilter($request);
         if ($opportunityType === 'volunteer') {
             $learnQuery->whereRaw('0 = 1');
         } elseif ($opportunityType === 'learn') {
@@ -701,7 +710,7 @@ class VolunteerOpportunityController extends Controller
             $eventQuery->whereRaw('0 = 1');
         }
 
-        $opportunityType = strtolower((string) $request->query('opportunity_type', ''));
+        $opportunityType = $this->normalizeOpportunityTypeFilter($request);
         if ($opportunityType === 'volunteer') {
             $learnQuery->whereRaw('0 = 1');
             $eventQuery->whereRaw('0 = 1');
