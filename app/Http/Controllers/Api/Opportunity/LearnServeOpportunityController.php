@@ -296,6 +296,17 @@ class LearnServeOpportunityController extends Controller
             });
         }
 
+        // This listing silently ignored match_my_interest, so the toggle looked
+        // broken here too. Same resolution as the volunteer listing.
+        if ($request->boolean('match_my_interest') && $request->user()) {
+            $userInterestIds = $this->resolveUserInterestIds($request->user());
+            if ($userInterestIds === []) {
+                $query->whereRaw('0 = 1');
+            } else {
+                $query->whereHas('interests', fn ($q) => $q->whereIn('interests.id', $userInterestIds));
+            }
+        }
+
         if ($location = $request->query('location')) {
             $query->where(function ($q) use ($location) {
                 $q->where('location_en', 'like', "%{$location}%")
