@@ -43,13 +43,32 @@ class WebsiteEventResource extends JsonResource
         $user = $request->user();
         $creatorUser = $event->organization?->user;
         $isCreator = $user && $creatorUser && $user->id === $creatorUser->id;
-        $isRegistered = $user && ! $isCreator
+        $viewerRegistration = $user && ! $isCreator
             ? EventRegistration::query()
                 ->notDeleted()
                 ->where('event_id', $event->id)
                 ->where('user_id', $user->id)
-                ->exists()
-            : false;
+                ->first()
+            : null;
+        $isRegistered = $viewerRegistration !== null;
+
+        $relationshipTags = [];
+        if ($isCreator) {
+            $relationshipTags[] = 'organizer';
+        }
+        $orgId = $user?->organizationProfile?->id;
+        if ($orgId) {
+            $sponsorImages = $event->relationLoaded('sponsorImages') ? $event->sponsorImages : $event->sponsorImages()->get();
+            if (collect($sponsorImages)->filter(fn ($img) => ! ($img->is_deleted ?? false))->contains(fn ($img) => (int) ($img->organization_id ?? 0) === (int) $orgId)) {
+                $relationshipTags[] = 'sponsor';
+            }
+        }
+        if ($isRegistered) {
+            $relationshipTags[] = 'registered';
+            if ($viewerRegistration->is_attended) {
+                $relationshipTags[] = 'attended';
+            }
+        }
 
         $payload = [
             'id' => $event->id,
@@ -84,6 +103,7 @@ class WebsiteEventResource extends JsonResource
                 : ($creatorUser ? ['id' => $creatorUser->id] : null),
             'is_creator' => $isCreator,
             'is_registered' => $isRegistered,
+            'relationship_tags' => array_values(array_unique($relationshipTags)),
             // One computed state so every screen renders the same button.
             'action_state' => $event->actionState($isRegistered, $registeredCount),
             'is_full' => $event->isAtCapacity($registeredCount),

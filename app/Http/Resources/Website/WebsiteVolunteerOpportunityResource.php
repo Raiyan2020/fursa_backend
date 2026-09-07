@@ -52,6 +52,28 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             ? $registrations->first(fn ($r) => (int) $r->user_id === $this->profileOwnerId)
             : null;
 
+        $viewer = $request->user();
+        $viewerRegistration = $viewer
+            ? $registrations->first(fn ($r) => (int) $r->user_id === (int) $viewer->id)
+            : null;
+        $relationshipTags = [];
+        if ($viewer && (int) $opportunity->created_by === (int) $viewer->id) {
+            $relationshipTags[] = 'organizer';
+        }
+        $viewerOrgId = $viewer?->organizationProfile?->id;
+        if ($viewerOrgId) {
+            $sponsorImages = $opportunity->relationLoaded('sponsorImages') ? $opportunity->sponsorImages : $opportunity->sponsorImages()->get();
+            if (collect($sponsorImages)->filter(fn ($img) => ! ($img->is_deleted ?? false))->contains(fn ($img) => (int) ($img->organization_id ?? 0) === (int) $viewerOrgId)) {
+                $relationshipTags[] = 'sponsor';
+            }
+        }
+        if ($viewerRegistration) {
+            $relationshipTags[] = 'registered';
+            if ($viewerRegistration->attendances?->contains(fn ($a) => $a->is_attended)) {
+                $relationshipTags[] = 'attended';
+            }
+        }
+
         return [
             'id' => $opportunity->id,
             'opportunity_type' => 'volunteer_opportunity',
@@ -107,6 +129,7 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
                 ? ar_num((int) ($opportunity->beneficiaries_count ?? 0))
                 : null,
             'all_registered_user' => $this->websiteRegisteredUserIds($registrations),
+            'relationship_tags' => array_values(array_unique($relationshipTags)),
             'profile_activity_tag' => $this->profileActivityTag(
                 $this->profileOwnerId,
                 $request,

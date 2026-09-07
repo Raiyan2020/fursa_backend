@@ -71,6 +71,9 @@ class EventResource extends JsonResource
             'is_full' => $this->resource->isAtCapacity(),
             'has_started' => $this->resource->hasStarted(),
             'has_ended' => $this->resource->hasEnded(),
+            // Matches the organizer/sponsor/registered/attended vocabulary the
+            // volunteer/learn-serve detail resources already expose.
+            'relationship_tags' => $this->relationshipTags($request),
         ];
     }
 
@@ -79,15 +82,53 @@ class EventResource extends JsonResource
      */
     protected function isRegisteredForEvent($request): bool
     {
+        return $this->eventRegistrationFor($request) !== null;
+    }
+
+    protected function eventRegistrationFor($request): ?\App\Models\EventRegistration
+    {
         $user = $request->user();
         if (! $user) {
-            return false;
+            return null;
         }
 
         return \App\Models\EventRegistration::query()
             ->where('event_id', $this->resource->id)
             ->where('user_id', $user->id)
             ->where('is_deleted', false)
-            ->exists();
+            ->first();
+    }
+
+    protected function relationshipTags($request): array
+    {
+        $user = $request->user();
+        if (! $user) {
+            return [];
+        }
+
+        $tags = [];
+        $orgId = $user->organizationProfile?->id;
+        if ($orgId && (int) $this->resource->created_by === (int) $orgId) {
+            $tags[] = 'organizer';
+        }
+
+        if ($orgId) {
+            $images = $this->resource->relationLoaded('sponsorImages')
+                ? $this->resource->sponsorImages
+                : $this->resource->sponsorImages()->get();
+            if ($images->filter(fn ($img) => ! ($img->is_deleted ?? false))->contains(fn ($img) => (int) ($img->organization_id ?? 0) === (int) $orgId)) {
+                $tags[] = 'sponsor';
+            }
+        }
+
+        $registration = $this->eventRegistrationFor($request);
+        if ($registration) {
+            $tags[] = 'registered';
+            if ($registration->is_attended) {
+                $tags[] = 'attended';
+            }
+        }
+
+        return array_values(array_unique($tags));
     }
 }
