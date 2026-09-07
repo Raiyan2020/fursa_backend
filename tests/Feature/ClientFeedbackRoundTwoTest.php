@@ -129,33 +129,49 @@ class ClientFeedbackRoundTwoTest extends TestCase
         );
     }
 
-    public function test_sort_by_newest_reverses_the_default_oldest_first_order(): void
+    public function test_sort_by_newest_orders_by_creation_time_bypassing_status_buckets(): void
     {
         [$org] = $this->createOrganizationActor();
 
+        // `start_date` further out, but created FIRST (older record).
         $earlier = $this->makeOpportunity($org, [
             'title_en' => 'Earlier',
-            'start_date' => now()->addDays(3)->toDateString(),
-            'end_date' => now()->addDays(4)->toDateString(),
-        ]);
-        $later = $this->makeOpportunity($org, [
-            'title_en' => 'Later',
             'start_date' => now()->addDays(9)->toDateString(),
             'end_date' => now()->addDays(10)->toDateString(),
         ]);
+        $earlier->forceFill(['created_at' => now()->subDays(5)])->save();
 
-        $oldestFirst = array_column($this->getJson('/api/list-volunteer-opportunities/')->json('data'), 'id');
+        // `start_date` sooner, but created SECOND (newer record) -- and
+        // already in progress, so under the default (no sort_by) ordering it
+        // would rank dead last, behind $earlier. sort_by=newest must still
+        // put it first, since it bypasses the status-relevance bucketing.
+        $later = $this->makeOpportunity($org, [
+            'title_en' => 'Later',
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+            'opportunity_status' => \App\Enums\OpportunityStatus::INPROGRESS,
+        ]);
+        $later->forceFill(['created_at' => now()])->save();
+
+        $default = array_column($this->getJson('/api/list-volunteer-opportunities/')->json('data'), 'id');
         $this->assertLessThan(
-            array_search($later->id, $oldestFirst, true),
-            array_search($earlier->id, $oldestFirst, true),
-            'Default order (no sort_by) must rank the earlier start_date first.'
+            array_search($later->id, $default, true),
+            array_search($earlier->id, $default, true),
+            'Default order (no sort_by) must rank the in-progress record last.'
         );
 
         $newestFirst = array_column($this->getJson('/api/list-volunteer-opportunities/?sort_by=newest')->json('data'), 'id');
         $this->assertLessThan(
             array_search($earlier->id, $newestFirst, true),
             array_search($later->id, $newestFirst, true),
-            'sort_by=newest must rank the later start_date first.'
+            'sort_by=newest must rank the more recently created record first, regardless of status.'
+        );
+
+        $oldestFirst = array_column($this->getJson('/api/list-volunteer-opportunities/?sort_by=oldest')->json('data'), 'id');
+        $this->assertLessThan(
+            array_search($later->id, $oldestFirst, true),
+            array_search($earlier->id, $oldestFirst, true),
+            'sort_by=oldest must rank the less recently created record first.'
         );
     }
 

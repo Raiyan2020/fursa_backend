@@ -103,6 +103,40 @@ class RegistrationManagementTest extends TestCase
         $this->assertSame(ApprovalStatus::REJECTED, $registration->fresh()->status);
     }
 
+    public function test_learn_serve_registrations_list_includes_contact_picture_gender_and_visibility(): void
+    {
+        [$owner, $token] = $this->createOrganizationActor();
+        [$volunteer] = $this->createVolunteerActor();
+        $volunteer->update(['phone_number' => '55512345', 'country_code' => '+965', 'profile_pic' => 'profile-pics/test.jpg']);
+        $volunteer->volunteerProfile->update(['is_public' => true]);
+
+        $genderChoice = \App\Models\MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'gender'))
+            ->firstOrFail();
+        $volunteer->volunteerProfile->update(['gender_id' => $genderChoice->id]);
+
+        $opportunity = LearnServeOpportunity::query()->create([
+            'title_en' => 'Course', 'title_ar' => 'دورة', 'description_en' => 'Description', 'description_ar' => 'وصف',
+            'created_by' => $owner->id, 'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::UPCOMING, 'participants_needed' => 10,
+            'start_date' => now()->addDays(3), 'end_date' => now()->addDays(5),
+        ]);
+        LearnServeOpportunityRegistration::query()->create([
+            'opportunity_id' => $opportunity->id, 'user_id' => $volunteer->id, 'status' => ApprovalStatus::PENDING,
+        ]);
+
+        $response = $this->api($token)->getJson("/api/learn-serve-opportunities/{$opportunity->id}/registrations/");
+        $response->assertOk();
+        $row = collect($response->json('data'))->firstWhere('user_id', $volunteer->id);
+
+        $this->assertSame('+96555512345', $row['user_contact_number']);
+        $this->assertSame('55512345', $row['phone_number']);
+        $this->assertNotNull($row['profile_pic']);
+        $this->assertSame($genderChoice->id, $row['gender_display']['id']);
+        $this->assertTrue($row['is_public']);
+        $this->assertSame($row['user_name'], $row['full_name']);
+    }
+
     public function test_day_of_reminder_is_sent_only_to_approved_registrations(): void
     {
         [$owner] = $this->createOrganizationActor();

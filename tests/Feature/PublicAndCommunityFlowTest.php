@@ -131,6 +131,33 @@ class PublicAndCommunityFlowTest extends TestCase
         ])->assertNotFound()->assertJsonPath('key', 'fail');
     }
 
+    public function test_posts_name_filter_matches_author_name_and_nickname(): void
+    {
+        [$islam, $islamToken] = $this->createVolunteerActor('islam-name-filter@test.com');
+        $islam->update(['first_name' => 'Islam', 'last_name' => 'Ghanem']);
+        [, $strangerToken] = $this->createVolunteerActor('stranger-name-filter@test.com');
+
+        $islamPost = $this->api($islamToken)->postJson('/api/posts/', [
+            'title_en' => 'Islam post',
+            'idea_text_en' => 'From islam',
+        ]);
+        $this->assertSuccessEnvelope($islamPost, 201);
+        $islamPostId = (int) $islamPost->json('data.id');
+
+        $strangerPost = $this->api($strangerToken)->postJson('/api/posts/', [
+            'title_en' => 'Stranger post',
+            'idea_text_en' => 'Not islam',
+        ]);
+        $this->assertSuccessEnvelope($strangerPost, 201);
+        $strangerPostId = (int) $strangerPost->json('data.id');
+
+        $filtered = $this->getJson('/api/posts/?name=isl');
+        $this->assertSuccessEnvelope($filtered);
+        $ids = collect($filtered->json('data'))->pluck('id');
+        $this->assertTrue($ids->contains($islamPostId));
+        $this->assertFalse($ids->contains($strangerPostId));
+    }
+
     public function test_list_all_opportunities_organized_events_returns_only_events(): void
     {
         [, $organizationToken] = $this->createOrganizationActor('organized.events.org@test.com');
@@ -187,6 +214,120 @@ class PublicAndCommunityFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('key', 'success')
             ->assertJsonPath('data.opportunity_type', 'event');
+    }
+
+    public function test_list_all_opportunities_opportunity_type_filter_accepts_both_vocabularies(): void
+    {
+        [$org, $organizationToken] = $this->createOrganizationActor('type-filter-org@test.com');
+
+        $volunteerOpportunity = $this->api($organizationToken)->postJson('/api/volunteer-opportunities/', [
+            'title_en' => 'Type Filter Volunteer Opportunity',
+            'title_ar' => 'فرصة تطوع',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+            'participants_needed' => 8,
+            'is_public' => true,
+            'volunteer_category' => 'environmental',
+        ]);
+        $this->assertSuccessEnvelope($volunteerOpportunity, 201);
+        $volunteerId = (int) $volunteerOpportunity->json('data.id');
+        VolunteerOpportunity::query()->whereKey($volunteerId)->update(['approval_status' => 'approved']);
+
+        $learnOpportunity = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
+            'title_en' => 'Type Filter Learn Serve Opportunity',
+            'title_ar' => 'فرصة تعلم وخدمة',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+            'participants_needed' => 8,
+        ]);
+        $this->assertSuccessEnvelope($learnOpportunity, 201);
+        $learnId = (int) $learnOpportunity->json('data.id');
+        \App\Models\LearnServeOpportunity::query()->whereKey($learnId)->update(['approval_status' => 'approved']);
+
+        $base = '/api/list-all-opportunities/?filter_type=organized&user_id='.$org->id;
+
+        foreach (['learn', 'learn_serve_opportunity'] as $learnValue) {
+            $types = collect($this->getJson($base.'&opportunity_type='.$learnValue)->json('data'))->pluck('opportunity_type');
+            $this->assertTrue($types->contains('learn_serve_opportunity'), "opportunity_type={$learnValue} must include the learn-serve record.");
+            $this->assertFalse($types->contains('volunteer_opportunity'), "opportunity_type={$learnValue} must exclude the volunteer record.");
+        }
+
+        foreach (['volunteer', 'volunteer_opportunity'] as $volunteerValue) {
+            $types = collect($this->getJson($base.'&opportunity_type='.$volunteerValue)->json('data'))->pluck('opportunity_type');
+            $this->assertTrue($types->contains('volunteer_opportunity'), "opportunity_type={$volunteerValue} must include the volunteer record.");
+            $this->assertFalse($types->contains('learn_serve_opportunity'), "opportunity_type={$volunteerValue} must exclude the learn-serve record.");
+        }
+    }
+
+    public function test_relationship_tags_mark_the_organizer_consistently_across_event_and_list_resources(): void
+    {
+        [$org, $organizationToken] = $this->createOrganizationActor('relationship-tags-org@test.com');
+
+        $event = $this->api($organizationToken)->postJson('/api/events/', [
+            'title_en' => 'Relationship Tags Event',
+            'title_ar' => 'فعالية',
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+            'due_date' => now()->addDays(2)->toDateTimeString(),
+            'registration_required' => true,
+            'participants_needed' => 10,
+        ]);
+        $this->assertSuccessEnvelope($event, 201);
+        $eventId = (int) $event->json('data.id');
+        Event::query()->whereKey($eventId)->update(['approval_status' => 'approved']);
+
+        $this->api($organizationToken)->getJson("/api/events/{$eventId}/")
+            ->assertOk()
+            ->assertJsonPath('data.relationship_tags', ['organizer']);
+
+        $eventList = $this->api($organizationToken)
+            ->getJson('/api/list-all-opportunities/?filter_type=organized_events&user_id='.$org->id);
+        $this->assertSuccessEnvelope($eventList);
+        $eventItem = collect($eventList->json('data'))->firstWhere('id', $eventId);
+        $this->assertSame(['organizer'], $eventItem['relationship_tags']);
+
+        $volunteerOpportunity = $this->api($organizationToken)->postJson('/api/volunteer-opportunities/', [
+            'title_en' => 'Relationship Tags Volunteer Opportunity',
+            'title_ar' => 'فرصة تطوع',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+            'participants_needed' => 8,
+            'is_public' => true,
+            'volunteer_category' => 'environmental',
+        ]);
+        $this->assertSuccessEnvelope($volunteerOpportunity, 201);
+        $volunteerId = (int) $volunteerOpportunity->json('data.id');
+        VolunteerOpportunity::query()->whereKey($volunteerId)->update(['approval_status' => 'approved']);
+
+        $learnOpportunity = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
+            'title_en' => 'Relationship Tags Learn Serve Opportunity',
+            'title_ar' => 'فرصة تعلم وخدمة',
+            'description_en' => 'Desc',
+            'description_ar' => 'وصف',
+            'start_date' => now()->addDays(3)->toDateString(),
+            'end_date' => now()->addDays(4)->toDateString(),
+            'participants_needed' => 8,
+        ]);
+        $this->assertSuccessEnvelope($learnOpportunity, 201);
+        $learnId = (int) $learnOpportunity->json('data.id');
+        \App\Models\LearnServeOpportunity::query()->whereKey($learnId)->update(['approval_status' => 'approved']);
+
+        $list = $this->api($organizationToken)
+            ->getJson('/api/list-all-opportunities/?filter_type=organized&user_id='.$org->id);
+        $this->assertSuccessEnvelope($list);
+        $items = collect($list->json('data'));
+
+        $volunteerItem = $items->first(fn ($item) => $item['id'] === $volunteerId && $item['opportunity_type'] === 'volunteer_opportunity');
+        $this->assertSame(['organizer'], $volunteerItem['relationship_tags']);
+
+        $learnItem = $items->first(fn ($item) => $item['id'] === $learnId && $item['opportunity_type'] === 'learn_serve_opportunity');
+        $this->assertSame(['organizer'], $learnItem['relationship_tags']);
     }
 
     protected function api(string $token)
