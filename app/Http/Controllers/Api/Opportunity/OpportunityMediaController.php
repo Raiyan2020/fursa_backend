@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Opportunity;
 use App\Http\Controllers\Controller;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\OpportunityImage;
+use App\Models\VolunteerOpportunityRegistration;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -147,7 +148,18 @@ class OpportunityMediaController extends Controller
             return ApiResponse::error('Missing registration ID.', 'معرف التسجيل مفقود.', 400);
         }
 
-        $registration = LearnServeOpportunityRegistration::query()->find($registrationId);
+        $type = $request->query('registration_type');
+        $registration = match ($type) {
+            'volunteer' => VolunteerOpportunityRegistration::query()->find($registrationId),
+            'learn_serve' => LearnServeOpportunityRegistration::query()->find($registrationId),
+            // No type given: try Learn&Serve first (the original, longer-lived
+            // caller of this endpoint), then volunteer opportunities. The two
+            // registration tables have independent id sequences, so pass
+            // registration_type explicitly wherever the caller already knows it.
+            default => LearnServeOpportunityRegistration::query()->find($registrationId)
+                ?? VolunteerOpportunityRegistration::query()->find($registrationId),
+        };
+
         if (! $registration) {
             return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
         }

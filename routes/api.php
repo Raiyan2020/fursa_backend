@@ -113,6 +113,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration']);
     Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit']);
     Route::post('volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages']);
+    Route::post('volunteer-opportunities/{id}/certificates/send/', [VolunteerOpportunityController::class, 'sendCertificates']);
     Route::post('volunteer-opportunities/{id}/sponsors/', [VolunteerOpportunityController::class, 'addSponsor']);
     Route::delete('volunteer-opportunities/{id}/sponsors/{sponsorId}/', [VolunteerOpportunityController::class, 'removeSponsor']);
     Route::delete('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'destroy']);

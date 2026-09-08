@@ -14,12 +14,14 @@ class VolunteerOpportunityRegistration extends Model
     use HasSoftFlags;
 
     protected $fillable = [
-        'opportunity_id', 'user_id', 'registration_date', 'status', 'is_deleted', 'deleted_at',
+        'opportunity_id', 'user_id', 'registration_date', 'status',
+        'certificate_image', 'is_certified', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
         'registration_date' => 'datetime',
         'status' => ApprovalStatus::class,
+        'is_certified' => 'boolean',
     ];
 
     public function opportunity(): BelongsTo

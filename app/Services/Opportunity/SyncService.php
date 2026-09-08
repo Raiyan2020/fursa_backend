@@ -12,6 +12,7 @@ use App\Models\OpportunitySponsorImage;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAttendance;
+use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerProfile;
 use App\Models\VolunteerStatistic;
 use Illuminate\Support\Facades\Log;
@@ -152,17 +153,24 @@ class SyncService
                 ->distinct()
                 ->count('volunteer_opportunities.id');
 
+            $certifiedScope = function ($q) {
+                $q->where('is_certified', true)
+                    ->orWhere(function ($inner) {
+                        $inner->whereNotNull('certificate_image')
+                            ->where('certificate_image', '!=', '');
+                    });
+            };
+
             $totalCertificates = LearnServeOpportunityRegistration::query()
                 ->where('user_id', $user->id)
                 ->where('is_deleted', false)
-                ->where(function ($q) {
-                    $q->where('is_certified', true)
-                        ->orWhere(function ($inner) {
-                            $inner->whereNotNull('certificate_image')
-                                ->where('certificate_image', '!=', '');
-                        });
-                })
-                ->count();
+                ->where($certifiedScope)
+                ->count()
+                + VolunteerOpportunityRegistration::query()
+                    ->where('user_id', $user->id)
+                    ->where('is_deleted', false)
+                    ->where($certifiedScope)
+                    ->count();
 
             $badge = self::getBadgeForHours($currentYearHours);
 

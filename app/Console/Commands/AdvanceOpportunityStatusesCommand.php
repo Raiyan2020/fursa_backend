@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\VolunteerOpportunity;
+use App\Services\Certificate\VolunteerCertificateService;
 use App\Services\Opportunity\SyncService;
 use Illuminate\Console\Command;
 
@@ -89,6 +90,15 @@ class AdvanceOpportunityStatusesCommand extends Command
                                 $synced[$userId] = true;
                             }
                         }
+                    }
+
+                    // Volunteers already marked attended before the opportunity
+                    // completed get their certificate issued and emailed right
+                    // now. Anyone attended later (a correction, or attendance
+                    // recorded after this ran) is covered by the organizer's
+                    // manual "send certificates" action, not by this cron.
+                    if ($opp instanceof VolunteerOpportunity) {
+                        VolunteerCertificateService::issueEligible($opp->id);
                     }
 
                     $synced[$opp->created_by] = true;

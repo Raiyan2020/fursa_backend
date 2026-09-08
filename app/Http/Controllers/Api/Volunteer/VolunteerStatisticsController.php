@@ -348,16 +348,18 @@ class VolunteerStatisticsController extends Controller
             return ApiResponse::error('User not found or profile is deleted.', 'لم يتم العثور على المستخدم أو تم حذف الملف الشخصي.', 404);
         }
 
-        $certificates = LearnServeOpportunityRegistration::query()
+        $certifiedScope = function ($q) {
+            $q->where('is_certified', true)
+                ->orWhere(function ($inner) {
+                    $inner->whereNotNull('certificate_image')
+                        ->where('certificate_image', '!=', '');
+                });
+        };
+
+        $learnServeCertificates = LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('user_id', $profile->user_id)
-            ->where(function ($q) {
-                $q->where('is_certified', true)
-                    ->orWhere(function ($inner) {
-                        $inner->whereNotNull('certificate_image')
-                            ->where('certificate_image', '!=', '');
-                    });
-            })
+            ->where($certifiedScope)
             ->with('opportunity.creator.organizationProfile')
             ->get()
             ->map(fn ($row) => [
@@ -368,10 +370,26 @@ class VolunteerStatisticsController extends Controller
                 'organizer_name' => $this->certificateOrganizerName($row->opportunity),
             ]);
 
+        $volunteerCertificates = VolunteerOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('user_id', $profile->user_id)
+            ->where($certifiedScope)
+            ->with('opportunity.creator.organizationProfile')
+            ->get()
+            ->map(fn ($row) => [
+                'registration_id' => $row->id,
+                'certificate_image' => getimg($row->certificate_image),
+                'opportunity__title_en' => $row->opportunity?->title_en,
+                'opportunity__title_ar' => $row->opportunity?->title_ar,
+                'organizer_name' => $this->certificateOrganizerName($row->opportunity),
+            ]);
+
+        $certificates = collect($learnServeCertificates->all())->merge($volunteerCertificates->all())->values();
+
         return ApiResponse::success($certificates, 'Certificates retrieved successfully.', 'تم استرجاع الشهادات بنجاح.');
     }
 
-    public function volunteerDetail(Request $request): JsonResponse
+    public function volunteerDetail(Request $request): JsonResponse|\Illuminate\Http\Response
     {
         $profile = $request->user()->volunteerProfile;
         if (! $profile) {
@@ -383,10 +401,16 @@ class VolunteerStatisticsController extends Controller
         }
 
         if ($request->query('download') === 'true') {
-            return ApiResponse::success([
-                'pdf_url' => null,
-                'message' => 'PDF generation is not yet implemented.',
-            ], 'PDF generation stub.', 'إنشاء PDF غير متوفر بعد.');
+            $pdf = (new \App\Services\Report\AchievementReportRenderer())->render(
+                $request->user(),
+                $profile,
+                app()->getLocale() === 'ar'
+            );
+
+            return response($pdf, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="achievement-report.pdf"',
+            ]);
         }
 
         $page = max(1, (int) $request->query('page', 1));
@@ -495,7 +519,7 @@ class VolunteerStatisticsController extends Controller
      * company_name-first fallback CertificateRenderer uses, so the tab list
      * and the rendered certificate always agree.
      */
-    protected function certificateOrganizerName(?LearnServeOpportunity $opportunity): ?string
+    protected function certificateOrganizerName(LearnServeOpportunity|VolunteerOpportunity|null $opportunity): ?string
     {
         $organizer = $opportunity?->creator;
         $name = trim(

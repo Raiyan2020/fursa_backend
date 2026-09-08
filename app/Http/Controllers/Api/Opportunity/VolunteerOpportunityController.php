@@ -19,6 +19,7 @@ use App\Models\Event;
 use App\Models\LearnServeOpportunity;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
+use App\Services\Certificate\VolunteerCertificateService;
 use App\Services\Opportunity\OpportunityChangeNotifier;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -215,6 +216,40 @@ class VolunteerOpportunityController extends Controller
             new VolunteerOpportunityResource($opportunity),
             'Opportunity resubmitted for approval.',
             'تم إعادة تقديم الفرصة للمراجعة.'
+        );
+    }
+
+    /**
+     * The organizer-triggered "send certificates" action: covers attendance
+     * marked (or corrected) after the opportunity already completed, since
+     * fursa:advance-statuses only auto-issues once, at the moment of
+     * completion.
+     */
+    public function sendCertificates(Request $request, int $id): JsonResponse
+    {
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        if ($opportunity->opportunity_status !== OpportunityStatus::COMPLETED) {
+            return ApiResponse::error(
+                'Certificates can only be sent after the opportunity has ended.',
+                'يمكن إرسال الشهادات فقط بعد انتهاء الفرصة.',
+                400
+            );
+        }
+
+        $issued = VolunteerCertificateService::issueEligible($opportunity->id);
+
+        return ApiResponse::success(
+            ['certificates_sent' => $issued],
+            $issued > 0 ? 'Certificates sent successfully.' : 'No new certificates to send.',
+            $issued > 0 ? 'تم إرسال الشهادات بنجاح.' : 'لا توجد شهادات جديدة لإرسالها.'
         );
     }
 
@@ -452,16 +487,12 @@ class VolunteerOpportunityController extends Controller
         if ($filterType === 'registered') {
             $volunteerQuery->whereHas('registrations', fn ($q) => $q->notDeleted()->where('user_id', $user->id));
             $learnQuery->whereHas('registrations', fn ($q) => $q->notDeleted()->where('user_id', $user->id));
-        } elseif ($filterType === 'organized') {
-            $volunteerQuery->whereHas('registrations', function ($q) use ($user) {
-                $q->notDeleted()->where('user_id', $user->id);
-            })->where('opportunity_status', OpportunityStatus::COMPLETED)
-                ->whereHas('registrations', function ($q) use ($user) {
-                    $q->where('user_id', $user->id)->whereHas('attendances', fn ($a) => $a->where('is_attended', true));
-                });
-            $learnQuery->whereHas('registrations', function ($q) use ($user) {
-                $q->notDeleted()->where('user_id', $user->id)->where('is_attended', true);
-            })->where('opportunity_status', OpportunityStatus::COMPLETED);
+        } elseif ($filterType === 'organized' || $filterType === 'attended') {
+            // Despite the name, "organized" here has always meant "attended"
+            // (completed opportunity + an attendance row) - kept working
+            // as-is for whatever already calls it that way. "attended" is
+            // the correctly-named alias for the same query, for new callers.
+            $this->applyAttendedFilter($volunteerQuery, $learnQuery, $user);
         } elseif ($filterType === 'sponsored') {
             $this->applySponsoredOpportunityFilters($volunteerQuery, $learnQuery, $this->organizationProfileIdFor($user));
         }
@@ -757,6 +788,25 @@ class VolunteerOpportunityController extends Controller
         $user->loadMissing('organizationProfile');
 
         return $user->organizationProfile?->id;
+    }
+
+    /**
+     * Opportunities/development the user registered for, the opportunity has
+     * finished, and they were marked attended (VolunteerOpportunity via a
+     * `volunteer_opportunity_attendances` row, LearnServeOpportunity via its
+     * own `is_attended` column).
+     */
+    protected function applyAttendedFilter($volunteerQuery, $learnQuery, User $user): void
+    {
+        $volunteerQuery->whereHas('registrations', function ($q) use ($user) {
+            $q->notDeleted()->where('user_id', $user->id);
+        })->where('opportunity_status', OpportunityStatus::COMPLETED)
+            ->whereHas('registrations', function ($q) use ($user) {
+                $q->where('user_id', $user->id)->whereHas('attendances', fn ($a) => $a->where('is_attended', true));
+            });
+        $learnQuery->whereHas('registrations', function ($q) use ($user) {
+            $q->notDeleted()->where('user_id', $user->id)->where('is_attended', true);
+        })->where('opportunity_status', OpportunityStatus::COMPLETED);
     }
 
     protected function applySponsoredOpportunityFilters($volunteerQuery, $learnQuery, ?int $organizationProfileId): void
