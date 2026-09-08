@@ -343,7 +343,7 @@ class EventController extends Controller
             'title_ar' => ['nullable', 'string', 'max:255'],
             'description_en' => ['nullable', 'string'],
             'description_ar' => ['nullable', 'string'],
-            'event_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
+            'event_type_id' => [$partial ? 'sometimes' : 'required', 'integer', 'exists:master_choices,id'],
             'due_date' => ['nullable', 'date'],
             'start_date' => [$partial ? 'sometimes' : 'required', 'date'],
             'end_date' => [$partial ? 'sometimes' : 'required', 'date'],

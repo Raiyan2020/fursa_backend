@@ -304,7 +304,7 @@ class EventController extends Controller
             'title_ar' => ['required', 'string', 'max:255'],
             'description_en' => ['required', 'string'],
             'description_ar' => ['required', 'string'],
-            'event_type_id' => $choiceRule('event_type'),
+            'event_type_id' => array_merge(['required'], array_slice($choiceRule('event_type'), 1)),
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'date_format:H:i'],

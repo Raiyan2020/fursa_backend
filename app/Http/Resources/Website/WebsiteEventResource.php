@@ -96,7 +96,7 @@ class WebsiteEventResource extends JsonResource
             'is_registration_open' => $event->isRegistrationOpen(),
             'event_images' => $this->websiteImageListWithIds($images),
             'participation_type_display' => $this->websiteChoicePayload($event->participationType),
-            'event_type_display' => $this->websiteChoicePayload($event->eventType),
+            'event_type_display' => $this->websiteChoicePayload($event->eventType, 'event_type'),
             'interest_display' => $this->websiteInterestDisplay($event->interests ?? collect()),
             'created_by' => $this->detail
                 ? $this->websiteEventCreator($creatorUser)

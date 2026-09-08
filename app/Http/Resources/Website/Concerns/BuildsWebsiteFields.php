@@ -11,17 +11,18 @@ trait BuildsWebsiteFields
 {
     use ResolvesApiPayloads;
 
-    protected function websiteChoicePayload(?MasterChoice $choice): ?array
+    protected function websiteChoicePayload(?MasterChoice $choice, ?string $choiceType = null): ?array
     {
         if (! $choice) {
             return null;
         }
 
-        return [
+        return array_filter([
             'id' => $choice->id,
+            'choice_type' => $choiceType,
             'value_en' => $choice->value_en,
             'value_ar' => $choice->value_ar,
-        ];
+        ], fn ($value) => $value !== null);
     }
 
     protected function websiteInterestDisplay($interests): array

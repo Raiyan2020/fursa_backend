@@ -163,6 +163,10 @@ class PublicAndCommunityFlowTest extends TestCase
         [, $organizationToken] = $this->createOrganizationActor('organized.events.org@test.com');
         [, $volunteerToken] = $this->createVolunteerActor('organized.events.vol@test.com');
 
+        $eventType = MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'event_type'))
+            ->firstOrFail();
+
         $dates = [
             'start_date' => now()->addDays(5)->toDateString(),
             'end_date' => now()->addDays(7)->toDateString(),
@@ -184,6 +188,7 @@ class PublicAndCommunityFlowTest extends TestCase
         $event = $this->api($organizationToken)->postJson('/api/events/', [
             'title_en' => 'Real Organized Event',
             'title_ar' => 'فعالية حقيقية',
+            'event_type_id' => $eventType->id,
             'start_date' => $dates['start_date'],
             'end_date' => $dates['start_date'],
             'due_date' => now()->addDays(4)->toDateTimeString(),
@@ -267,9 +272,14 @@ class PublicAndCommunityFlowTest extends TestCase
     {
         [$org, $organizationToken] = $this->createOrganizationActor('relationship-tags-org@test.com');
 
+        $eventType = MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'event_type'))
+            ->firstOrFail();
+
         $event = $this->api($organizationToken)->postJson('/api/events/', [
             'title_en' => 'Relationship Tags Event',
             'title_ar' => 'فعالية',
+            'event_type_id' => $eventType->id,
             'start_date' => now()->addDays(3)->toDateString(),
             'end_date' => now()->addDays(3)->toDateString(),
             'due_date' => now()->addDays(2)->toDateTimeString(),

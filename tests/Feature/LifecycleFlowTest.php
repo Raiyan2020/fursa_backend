@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
+use App\Models\MasterChoice;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,6 +35,10 @@ class LifecycleFlowTest extends TestCase
     {
         [, $organizationToken] = $this->createOrganizationActor('cycle.org@test.com');
         [$volunteer, $volunteerToken] = $this->createVolunteerActor('cycle.volunteer@test.com');
+
+        $eventType = MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'event_type'))
+            ->firstOrFail();
 
         $payload = [
             'title_en' => 'Cycle Volunteer Opportunity',
@@ -65,6 +70,7 @@ class LifecycleFlowTest extends TestCase
         $eventCreate = $this->api($organizationToken)->postJson('/api/events/', [
             'title_en' => 'Cycle Event',
             'title_ar' => 'فعالية دورة اختبار',
+            'event_type_id' => $eventType->id,
             'start_date' => now()->addDays(5)->toDateString(),
             'end_date' => now()->addDays(5)->toDateString(),
             'due_date' => now()->addDays(4)->toDateTimeString(),

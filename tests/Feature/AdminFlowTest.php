@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MasterChoice;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Models\UserRoleLicenseRequirement;
@@ -245,6 +246,10 @@ class AdminFlowTest extends TestCase
         [$orgUser] = $this->createOrganizationActor('event-org@fursa.test');
         $org = $orgUser->organizationProfile;
 
+        $eventType = MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'event_type'))
+            ->firstOrFail();
+
         $this->get('/dashboard/events/create')->assertOk();
 
         $this->post('/dashboard/events', [])
@@ -254,6 +259,7 @@ class AdminFlowTest extends TestCase
                 'title_ar',
                 'description_en',
                 'description_ar',
+                'event_type_id',
                 'start_date',
                 'end_date',
                 'approval_status',
@@ -266,6 +272,7 @@ class AdminFlowTest extends TestCase
             'created_by' => $org->id,
             'title_en' => 'YV CONNECT',
             'title_ar' => 'YV CONNECT',
+            'event_type_id' => $eventType->id,
             'description_en' => 'What is the idea?',
             'description_ar' => 'شنو فكرته؟',
             'start_date' => '2026-07-29',
@@ -296,6 +303,7 @@ class AdminFlowTest extends TestCase
             'created_by' => $org->id,
             'title_en' => 'YV CONNECT Updated',
             'title_ar' => 'YV CONNECT',
+            'event_type_id' => $eventType->id,
             'description_en' => 'Updated description',
             'description_ar' => 'وصف محدث',
             'start_date' => '2026-07-29',
