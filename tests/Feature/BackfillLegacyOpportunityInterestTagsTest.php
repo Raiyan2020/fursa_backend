@@ -59,8 +59,10 @@ class BackfillLegacyOpportunityInterestTagsTest extends TestCase
             'master_choice_id' => $communityService->id,
         ]);
 
+        // The master-choice pivot is now read directly (BE-23), so the tag is
+        // already visible before any backfill runs — this used to be [].
         $before = $this->getJson("/api/opportunities/{$opportunity->id}/details/");
-        $before->assertJsonPath('data.interests', []);
+        $before->assertJsonPath('data.interests.0.name_en', 'Community Service');
 
         $this->artisan('fursa:backfill-legacy-opportunity-interest-tags')->assertSuccessful();
 
@@ -71,12 +73,14 @@ class BackfillLegacyOpportunityInterestTagsTest extends TestCase
             'interest_id' => $interest->id,
         ]);
 
+        // The read prefers the master-choice vocabulary (what /api/choices/*
+        // serves and what clients post back), so that id is the one surfaced.
         $after = $this->getJson("/api/opportunities/{$opportunity->id}/details/");
         $after->assertJsonPath('data.interests', [[
-            'id' => $interest->id,
+            'id' => $communityService->id,
             'name_en' => 'Community Service',
             'name_ar' => 'خدمة مجتمعية',
-            'interest_type' => 'volunteer',
+            'interest_type' => null,
         ]]);
 
         // Re-running must not duplicate the pivot row or the Interest row.

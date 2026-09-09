@@ -112,7 +112,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('volunteer-opportunities/{id}/close-registration/', [VolunteerOpportunityController::class, 'closeRegistration']);
     Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration']);
     Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit']);
-    Route::post('volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages']);
+    // Accepts both verbs: the two update_images routes had drifted apart
+    // (POST here, PATCH for learn-serve), which is an easy 405 to trip over.
+    Route::match(['post', 'patch'], 'volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages']);
     Route::post('volunteer-opportunities/{id}/certificates/send/', [VolunteerOpportunityController::class, 'sendCertificates']);
     Route::post('volunteer-opportunities/{id}/sponsors/', [VolunteerOpportunityController::class, 'addSponsor']);
     Route::delete('volunteer-opportunities/{id}/sponsors/{sponsorId}/', [VolunteerOpportunityController::class, 'removeSponsor']);
@@ -123,7 +125,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('learn-serve-opportunities/', [LearnServeOpportunityController::class, 'store']);
     Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update']);
     Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration']);
-    Route::patch('learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages']);
+    Route::match(['post', 'patch'], 'learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages']);
     Route::post('learn-serve-opportunities/{id}/sponsors/', [LearnServeOpportunityController::class, 'addSponsor']);
     Route::delete('learn-serve-opportunities/{id}/sponsors/{sponsorId}/', [LearnServeOpportunityController::class, 'removeSponsor']);
     Route::delete('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'destroy']);

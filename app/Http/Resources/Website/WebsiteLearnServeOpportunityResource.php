@@ -27,7 +27,7 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
         /** @var LearnServeOpportunity $opportunity */
         $opportunity = $this->resource;
 
-        $opportunity->loadMissing(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType']);
+        $opportunity->loadMissing(['creator', 'interests', 'masterInterests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType']);
         $images = $opportunity->images?->filter(fn ($image) => ! $image->is_deleted) ?? collect();
         $registrations = $opportunity->registrations?->filter(fn ($registration) => ! $registration->is_deleted) ?? collect();
 
@@ -88,7 +88,7 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'registered_volunteers_count' => ar_num($registrations->count()),
             'opportunity_images' => $this->websiteImageList(opportunity_card_images($images)),
             'created_by' => $this->websiteCreatorId($opportunity->creator),
-            'interest_display' => $this->websiteInterestDisplay($opportunity->interests ?? collect()),
+            'interest_display' => $this->websiteInterestDisplay($this->effectiveInterests($opportunity)),
             'format_display' => $this->websiteChoicePayload($opportunity->format),
             'learning_type_display' => $this->websiteChoicePayload($opportunity->learningType),
             'is_supports_disabled' => (bool) $opportunity->is_supports_disabled,

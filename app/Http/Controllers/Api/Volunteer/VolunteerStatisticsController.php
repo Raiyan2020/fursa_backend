@@ -364,6 +364,10 @@ class VolunteerStatisticsController extends Controller
             ->get()
             ->map(fn ($row) => [
                 'registration_id' => $row->id,
+                // The two registration tables have independent id sequences, so a
+                // row has to say which one it came from — otherwise the caller
+                // cannot pass registration_type to /download-certificate/.
+                'registration_type' => 'learn_serve',
                 'certificate_image' => getimg($row->certificate_image),
                 'opportunity__title_en' => $row->opportunity?->title_en,
                 'opportunity__title_ar' => $row->opportunity?->title_ar,
@@ -378,6 +382,7 @@ class VolunteerStatisticsController extends Controller
             ->get()
             ->map(fn ($row) => [
                 'registration_id' => $row->id,
+                'registration_type' => 'volunteer',
                 'certificate_image' => getimg($row->certificate_image),
                 'opportunity__title_en' => $row->opportunity?->title_en,
                 'opportunity__title_ar' => $row->opportunity?->title_ar,

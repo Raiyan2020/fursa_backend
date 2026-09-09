@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'unknown_interest_ids_scoped' => 'One or more tag ids are not valid for this resource. Use the ids served by :endpoint.',
+    'unknown_interest_ids' => 'One or more tag ids are not valid.',
+    'unknown_write_field' => 'This endpoint does not accept this field. Check the field name.',
     'data_retrieved_successfully' => 'Data retrieved successfully',
     'created_successfully' => 'Created successfully',
     'updated_successfully' => 'Updated successfully',

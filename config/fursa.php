@@ -14,6 +14,14 @@ return [
     'frontend_host' => env('FRONTEND_HOST', 'http://localhost:3000'),
     'backend_host' => env('BACKEND_HOST', 'http://localhost:8000'),
     'storage_path' => env('STORAGE_PATH', 'uploads'),
+    // Reject write payloads carrying keys the endpoint does not recognise, so a
+    // renamed or mistyped field fails loudly instead of being silently dropped.
+    // Set REJECT_UNKNOWN_WRITE_KEYS=false to disable without a deploy if it ever
+    // blocks a legitimate client.
+    'reject_unknown_write_keys' => filter_var(
+        env('REJECT_UNKNOWN_WRITE_KEYS', 'true'),
+        FILTER_VALIDATE_BOOLEAN
+    ),
     'token_expiry_days' => [
         'default' => 1,
         'remember' => 30,

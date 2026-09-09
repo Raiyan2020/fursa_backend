@@ -138,7 +138,19 @@ class OrganizationProfileController extends Controller
             return ApiResponse::error('Organization profile not found.', 'ملف الجهة غير موجود.', 404);
         }
 
+        // existing_ids normalised: accept a bracketed array, a single scalar,
+        // or a comma-separated string (BE-22 ask 2).
+        $raw = $request->input('existing_ids');
+        if ($raw !== null && ! is_array($raw)) {
+            $request->merge(['existing_ids' => array_values(array_filter(
+                array_map(static fn ($id) => filter_int(is_string($id) ? trim($id) : $id),
+                    is_string($raw) && str_contains($raw, ',') ? explode(',', $raw) : [$raw]),
+                static fn ($id) => $id !== null
+            ))]);
+        }
+
         $data = $request->validate([
+            // Normalised before validation, so a scalar or CSV is accepted too.
             'existing_ids' => ['nullable', 'array'],
             'existing_ids.*' => ['integer'],
             'new_documents' => ['nullable', 'array'],

@@ -62,7 +62,7 @@ class EventResource extends JsonResource
                 'id' => $img->id,
                 'image' => getimg($img->image),
             ])),
-            'interests' => $this->interests?->map(fn ($i) => $this->interestPayload($i))->values(),
+            'interests' => $this->effectiveInterests($this->resource)->map(fn ($i) => $this->tagPayload($i))->values(),
             'interest_display' => $this->interestDisplayPayload($this->interests, 'event_interest'),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

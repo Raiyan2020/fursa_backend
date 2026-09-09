@@ -177,10 +177,15 @@ class OwnerReportBackendTest extends TestCase
         [, $organizationToken] = $this->createOrganizationActor('close.org@test.com');
         [, $volunteerToken] = $this->createVolunteerActor('close.vol@test.com');
 
-        $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', $this->opportunityPayload([
+        // volunteer_category is a volunteer-opportunity field; learn-serve now
+        // rejects unknown keys instead of dropping them (BE-22 ask 4).
+        $lsPayload = $this->opportunityPayload([
             'title_en' => 'Open Development',
             'due_date' => null,
-        ]));
+        ]);
+        unset($lsPayload['volunteer_category'], $lsPayload['is_public']);
+
+        $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', $lsPayload);
         $opportunityId = (int) $create->json('data.id');
 
         $closed = $this->api($organizationToken)

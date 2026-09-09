@@ -27,9 +27,11 @@ trait BuildsWebsiteFields
 
     protected function websiteInterestDisplay($interests): array
     {
+        // Accepts either vocabulary: legacy `interests` rows carry name_en/name_ar,
+        // master_choices rows carry value_en/value_ar.
         return collect($interests)->map(fn ($interest) => [
-            'value_en' => $interest->name_en,
-            'value_ar' => $interest->name_ar,
+            'value_en' => $interest->value_en ?? $interest->name_en,
+            'value_ar' => $interest->value_ar ?? $interest->name_ar,
         ])->values()->all();
     }
 

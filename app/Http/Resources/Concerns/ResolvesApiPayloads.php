@@ -111,6 +111,45 @@ trait ResolvesApiPayloads
         return array_values(array_filter($links, static fn (array $entry) => ! empty($entry['link'])));
     }
 
+    /**
+     * The tags to show for an opportunity/event.
+     *
+     * Production data lives on the `master_choice_*` pivots while the legacy
+     * `interests` pivot is mostly empty, which is why these payloads came back
+     * null. Prefer master choices and fall back to the legacy rows.
+     */
+    protected function effectiveInterests($model)
+    {
+        $master = $model->relationLoaded('masterInterests')
+            ? $model->masterInterests
+            : $model->masterInterests()->get();
+
+        $master = collect($master)->filter(fn ($i) => ! ($i->is_deleted ?? false));
+
+        if ($master->isNotEmpty()) {
+            return $master;
+        }
+
+        return collect($model->interests ?? []);
+    }
+
+    /**
+     * Normalises either vocabulary to one shape, since master choices carry
+     * `value_en`/`value_ar` and legacy interests carry `name_en`/`name_ar`.
+     */
+    protected function tagPayload($tag): array
+    {
+        // Deliberately the same four keys `interestPayload()` has always
+        // returned — only the data is new, so no client has to change shape.
+        // Legacy `interests` rows carry name_*, master_choices rows value_*.
+        return [
+            'id' => $tag->id,
+            'name_en' => $tag->name_en ?? $tag->value_en,
+            'name_ar' => $tag->name_ar ?? $tag->value_ar,
+            'interest_type' => $tag->interest_type?->value ?? $tag->interest_type,
+        ];
+    }
+
     protected function interestPayload($interest): array
     {
         return [

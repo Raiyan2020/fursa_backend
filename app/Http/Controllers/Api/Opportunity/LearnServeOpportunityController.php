@@ -8,6 +8,8 @@ use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
+use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
+use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
@@ -24,6 +26,8 @@ class LearnServeOpportunityController extends Controller
     use HandlesMapLocation;
     use HandlesOpportunities;
     use HandlesOpportunitySponsors;
+    use RejectsUnknownWriteKeys;
+    use SyncsOpportunityInterests;
 
     public function index(Request $request): JsonResponse
     {
@@ -80,7 +84,7 @@ class LearnServeOpportunityController extends Controller
         ]));
 
         if ($request->has('interest_ids')) {
-            $opportunity->interests()->sync($request->input('interest_ids', []));
+            $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'learnserve_opportunity_interest');
         }
 
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
@@ -113,7 +117,7 @@ class LearnServeOpportunityController extends Controller
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
 
         if ($request->has('interest_ids')) {
-            $opportunity->interests()->sync($request->input('interest_ids', []));
+            $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'learnserve_opportunity_interest');
         }
 
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
@@ -338,7 +342,7 @@ class LearnServeOpportunityController extends Controller
         // before the rules run.
         $this->normalizeMapLocation($request);
 
-        return $request->validate([
+        $rules = [
             'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'title_ar' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'description_en' => [$partial ? 'sometimes' : 'required', 'string'],
@@ -365,7 +369,16 @@ class LearnServeOpportunityController extends Controller
             'certificate_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'primary_language' => ['nullable', Rule::in(['en', 'ar'])],
             'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => ['integer', 'exists:interests,id'],
-        ]);
+            // Tag ids come from /api/choices/* (master_choices). The old
+            // `exists:interests,id` rule pointed at the legacy table and
+            // rejected every one of them — resolved in the sync instead.
+            'interest_ids.*' => ['integer'],
+        ];
+
+        // Fail loudly on a field name this endpoint does not know, instead of
+        // dropping it silently (BE-22).
+        $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
+
+        return $request->validate($rules);
     }
 }

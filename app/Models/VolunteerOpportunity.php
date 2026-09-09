@@ -157,6 +157,16 @@ class VolunteerOpportunity extends Model
         return $this->belongsToMany(Interest::class, 'interest_volunteer_opportunity');
     }
 
+    /**
+     * Tags as the platform actually stores them: master_choices rows, the same
+     * vocabulary /api/choices/* serves. `interests()` above is the legacy table
+     * kept only so historical rows still resolve.
+     */
+    public function masterInterests(): BelongsToMany
+    {
+        return $this->belongsToMany(MasterChoice::class, 'master_choice_volunteer_opportunity');
+    }
+
     public function images(): HasMany
     {
         return $this->hasMany(OpportunityImage::class);

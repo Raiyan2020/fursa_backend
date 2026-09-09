@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
 use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
+use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
+use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventResource;
 use App\Http\Resources\Website\WebsiteEventResource;
@@ -24,9 +26,11 @@ use Illuminate\Support\Facades\DB;
 
 class EventController extends Controller
 {
-    use HandlesMapLocation;
     use AppliesAudienceFilters;
     use AppliesOpportunityStatusFilter;
+    use HandlesMapLocation;
+    use RejectsUnknownWriteKeys;
+    use SyncsOpportunityInterests;
 
     public function index(Request $request): JsonResponse
     {
@@ -366,8 +370,17 @@ class EventController extends Controller
             'registration_link' => ['nullable', 'url'],
             'primary_language' => ['nullable', 'string'],
             'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => ['integer', 'exists:interests,id'],
+            // Tag ids come from /api/choices/* (master_choices). The old
+            // `exists:interests,id` rule pointed at the legacy table and
+            // rejected every one of them — resolved in the sync instead.
+            'interest_ids.*' => ['integer'],
         ];
+
+        // Fail loudly on a field name this endpoint does not know, instead of
+        // dropping it silently (BE-22).
+        $this->rejectUnknownWriteKeys($request, $rules, [
+            'interest_ids', 'images', 'sponsor_images', 'license_image', 'existing_image_ids',
+        ]);
 
         return $request->validate($rules);
     }
@@ -375,7 +388,7 @@ class EventController extends Controller
     protected function syncEventRelations(Event $event, Request $request): void
     {
         if ($request->has('interest_ids')) {
-            $event->interests()->sync($request->input('interest_ids', []));
+            $this->syncOpportunityInterests($event, $request->input('interest_ids', []), 'event_interest');
         }
 
         if ($request->hasFile('images')) {

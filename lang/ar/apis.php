@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'unknown_interest_ids_scoped' => 'واحد أو أكثر من معرّفات الوسوم غير صالح لهذا المورد. استخدم المعرّفات التي يعرضها :endpoint.',
+    'unknown_interest_ids' => 'واحد أو أكثر من معرّفات الوسوم غير صالح.',
+    'unknown_write_field' => 'هذه النقطة لا تقبل هذا الحقل. راجع اسم الحقل.',
     'data_retrieved_successfully' => 'تم جلب البيانات بنجاح',
     'created_successfully' => 'تم الإنشاء بنجاح',
     'updated_successfully' => 'تم التحديث بنجاح',

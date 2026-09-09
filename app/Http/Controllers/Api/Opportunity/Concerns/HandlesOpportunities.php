@@ -342,10 +342,11 @@ trait HandlesOpportunities
             }
         }
 
-        $existingIds = $request->input('existing_image_ids', []);
-        if (! is_array($existingIds)) {
-            $existingIds = [$existingIds];
-        }
+        // Accepts every shape a client might send: `existing_image_ids[]=1&…`
+        // (canonical), a single scalar, or a comma-separated string. A repeated
+        // *bare* key can only ever reach PHP as its last value — that shape
+        // cannot be recovered here, so clients must use the bracketed form.
+        $existingIds = $this->normalizeIdList($request->input('existing_image_ids', []));
         if ($existingIds !== []) {
             OpportunityImage::query()->whereIn('id', $existingIds)->update([$foreignKey => $opportunity->id]);
         }
@@ -359,6 +360,29 @@ trait HandlesOpportunities
             'Opportunity images updated successfully.',
             'تم تحديث صور الفرصة بنجاح.'
         );
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function normalizeIdList(mixed $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+
+        if (is_string($raw) && str_contains($raw, ',')) {
+            $raw = explode(',', $raw);
+        }
+
+        if (! is_array($raw)) {
+            $raw = [$raw];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn ($id) => filter_int(is_string($id) ? trim($id) : $id), $raw),
+            static fn ($id) => $id !== null
+        )));
     }
 
     protected function rejectIfRegistrationClosed(object $opportunity): ?JsonResponse

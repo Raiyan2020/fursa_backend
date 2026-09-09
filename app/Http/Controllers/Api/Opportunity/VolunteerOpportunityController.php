@@ -9,6 +9,8 @@ use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
+use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
+use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Opportunity\VolunteerOpportunityResource;
@@ -31,6 +33,8 @@ class VolunteerOpportunityController extends Controller
     use HandlesMapLocation;
     use HandlesOpportunities;
     use HandlesOpportunitySponsors;
+    use RejectsUnknownWriteKeys;
+    use SyncsOpportunityInterests;
 
     public function index(Request $request): JsonResponse
     {
@@ -84,7 +88,7 @@ class VolunteerOpportunityController extends Controller
             'opportunity_status' => OpportunityStatus::UPCOMING,
         ]));
 
-        $this->syncInterests($opportunity, $request->input('interest_ids', []));
+        $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'volunteer_opportunity_interest');
 
         if (! empty($data['time_slots'])) {
             $this->syncTimeSlots($opportunity, $data['time_slots']);
@@ -120,7 +124,7 @@ class VolunteerOpportunityController extends Controller
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
 
         if ($request->has('interest_ids')) {
-            $this->syncInterests($opportunity, $request->input('interest_ids', []));
+            $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'volunteer_opportunity_interest');
         }
 
         if ($request->has('time_slots')) {
@@ -605,8 +609,15 @@ class VolunteerOpportunityController extends Controller
             'gender_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'primary_language' => ['nullable', Rule::in(['en', 'ar'])],
             'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => ['integer', 'exists:interests,id'],
+            // Tag ids come from /api/choices/* (master_choices). The old
+            // `exists:interests,id` rule pointed at the legacy table and
+            // rejected every one of them — resolved in the sync instead.
+            'interest_ids.*' => ['integer'],
         ];
+
+        // Fail loudly on a field name this endpoint does not know, instead of
+        // dropping it silently (BE-22).
+        $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
 
         $validated = $request->validate($rules);
 

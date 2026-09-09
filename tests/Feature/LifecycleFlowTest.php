@@ -60,10 +60,15 @@ class LifecycleFlowTest extends TestCase
         $volunteerOpportunityId = (int) $volunteerCreate->json('data.id');
 
         $learnCreate = $this->api($organizationToken)
-            ->postJson('/api/learn-serve-opportunities/', array_merge($payload, [
-                'title_en' => 'Cycle Learn & Serve',
-                'title_ar' => 'دورة تعلم وخدمة',
-            ]));
+            ->postJson('/api/learn-serve-opportunities/', array_merge(
+                // volunteer_category and is_public are volunteer-opportunity
+                // fields; learn-serve now rejects unknown keys (BE-22 ask 4).
+                collect($payload)->except(['volunteer_category', 'is_public'])->all(),
+                [
+                    'title_en' => 'Cycle Learn & Serve',
+                    'title_ar' => 'دورة تعلم وخدمة',
+                ]
+            ));
         $this->assertSuccessEnvelope($learnCreate, 201);
         $learnOpportunityId = (int) $learnCreate->json('data.id');
 
