@@ -52,6 +52,7 @@ trait ResolvesApiPayloads
 
         return $attended + $this->expertOpportunitiesCount($user);
     }
+
     protected function masterChoicePayload(?MasterChoice $choice): ?array
     {
         if (! $choice) {
@@ -174,8 +175,8 @@ trait ResolvesApiPayloads
         return collect($interests)->map(fn ($interest) => [
             'id' => $interest->id,
             'choice_type' => $choiceType,
-            'value_en' => $interest->name_en,
-            'value_ar' => $interest->name_ar,
+            'value_en' => $interest->value_en ?? $interest->name_en,
+            'value_ar' => $interest->value_ar ?? $interest->name_ar,
         ])->values()->all();
     }
 

@@ -99,6 +99,16 @@ trait CreatesDomainFixtures
         return [$user->fresh('organizationProfile'), $token];
     }
 
+    protected function learningChoicePayload(): array
+    {
+        $ids = [];
+        foreach (['learning_type_id' => 'learning_type', 'format_id' => 'learn_serve_format', 'certificate_type_id' => 'learn_serve_certificate_type'] as $field => $type) {
+            $ids[$field] = MasterChoice::whereHas('choiceType', fn ($q) => $q->where('name', $type))->firstOrFail()->id;
+        }
+
+        return $ids;
+    }
+
     protected function adminActor(): Admin
     {
         /** @var Admin $admin */

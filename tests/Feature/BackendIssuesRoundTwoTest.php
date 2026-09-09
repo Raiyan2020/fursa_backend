@@ -89,6 +89,7 @@ class BackendIssuesRoundTwoTest extends TestCase
 
         $lsIds = $this->choiceIds('learnserve_opportunity_interest', 2);
         $ls = $this->withToken($orgToken)->postJson('/api/learn-serve-opportunities/', [
+            ...$this->learningChoicePayload(),
             'title_en' => 'LS tags',
             'title_ar' => 'وسوم',
             'description_en' => 'd',

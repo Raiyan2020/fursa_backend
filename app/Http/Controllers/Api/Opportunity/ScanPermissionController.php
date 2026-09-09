@@ -9,8 +9,10 @@ use App\Models\Event;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Support\ApiResponse;
+use App\Support\RegistrationExport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ScanPermissionController extends Controller
 {
@@ -146,6 +148,13 @@ class ScanPermissionController extends Controller
             }
         }
 
+        if (! empty($data['event_id'])) {
+            $event = Event::query()->notDeleted()->find($data['event_id']);
+            if (! $event || $event->organization?->user_id !== $request->user()->id) {
+                return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+            }
+        }
+
         $query = ScanPermission::query()
             ->notDeleted()
             ->where('is_allowed', true)
@@ -166,7 +175,11 @@ class ScanPermissionController extends Controller
             });
         }
 
-        $results = $query->get()->map(function (ScanPermission $scan) use ($request) {
+        $request->validate(['mark_attendance' => ['prohibited']]);
+        if ($request->boolean('download')) {
+            return RegistrationExport::download($query, 'scan-permissions');
+        }
+        $results = $query->get()->map(function (ScanPermission $scan) {
             $userData = (new CustomUserResource($scan->user))->resolve();
             if ($scan->user?->volunteerProfile) {
                 $userData['volunteer_profile'] = (new VolunteerProfileWithUserResource($scan->user->volunteerProfile))->resolve();
@@ -181,7 +194,7 @@ class ScanPermissionController extends Controller
         $limit = min(100, max(1, (int) $request->query('limit', 20)));
         $total = $results->count();
         $items = $results->slice(($page - 1) * $limit, $limit)->values();
-        $paginator = new \Illuminate\Pagination\LengthAwarePaginator($items, $total, $limit, $page);
+        $paginator = new LengthAwarePaginator($items, $total, $limit, $page);
 
         return ApiResponse::paginated(
             $paginator,

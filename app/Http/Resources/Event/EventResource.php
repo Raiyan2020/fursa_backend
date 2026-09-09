@@ -4,6 +4,7 @@ namespace App\Http\Resources\Event;
 
 use App\Http\Resources\Concerns\ResolvesApiPayloads;
 use App\Models\Event;
+use App\Models\EventRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -54,16 +55,22 @@ class EventResource extends JsonResource
             'license_image' => $this->license_image ? getimg($this->license_image) : null,
             'view_count' => $this->view_count,
             'primary_language' => $this->primary_language?->value,
-            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($img) => [
+            'images' => $this->whenLoaded('images', fn () => $this->images->reject(fn ($img) => $img->is_deleted)->values()->map(fn ($img) => [
                 'id' => $img->id,
                 'image' => getimg($img->image),
             ])),
-            'sponsor_images' => $this->whenLoaded('sponsorImages', fn () => $this->sponsorImages->map(fn ($img) => [
+            'sponsor_images' => $this->whenLoaded('sponsorImages', fn () => $this->sponsorImages->reject(fn ($img) => $img->is_deleted)->sortBy('position')->values()->map(fn ($img) => [
                 'id' => $img->id,
-                'image' => getimg($img->image),
+                'image' => $img->image ? getimg($img->image) : null,
+                'position' => $img->position,
+                'organization' => $img->organization ? [
+                    'id' => $img->organization_id,
+                    'full_name' => $img->organization->company_name ?: $img->organization->nickname,
+                    'profile_pic' => $img->organization->user?->profile_pic ? getimg($img->organization->user->profile_pic) : null,
+                ] : null,
             ])),
             'interests' => $this->effectiveInterests($this->resource)->map(fn ($i) => $this->tagPayload($i))->values(),
-            'interest_display' => $this->interestDisplayPayload($this->interests, 'event_interest'),
+            'interest_display' => $this->interestDisplayPayload($this->effectiveInterests($this->resource), 'event_interest'),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             // One computed state so every screen renders the same button.
@@ -85,14 +92,14 @@ class EventResource extends JsonResource
         return $this->eventRegistrationFor($request) !== null;
     }
 
-    protected function eventRegistrationFor($request): ?\App\Models\EventRegistration
+    protected function eventRegistrationFor($request): ?EventRegistration
     {
         $user = $request->user();
         if (! $user) {
             return null;
         }
 
-        return \App\Models\EventRegistration::query()
+        return EventRegistration::query()
             ->where('event_id', $this->resource->id)
             ->where('user_id', $user->id)
             ->where('is_deleted', false)

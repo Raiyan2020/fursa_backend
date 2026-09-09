@@ -9,7 +9,6 @@ use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\MasterChoice;
 use App\Models\VolunteerOpportunity;
-use App\Models\VolunteerOpportunityRegistration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -65,6 +64,7 @@ class LifecycleFlowTest extends TestCase
                 // fields; learn-serve now rejects unknown keys (BE-22 ask 4).
                 collect($payload)->except(['volunteer_category', 'is_public'])->all(),
                 [
+                    ...$this->learningChoicePayload(),
                     'title_en' => 'Cycle Learn & Serve',
                     'title_ar' => 'دورة تعلم وخدمة',
                 ]

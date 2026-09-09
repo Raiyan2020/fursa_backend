@@ -8,9 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventRegistrationResource;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Services\Opportunity\RegistrationEligibility;
 use App\Support\ApiResponse;
+use App\Support\RegistrationExport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class EventRegistrationController extends Controller
 {
@@ -18,7 +22,7 @@ class EventRegistrationController extends Controller
     {
         $query = $this->baseQuery($request);
 
-        if ($eventId = $request->query('event_id') ?? $request->query('event')) {
+        if ($eventId = $request->input('event_id') ?? $request->input('event')) {
             $query->where('event_id', $eventId);
         }
         if ($status = $request->query('status')) {
@@ -59,6 +63,16 @@ class EventRegistrationController extends Controller
             }
         }
 
+        $request->validate(['mark_attendance' => ['prohibited']]);
+        if ($request->boolean('download')) {
+            $eventId = $request->input('event_id') ?? $request->input('event');
+            $event = Event::query()->notDeleted()->find($eventId);
+            if (! $event || $event->created_by !== $request->user()->organizationProfile?->id) {
+                return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+            }
+
+            return RegistrationExport::download($query, 'events');
+        }
         $page = max(1, (int) $request->query('page', 1));
         $limit = min(100, max(1, (int) $request->query('limit', 20)));
         $paginator = $query->with(['user', 'event'])->paginate($limit, ['*'], 'page', $page);
@@ -94,9 +108,20 @@ class EventRegistrationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $request->validate(['event' => ['required', 'integer']]);
+
+        return DB::transaction(function () use ($request) {
+            Event::query()->notDeleted()->lockForUpdate()->findOrFail($request->input('event'));
+
+            return $this->createRegistration($request);
+        });
+    }
+
+    protected function createRegistration(Request $request): JsonResponse
+    {
         $data = $request->validate([
             'event' => ['required', 'integer', 'exists:events,id'],
-            'time_slot_id' => ['nullable', 'integer', 'exists:event_time_slots,id'],
+            'time_slot_id' => ['nullable', 'integer', Rule::exists('event_time_slots', 'id')->where('event_id', $request->input('event'))->where('is_deleted', false)],
         ]);
 
         $event = Event::query()->notDeleted()->find($data['event']);
@@ -104,6 +129,12 @@ class EventRegistrationController extends Controller
             return ApiResponse::error('Event not found.', 'الحدث غير موجود.', 404);
         }
 
+        if ($rejection = RegistrationEligibility::reject($event)) {
+            return $rejection;
+        }
+        if ($event->participation_type_id && (! $event->registration_required || $event->registration_link)) {
+            return ApiResponse::error('Internal registration is not available for this event.', 'التسجيل الداخلي غير متاح لهذا الحدث.', 422);
+        }
         if (! $event->isRegistrationOpen()) {
             return ApiResponse::fail('Registration closed.', 400, [], [
                 'event' => ['id' => $event->id, 'title' => $event->title_en ?: $event->title_ar],
@@ -121,7 +152,7 @@ class EventRegistrationController extends Controller
         }
 
         if ($event->registration_required && $event->participants_needed > 0) {
-            $count = EventRegistration::query()->notDeleted()->where('event_id', $event->id)->count();
+            $count = EventRegistration::query()->notDeleted()->where('event_id', $event->id)->whereIn('registration_status', [ApprovalStatus::PENDING, ApprovalStatus::APPROVED])->count();
             if ($count >= $event->participants_needed) {
                 return ApiResponse::fail('No remaining slots.', 400, [], [
                     'event' => ['id' => $event->id, 'title' => $event->title_en ?: $event->title_ar],
@@ -140,7 +171,7 @@ class EventRegistrationController extends Controller
             'payment_status' => $event->paid_registration ? PaymentStatus::PENDING : PaymentStatus::PAID,
         ]);
 
-        $totalRegistered = EventRegistration::query()->notDeleted()->where('event_id', $event->id)->count();
+        $totalRegistered = EventRegistration::query()->notDeleted()->where('event_id', $event->id)->whereIn('registration_status', [ApprovalStatus::PENDING, ApprovalStatus::APPROVED])->count();
         $remaining = max(0, ($event->participants_needed ?? 0) - $totalRegistered);
 
         return ApiResponse::success([
@@ -175,7 +206,7 @@ class EventRegistrationController extends Controller
             'registration_status' => ['sometimes', 'string'],
             'payment_status' => ['sometimes', 'string'],
             'is_attended' => ['sometimes', 'boolean'],
-            'time_slot_id' => ['nullable', 'integer', 'exists:event_time_slots,id'],
+            'time_slot_id' => ['nullable', 'integer', Rule::exists('event_time_slots', 'id')->where('event_id', $registration->event_id)->where('is_deleted', false)],
         ])->validate();
 
         $registration->update($data);
@@ -252,6 +283,11 @@ class EventRegistrationController extends Controller
 
         if (! $registration) {
             return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
+        }
+
+        if ($registration->user_id !== $request->user()->id
+            && $registration->event?->created_by !== $request->user()->organizationProfile?->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
         }
 
         return ApiResponse::success(

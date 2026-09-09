@@ -7,28 +7,33 @@ use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
 use App\Http\Controllers\Api\Concerns\AppliesOpportunityStatusFilter;
-use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
 use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
+use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Event\EventResource;
 use App\Http\Resources\Website\WebsiteEventResource;
 use App\Models\Event;
 use App\Models\EventImage;
-use App\Models\EventRegistration;
 use App\Models\EventSponsorImage;
 use App\Models\MasterChoice;
+use App\Services\Opportunity\EventParticipation;
+use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
+use App\Support\MediaKeepSet;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class EventController extends Controller
 {
     use AppliesAudienceFilters;
     use AppliesOpportunityStatusFilter;
     use HandlesMapLocation;
+    use HandlesOpportunitySponsors;
     use RejectsUnknownWriteKeys;
     use SyncsOpportunityInterests;
 
@@ -100,9 +105,11 @@ class EventController extends Controller
         }
 
         $data = $this->validateEventPayload($request);
+        $request->validate(['opportunity_id' => ['prohibited'], 'existing_image_ids' => ['prohibited']]);
         $event = DB::transaction(function () use ($data, $org, $request) {
             $data = array_merge($data, $this->mapLocationAttributes($data));
 
+            unset($data['license_image']);
             $event = Event::create(array_merge($data, [
                 'created_by' => $org->id,
                 'approval_status' => ApprovalStatus::PENDING,
@@ -137,9 +144,13 @@ class EventController extends Controller
             return ApiResponse::error('You can only update your own events.', 'يمكنك فقط تحديث الأحداث الخاصة بك.', 403);
         }
 
-        $data = $this->validateEventPayload($request, partial: true);
-        DB::transaction(function () use ($event, $data, $request) {
+        $data = $this->validateEventPayload($request, partial: true, event: $event);
+        $request->validate(['opportunity_id' => ['prohibited']]);
+        $keepIds = MediaKeepSet::validate($request, $event);
+        DB::transaction(function () use ($event, $data, $request, $keepIds) {
+            MediaKeepSet::apply($event, $keepIds);
             $data = array_merge($data, $this->mapLocationAttributes($data));
+            unset($data['license_image']);
             $event->update($data);
             $this->syncEventRelations($event, $request);
         });
@@ -201,7 +212,7 @@ class EventController extends Controller
         return ApiResponse::success(null, 'Event deleted successfully.', 'تم حذف الحدث بنجاح.', 204);
     }
 
-    protected function buildFilteredQuery(Request $request): \Illuminate\Database\Eloquent\Builder|JsonResponse
+    protected function buildFilteredQuery(Request $request): Builder|JsonResponse
     {
         $user = $request->user();
 
@@ -336,13 +347,14 @@ class EventController extends Controller
         return $orgId && $event->created_by === $orgId;
     }
 
-    protected function validateEventPayload(Request $request, bool $partial = false): array
+    protected function validateEventPayload(Request $request, bool $partial = false, ?Event $event = null): array
     {
         // `lat` / `lng` from the map picker land on the real column names
         // before the rules run.
         $this->normalizeMapLocation($request);
 
         $rules = [
+            ...RepublishMedia::rules(),
             'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'title_ar' => ['nullable', 'string', 'max:255'],
             'description_en' => ['nullable', 'string'],
@@ -369,11 +381,15 @@ class EventController extends Controller
             'participation_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'registration_link' => ['nullable', 'url'],
             'primary_language' => ['nullable', 'string'],
+            'images' => ['sometimes', 'array'],
+            'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'sponsor_images' => ['sometimes', 'array'],
+            'sponsor_images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
             'interest_ids' => ['nullable', 'array'],
             // Tag ids come from /api/choices/* (master_choices). The old
             // `exists:interests,id` rule pointed at the legacy table and
             // rejected every one of them — resolved in the sync instead.
-            'interest_ids.*' => ['integer'],
+            'interest_ids.*' => ['integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->notDeleted()->where('name', 'event_interest'))->pluck('id')->all())],
         ];
 
         // Fail loudly on a field name this endpoint does not know, instead of
@@ -382,10 +398,10 @@ class EventController extends Controller
             'interest_ids', 'images', 'sponsor_images', 'license_image', 'existing_image_ids',
         ]);
 
-        return $request->validate($rules);
+        return EventParticipation::normalize($request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/event_interest/'])]), $event);
     }
 
-    protected function syncEventRelations(Event $event, Request $request): void
+    protected function syncEventRelations(Event $event, Request $request, bool $syncLicense = true): void
     {
         if ($request->has('interest_ids')) {
             $this->syncOpportunityInterests($event, $request->input('interest_ids', []), 'event_interest');
@@ -409,9 +425,55 @@ class EventController extends Controller
             }
         }
 
-        if ($request->hasFile('license_image')) {
-            $event->update(['license_image' => uploader($request->file('license_image'), 'events/licenses')]);
+        if ($syncLicense) {
+            RepublishMedia::apply($request, $event);
         }
+    }
+
+    public function republish(Request $request, int $id): JsonResponse
+    {
+        $source = Event::query()->notDeleted()->findOrFail($id);
+        abort_unless($source->created_by === $request->user()->organizationProfile?->id, 403);
+        $data = $this->validateEventPayload($request);
+        MediaKeepSet::validate($request, $source);
+        $event = DB::transaction(function () use ($request, $source, $data) {
+            unset($data['license_image']);
+            $event = $source->replicate(['license_image', 'view_count', 'rejected_reason', 'deletion_rejected_reason']);
+            $event->fill(array_merge($data, $this->mapLocationAttributes($data)));
+            $event->due_date = $data['due_date'] ?? null;
+            $event->approval_status = ApprovalStatus::PENDING;
+            $event->deletion_status = DeletionStatus::NOT_REQUESTED;
+            $event->event_status = OpportunityStatus::UPCOMING;
+            $event->is_registration_closed = false;
+            $event->save();
+            RepublishMedia::apply($request, $event, $source);
+            $this->syncEventRelations($event, $request, syncLicense: false);
+            if (! $request->has('interest_ids')) {
+                $event->masterInterests()->sync($source->masterInterests()->pluck('master_choices.id'));
+                $event->interests()->sync($source->interests()->pluck('interests.id'));
+            }
+
+            return $event;
+        });
+
+        return ApiResponse::success(new EventResource($event->fresh(['images', 'sponsorImages', 'interests'])),
+            'Event republished.', 'تم إعادة نشر الحدث.', 201);
+    }
+
+    public function addSponsor(Request $request, int $id): JsonResponse
+    {
+        $event = Event::query()->notDeleted()->findOrFail($id);
+        abort_unless($event->created_by === $request->user()->organizationProfile?->id, 403);
+
+        return $this->attachSponsor($request, $event, 'event_id');
+    }
+
+    public function removeSponsor(Request $request, int $id, int $sponsorId): JsonResponse
+    {
+        $event = Event::query()->notDeleted()->findOrFail($id);
+        abort_unless($event->created_by === $request->user()->organizationProfile?->id, 403);
+
+        return $this->detachSponsor($event, $sponsorId);
     }
 
     public function register(Request $request, int $id): JsonResponse

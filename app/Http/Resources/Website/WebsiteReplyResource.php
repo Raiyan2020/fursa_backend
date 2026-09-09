@@ -45,7 +45,7 @@ class WebsiteReplyResource extends JsonResource
             'likes_count' => $likesCount,
             'is_liked' => $isLiked,
             'user' => $this->postUserPayload($reply->user, $request),
-            'reply_images' => collect($reply->images ?? [])->map(fn ($image) => [
+            'reply_images' => collect($reply->images ?? [])->reject(fn ($image) => $image->is_deleted)->map(fn ($image) => [
                 'id' => $image->id,
                 'image' => getimg($image->image),
             ])->values()->all(),

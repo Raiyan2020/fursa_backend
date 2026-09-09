@@ -39,23 +39,20 @@ trait HandlesOpportunitySponsors
 
         $data = $request->validate([
             'organization_id' => ['required', 'integer', Rule::in($eligibleIds)],
+            'position' => ['sometimes', 'integer', 'min:0'],
         ]);
 
-        if ($opportunity->sponsorImages()->where('organization_id', $data['organization_id'])->exists()) {
-            return ApiResponse::error(
-                'This organization is already a sponsor of this opportunity.',
-                'هذه الجهة راعية بالفعل لهذه الفرصة.',
-                400
-            );
+        if ($opportunity->sponsorImages()->notDeleted()->where('organization_id', $data['organization_id'])->exists()) {
+            return ApiResponse::error('Already a sponsor.', 'هذه الجهة راعية بالفعل.', 400);
         }
-
-        $sponsor = $opportunity->sponsorImages()->create([
-            $foreignKey => $opportunity->id,
-            'organization_id' => $data['organization_id'],
-        ]);
+        $sponsor = $opportunity->sponsorImages()->updateOrCreate(
+            ['organization_id' => $data['organization_id']],
+            [$foreignKey => $opportunity->id, 'position' => $data['position'] ?? 0,
+                'is_deleted' => false, 'deleted_at' => null]
+        );
 
         return ApiResponse::success(
-            ['id' => $sponsor->id, 'organization_id' => $sponsor->organization_id],
+            ['id' => $sponsor->id, 'organization_id' => $sponsor->organization_id, 'position' => $sponsor->position],
             'Sponsor added successfully.',
             'تمت إضافة الراعي بنجاح.',
             201

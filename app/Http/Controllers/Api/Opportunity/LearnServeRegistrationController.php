@@ -10,9 +10,10 @@ use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityAssignment;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\LearnServeOpportunityTimeSlot;
-use App\Services\Opportunity\SyncService;
 use App\Services\Opportunity\RegistrationManagementService;
+use App\Services\Opportunity\SyncService;
 use App\Support\ApiResponse;
+use App\Support\RegistrationExport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,17 @@ class LearnServeRegistrationController extends Controller
     use HandlesOpportunities;
 
     public function register(Request $request): JsonResponse
+    {
+        $request->validate(['opportunity_id' => ['required', 'integer']]);
+
+        return DB::transaction(function () use ($request) {
+            LearnServeOpportunity::query()->notDeleted()->lockForUpdate()->findOrFail($request->input('opportunity_id'));
+
+            return $this->createRegistration($request);
+        });
+    }
+
+    protected function createRegistration(Request $request): JsonResponse
     {
         $data = $request->validate([
             'opportunity_id' => ['required', 'integer', 'exists:learn_serve_opportunities,id'],
@@ -122,6 +134,10 @@ class LearnServeRegistrationController extends Controller
             $query->where('status', $status);
         }
 
+        $request->validate(['mark_attendance' => ['prohibited']]);
+        if ($request->boolean('download')) {
+            return RegistrationExport::download($query, 'learn-serve');
+        }
         $paginator = $this->paginateQuery($query, $request);
 
         return ApiResponse::paginated(

@@ -5,6 +5,7 @@ namespace App\Http\Resources\Website;
 use App\Http\Resources\Website\Concerns\BuildsWebsiteFields;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -126,10 +127,15 @@ class WebsiteEventResource extends JsonResource
                 'to_age' => ar_num($event->to_age),
                 'attendance_type_display' => $this->websiteChoicePayload($event->attendanceType),
                 'gender_display' => $this->websiteChoicePayload($event->genderChoice),
-                'event_sponsor_images' => collect($event->sponsorImages ?? [])->map(fn ($image) => [
+                'event_sponsor_images' => collect($event->sponsorImages ?? [])->reject(fn ($image) => $image->is_deleted)->sortBy('position')->map(fn ($image) => [
                     'id' => $image->id,
                     'image' => $image->image ? getimg($image->image) : null,
                     'position' => $image->position,
+                    'organization' => $image->organization ? [
+                        'id' => $image->organization_id,
+                        'full_name' => $image->organization->company_name ?: $image->organization->nickname,
+                        'profile_pic' => $image->organization->user?->profile_pic ? getimg($image->organization->user->profile_pic) : null,
+                    ] : null,
                 ])->values()->all(),
             ]);
 
@@ -141,7 +147,7 @@ class WebsiteEventResource extends JsonResource
         return $payload;
     }
 
-    protected function websiteEventCreator(?\App\Models\User $user): ?array
+    protected function websiteEventCreator(?User $user): ?array
     {
         if (! $user) {
             return null;

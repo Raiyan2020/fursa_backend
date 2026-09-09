@@ -3,29 +3,33 @@
 namespace App\Http\Controllers\Api\Opportunity;
 
 use App\Enums\ApprovalStatus;
-use App\Enums\VolunteerCategory;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
-use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
-use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
+use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
 use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
+use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
+use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Opportunity\VolunteerOpportunityResource;
 use App\Http\Resources\Website\WebsiteEventResource;
 use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
 use App\Http\Resources\Website\WebsiteVolunteerOpportunityResource;
 use App\Models\Event;
 use App\Models\LearnServeOpportunity;
+use App\Models\MasterChoice;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Services\Certificate\VolunteerCertificateService;
 use App\Services\Opportunity\OpportunityChangeNotifier;
+use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class VolunteerOpportunityController extends Controller
@@ -78,32 +82,39 @@ class VolunteerOpportunityController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->validateVolunteerPayload($request);
+        $source = RepublishMedia::source($request, VolunteerOpportunity::class);
 
-        $data = array_merge($data, $this->mapLocationAttributes($data));
+        return DB::transaction(function () use ($request, $data, $source) {
+            unset($data['license_image']);
 
-        $opportunity = VolunteerOpportunity::create(array_merge($data, [
-            'created_by' => $request->user()->id,
-            'approval_status' => ApprovalStatus::PENDING,
-            'deletion_status' => DeletionStatus::NOT_REQUESTED,
-            'opportunity_status' => OpportunityStatus::UPCOMING,
-        ]));
+            $data = array_merge($data, $this->mapLocationAttributes($data));
 
-        $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'volunteer_opportunity_interest');
+            $opportunity = VolunteerOpportunity::create(array_merge($data, [
+                'created_by' => $request->user()->id,
+                'approval_status' => ApprovalStatus::PENDING,
+                'deletion_status' => DeletionStatus::NOT_REQUESTED,
+                'opportunity_status' => OpportunityStatus::UPCOMING,
+            ]));
 
-        if (! empty($data['time_slots'])) {
-            $this->syncTimeSlots($opportunity, $data['time_slots']);
-        }
+            $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'volunteer_opportunity_interest');
 
-        $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
+            if (! empty($data['time_slots'])) {
+                $this->syncTimeSlots($opportunity, $data['time_slots']);
+            }
 
-        $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots']);
+            RepublishMedia::apply($request, $opportunity, $source);
 
-        return ApiResponse::success(
-            new VolunteerOpportunityResource($opportunity),
-            'Opportunity created successfully.',
-            'تم إنشاء الفرصة بنجاح.',
-            201
-        );
+            $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
+
+            $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots']);
+
+            return ApiResponse::success(
+                new VolunteerOpportunityResource($opportunity),
+                'Opportunity created successfully.',
+                'تم إنشاء الفرصة بنجاح.',
+                201
+            );
+        });
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -118,6 +129,8 @@ class VolunteerOpportunityController extends Controller
         }
 
         $data = $this->validateVolunteerPayload($request, partial: true);
+        $request->validate(['opportunity_id' => ['prohibited']]);
+        unset($data['license_image']);
         $before = $this->opportunitySnapshot($opportunity);
         $data = array_merge($data, $this->mapLocationAttributes($data));
         $opportunity->update($data);
@@ -130,6 +143,8 @@ class VolunteerOpportunityController extends Controller
         if ($request->has('time_slots')) {
             $this->syncTimeSlots($opportunity, $data['time_slots'] ?? []);
         }
+
+        RepublishMedia::apply($request, $opportunity);
 
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
 
@@ -460,7 +475,7 @@ class VolunteerOpportunityController extends Controller
             $limit = min(100, max(1, (int) $request->query('limit', 20)));
             $total = $combined->count();
             $items = $combined->slice(($page - 1) * $limit, $limit)->values();
-            $paginator = new \Illuminate\Pagination\LengthAwarePaginator($items, $total, $limit, $page);
+            $paginator = new LengthAwarePaginator($items, $total, $limit, $page);
 
             return ApiResponse::paginated(
                 $paginator,
@@ -547,7 +562,7 @@ class VolunteerOpportunityController extends Controller
             $limit = min(100, max(1, (int) $request->query('limit', 20)));
             $total = $combined->count();
             $items = $combined->slice(($page - 1) * $limit, $limit)->values();
-            $paginator = new \Illuminate\Pagination\LengthAwarePaginator($items, $total, $limit, $page);
+            $paginator = new LengthAwarePaginator($items, $total, $limit, $page);
 
             return ApiResponse::paginated(
                 $paginator,
@@ -571,6 +586,7 @@ class VolunteerOpportunityController extends Controller
         $this->normalizeMapLocation($request);
 
         $rules = [
+            ...RepublishMedia::rules(),
             'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'title_ar' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'description_en' => [$partial ? 'sometimes' : 'required', 'string'],
@@ -612,14 +628,14 @@ class VolunteerOpportunityController extends Controller
             // Tag ids come from /api/choices/* (master_choices). The old
             // `exists:interests,id` rule pointed at the legacy table and
             // rejected every one of them — resolved in the sync instead.
-            'interest_ids.*' => ['integer'],
+            'interest_ids.*' => ['integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->notDeleted()->where('name', 'volunteer_opportunity_interest'))->pluck('id')->all())],
         ];
 
         // Fail loudly on a field name this endpoint does not know, instead of
         // dropping it silently (BE-22).
         $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/volunteer_opportunity_interest/'])]);
 
         return $this->normalizeBeneficiaries($validated);
     }
@@ -661,7 +677,7 @@ class VolunteerOpportunityController extends Controller
         $keptIds = [];
 
         foreach ($slots as $slot) {
-            $date = \Carbon\Carbon::parse($slot['date'])->toDateString();
+            $date = Carbon::parse($slot['date'])->toDateString();
 
             $existing = $opportunity->timeSlots()->whereDate('date', $date)->first();
 
@@ -718,6 +734,23 @@ class VolunteerOpportunityController extends Controller
         return $request->user();
     }
 
+    /**
+     * Every filter_type /list-all-opportunities/ accepts. Anything else is a 422
+     * rather than a silent fall-through to the unscoped catalogue (BE-18).
+     *
+     * @var list<string>
+     */
+    public const COMBINED_FILTER_TYPES = [
+        'organized',
+        'organized_events',
+        'events',
+        'sponsored',
+        'sponsored_events',
+        'volunteer',
+        'attendee',
+        'myevents',
+    ];
+
     protected function applyCombinedFilters($volunteerQuery, $learnQuery, $eventQuery, Request $request, User $user): ?JsonResponse
     {
         $filterType = strtolower((string) $request->query('filter_type', ''));
@@ -750,6 +783,25 @@ class VolunteerOpportunityController extends Controller
             $learnQuery->whereHas('registrations', fn ($q) => $q->notDeleted()->where('user_id', $user->id));
             $volunteerQuery->whereRaw('0 = 1');
             $eventQuery->whereRaw('0 = 1');
+        } elseif ($filterType === 'myevents') {
+            // BE-18: the events this user registered for. `organized_events` is
+            // the creator-side filter; this is the participant side.
+            $volunteerQuery->whereRaw('0 = 1');
+            $learnQuery->whereRaw('0 = 1');
+            $eventQuery->whereHas(
+                'registrations',
+                fn ($q) => $q->where('is_deleted', false)->where('user_id', $user->id)
+            );
+        } elseif ($filterType !== '') {
+            // BE-18: an unrecognised value used to fall through with no filter at
+            // all, returning the entire platform catalogue under a 200 — which
+            // attributed strangers' records to the caller. Reject it instead.
+            return ApiResponse::error(
+                'Invalid filter_type value: '.$filterType.'. Valid options are: '.implode(', ', self::COMBINED_FILTER_TYPES),
+                'قيمة filter_type غير صالحة: '.$filterType.'. الخيارات الصالحة هي: '.implode('، ', self::COMBINED_FILTER_TYPES),
+                422,
+                ['filter_type' => [__('apis.invalid_filter_type')]]
+            );
         }
 
         $opportunityType = $this->normalizeOpportunityTypeFilter($request);

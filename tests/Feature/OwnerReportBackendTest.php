@@ -91,6 +91,7 @@ class OwnerReportBackendTest extends TestCase
         [$volunteer] = $this->createVolunteerActor('cert.vol@test.com');
 
         $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
+            ...$this->learningChoicePayload(),
             'title_en' => 'Leadership Course',
             'title_ar' => 'دورة القيادة',
             'description_en' => 'Desc',
@@ -123,6 +124,7 @@ class OwnerReportBackendTest extends TestCase
         [$volunteer, $volunteerToken] = $this->createVolunteerActor('certname.vol@test.com');
 
         $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
+            ...$this->learningChoicePayload(),
             'title_en' => 'Leadership Course',
             'title_ar' => 'دورة القيادة',
             'description_en' => 'Desc',
@@ -160,6 +162,7 @@ class OwnerReportBackendTest extends TestCase
         $opportunityId = (int) $create->json('data.id');
         VolunteerOpportunity::query()->whereKey($opportunityId)->update([
             'approval_status' => ApprovalStatus::APPROVED,
+            'is_public' => true,
         ]);
 
         $this->api($volunteerToken)->postJson('/api/volunteer-opportunity-registrations/', [
@@ -185,8 +188,10 @@ class OwnerReportBackendTest extends TestCase
         ]);
         unset($lsPayload['volunteer_category'], $lsPayload['is_public']);
 
-        $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', $lsPayload);
+        $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', $lsPayload + $this->learningChoicePayload());
         $opportunityId = (int) $create->json('data.id');
+
+        LearnServeOpportunity::whereKey($opportunityId)->update(['approval_status' => ApprovalStatus::APPROVED]);
 
         $closed = $this->api($organizationToken)
             ->postJson('/api/learn-serve-opportunities/'.$opportunityId.'/close-registration/');

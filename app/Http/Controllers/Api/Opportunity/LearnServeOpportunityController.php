@@ -5,21 +5,24 @@ namespace App\Http\Controllers\Api\Opportunity;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\OpportunityStatus;
-use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
-use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
 use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
+use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
+use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunitySponsors;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
 use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
 use App\Services\Opportunity\OpportunityChangeNotifier;
+use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LearnServeOpportunityController extends Controller
 {
@@ -73,30 +76,37 @@ class LearnServeOpportunityController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->validatePayload($request);
+        $source = RepublishMedia::source($request, LearnServeOpportunity::class);
 
-        $data = array_merge($data, $this->mapLocationAttributes($data));
+        return DB::transaction(function () use ($request, $data, $source) {
+            unset($data['license_image']);
 
-        $opportunity = LearnServeOpportunity::create(array_merge($data, [
-            'created_by' => $request->user()->id,
-            'approval_status' => ApprovalStatus::PENDING,
-            'deletion_status' => DeletionStatus::NOT_REQUESTED,
-            'opportunity_status' => OpportunityStatus::UPCOMING,
-        ]));
+            $data = array_merge($data, $this->mapLocationAttributes($data));
 
-        if ($request->has('interest_ids')) {
-            $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'learnserve_opportunity_interest');
-        }
+            $opportunity = LearnServeOpportunity::create(array_merge($data, [
+                'created_by' => $request->user()->id,
+                'approval_status' => ApprovalStatus::PENDING,
+                'deletion_status' => DeletionStatus::NOT_REQUESTED,
+                'opportunity_status' => OpportunityStatus::UPCOMING,
+            ]));
 
-        $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
+            if ($request->has('interest_ids')) {
+                $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'learnserve_opportunity_interest');
+            }
 
-        $opportunity->load(['creator', 'interests', 'images']);
+            RepublishMedia::apply($request, $opportunity, $source);
 
-        return ApiResponse::success(
-            new LearnServeOpportunityResource($opportunity),
-            'Opportunity created successfully.',
-            'تم إنشاء الفرصة بنجاح.',
-            201
-        );
+            $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
+
+            $opportunity->load(['creator', 'interests', 'images']);
+
+            return ApiResponse::success(
+                new LearnServeOpportunityResource($opportunity),
+                'Opportunity created successfully.',
+                'تم إنشاء الفرصة بنجاح.',
+                201
+            );
+        });
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -111,6 +121,8 @@ class LearnServeOpportunityController extends Controller
         }
 
         $data = $this->validatePayload($request, partial: true);
+        $request->validate(['opportunity_id' => ['prohibited']]);
+        unset($data['license_image']);
         $before = $this->opportunitySnapshot($opportunity);
         $data = array_merge($data, $this->mapLocationAttributes($data));
         $opportunity->update($data);
@@ -119,6 +131,8 @@ class LearnServeOpportunityController extends Controller
         if ($request->has('interest_ids')) {
             $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'learnserve_opportunity_interest');
         }
+
+        RepublishMedia::apply($request, $opportunity);
 
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
 
@@ -195,7 +209,7 @@ class LearnServeOpportunityController extends Controller
 
         $opportunity->softDeleteFlags();
 
-        return ApiResponse::success(null, 'Opportunity deleted successfully.', 'تم حذف الفرصة بنجاح.'        );
+        return ApiResponse::success(null, 'Opportunity deleted successfully.', 'تم حذف الفرصة بنجاح.');
     }
 
     public function myOpportunities(Request $request): JsonResponse
@@ -343,6 +357,7 @@ class LearnServeOpportunityController extends Controller
         $this->normalizeMapLocation($request);
 
         $rules = [
+            ...RepublishMedia::rules(),
             'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'title_ar' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
             'description_en' => [$partial ? 'sometimes' : 'required', 'string'],
@@ -363,22 +378,33 @@ class LearnServeOpportunityController extends Controller
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'is_kuwaitis' => ['nullable', 'boolean'],
-            'learning_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
+            'learning_type_id' => [$partial ? 'sometimes' : 'required', 'integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->where('name', 'learning_type'))->pluck('id')->all())],
             'gender_id' => ['nullable', 'integer', 'exists:master_choices,id'],
-            'format_id' => ['nullable', 'integer', 'exists:master_choices,id'],
-            'certificate_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
+            'format_id' => [$partial ? 'sometimes' : 'required', 'integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->where('name', 'learn_serve_format'))->pluck('id')->all())],
+            'certificate_type_id' => ['nullable', 'integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->where('name', 'learn_serve_certificate_type'))->pluck('id')->all())],
             'primary_language' => ['nullable', Rule::in(['en', 'ar'])],
             'interest_ids' => ['nullable', 'array'],
             // Tag ids come from /api/choices/* (master_choices). The old
             // `exists:interests,id` rule pointed at the legacy table and
             // rejected every one of them — resolved in the sync instead.
-            'interest_ids.*' => ['integer'],
+            'interest_ids.*' => ['integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->notDeleted()->where('name', 'learnserve_opportunity_interest'))->pluck('id')->all())],
         ];
 
         // Fail loudly on a field name this endpoint does not know, instead of
         // dropping it silently (BE-22).
         $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
 
-        return $request->validate($rules);
+        $data = $request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/learnserve_opportunity_interest/'])]);
+        $existing = $partial ? LearnServeOpportunity::query()->find($request->route('id')) : null;
+        $learningTypeId = $data['learning_type_id'] ?? $existing?->learning_type_id;
+        $type = strtolower((string) MasterChoice::find($learningTypeId)?->value_en);
+        $certificateId = array_key_exists('certificate_type_id', $data) ? $data['certificate_type_id'] : $existing?->certificate_type_id;
+        if (in_array($type, ['course', 'internship'], true) && ! $certificateId) {
+            throw ValidationException::withMessages([
+                'certificate_type_id' => ['Certificate type is required for courses and internships.'],
+            ]);
+        }
+
+        return $data;
     }
 }

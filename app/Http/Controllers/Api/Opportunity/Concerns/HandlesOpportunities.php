@@ -12,7 +12,9 @@ use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
+use App\Services\Opportunity\RegistrationEligibility;
 use App\Support\ApiResponse;
+use App\Support\MediaKeepSet;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -328,6 +330,8 @@ trait HandlesOpportunities
             );
         }
 
+        MediaKeepSet::validate($request, $opportunity);
+
         foreach ($request->allFiles() as $key => $file) {
             if (! is_object($file) || ! method_exists($file, 'store')) {
                 continue;
@@ -340,15 +344,6 @@ trait HandlesOpportunities
                     'is_after_completed' => true,
                 ]);
             }
-        }
-
-        // Accepts every shape a client might send: `existing_image_ids[]=1&…`
-        // (canonical), a single scalar, or a comma-separated string. A repeated
-        // *bare* key can only ever reach PHP as its last value — that shape
-        // cannot be recovered here, so clients must use the bracketed form.
-        $existingIds = $this->normalizeIdList($request->input('existing_image_ids', []));
-        if ($existingIds !== []) {
-            OpportunityImage::query()->whereIn('id', $existingIds)->update([$foreignKey => $opportunity->id]);
         }
 
         if ($with !== []) {
@@ -387,6 +382,9 @@ trait HandlesOpportunities
 
     protected function rejectIfRegistrationClosed(object $opportunity): ?JsonResponse
     {
+        if ($rejection = RegistrationEligibility::reject($opportunity)) {
+            return $rejection;
+        }
         if (method_exists($opportunity, 'isRegistrationOpen') && ! $opportunity->isRegistrationOpen()) {
             return ApiResponse::error(
                 'Registration is closed for this opportunity.',

@@ -15,10 +15,11 @@ use App\Models\VolunteerOpportunityRole;
 use App\Models\VolunteerOpportunityTeam;
 use App\Services\Mail\DynamicEmailService;
 use App\Services\Notification\NotificationService;
-use App\Services\Opportunity\RegistrationManagementService;
 use App\Services\Opportunity\AttendanceService;
+use App\Services\Opportunity\RegistrationManagementService;
 use App\Support\ApiResponse;
 use App\Support\XlsxExport;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -103,7 +104,7 @@ class VolunteerOpportunityRegistrationController extends Controller
 
         $registrations = $query->get();
         $attendanceDate = ! empty($data['date'])
-            ? \Carbon\Carbon::parse($data['date'])->toDateString()
+            ? Carbon::parse($data['date'])->toDateString()
             : null;
         $markedCount = 0;
         $alreadyMarkedCount = 0;
@@ -127,6 +128,7 @@ class VolunteerOpportunityRegistrationController extends Controller
 
                 if ($alreadyMarked) {
                     $alreadyMarkedCount++;
+
                     continue;
                 }
 
@@ -187,6 +189,17 @@ class VolunteerOpportunityRegistrationController extends Controller
     }
 
     public function store(Request $request): JsonResponse
+    {
+        $request->validate(['opportunity_id' => ['required', 'integer']]);
+
+        return DB::transaction(function () use ($request) {
+            VolunteerOpportunity::query()->notDeleted()->lockForUpdate()->findOrFail($request->input('opportunity_id'));
+
+            return $this->createRegistration($request);
+        });
+    }
+
+    protected function createRegistration(Request $request): JsonResponse
     {
         $data = $request->validate([
             'opportunity_id' => ['required', 'integer', 'exists:volunteer_opportunities,id'],
@@ -502,6 +515,7 @@ class VolunteerOpportunityRegistrationController extends Controller
             $volunteerUser = User::query()->notDeleted()->find($userId);
             if (! $volunteerUser) {
                 $failed[] = ['user_id' => $userId, 'error' => 'User does not exist.'];
+
                 continue;
             }
 
@@ -511,6 +525,7 @@ class VolunteerOpportunityRegistrationController extends Controller
                 ->where('user_id', $userId)
                 ->exists()) {
                 $failed[] = ['user_id' => $userId, 'error' => 'User is already registered.'];
+
                 continue;
             }
 

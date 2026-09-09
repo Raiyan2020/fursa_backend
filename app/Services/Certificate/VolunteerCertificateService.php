@@ -57,7 +57,7 @@ class VolunteerCertificateService
         return $issued;
     }
 
-    public static function issue(VolunteerOpportunityRegistration $registration): bool
+    public static function issue(VolunteerOpportunityRegistration $registration, bool $notify = true): bool
     {
         if ($registration->is_certified) {
             return false;
@@ -79,7 +79,9 @@ class VolunteerCertificateService
             SyncService::syncUser((int) $registration->user_id);
         }
 
-        self::notify($registration);
+        if ($notify) {
+            self::notify($registration);
+        }
 
         return true;
     }

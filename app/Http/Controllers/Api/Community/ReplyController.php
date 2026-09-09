@@ -9,8 +9,10 @@ use App\Models\ReplyImage;
 use App\Support\ApiResponse;
 use App\Support\CommunityMentions;
 use App\Support\ForbiddenWordFilter;
+use App\Support\MediaKeepSet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReplyController extends Controller
 {
@@ -115,7 +117,7 @@ class ReplyController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        if (! $request->filled('text_en') && ! $request->filled('text_ar') && ! $request->hasFile('images')) {
+        if (! $request->filled('text_en') && ! $request->filled('text_ar') && ! $request->hasFile('images') && ! $request->exists('existing_image_ids')) {
             return ApiResponse::error(
                 'Either text or images must be provided for update.',
                 'يجب توفير النص أو الصور للتحديث.',
@@ -135,32 +137,37 @@ class ReplyController extends Controller
             );
         }
 
-        $data = $request->validate([
-            'text_en' => ['nullable', 'string'],
-            'text_ar' => ['nullable', 'string'],
-        ]);
+        $keepIds = MediaKeepSet::validate($request, $reply);
 
-        $textEn = $data['text_en'] ?? $reply->text_en;
-        $textAr = $data['text_ar'] ?? $reply->text_ar;
-        $detected = ForbiddenWordFilter::detect(null, null, $textEn, $textAr);
+        return DB::transaction(function () use ($request, $reply, $keepIds) {
+            MediaKeepSet::apply($reply, $keepIds);
+            $data = $request->validate([
+                'text_en' => ['nullable', 'string'],
+                'text_ar' => ['nullable', 'string'],
+            ]);
 
-        $reply->update(array_merge($data, [
-            'is_displayed' => $detected === [] ? $reply->is_displayed : false,
-        ]));
+            $textEn = $data['text_en'] ?? $reply->text_en;
+            $textAr = $data['text_ar'] ?? $reply->text_ar;
+            $detected = ForbiddenWordFilter::detect(null, null, $textEn, $textAr);
 
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                ReplyImage::create([
-                    'reply_id' => $reply->id,
-                    'image' => uploader($file, 'community/replies'),
-                ]);
+            $reply->update(array_merge($data, [
+                'is_displayed' => $detected === [] ? $reply->is_displayed : false,
+            ]));
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    ReplyImage::create([
+                        'reply_id' => $reply->id,
+                        'image' => uploader($file, 'community/replies'),
+                    ]);
+                }
             }
-        }
 
-        $payload = (new WebsiteReplyResource($reply->fresh(['user', 'images', 'children'])))->resolve();
-        $payload['mentioned_users'] = CommunityMentions::extract($textEn, $textAr);
+            $payload = (new WebsiteReplyResource($reply->fresh(['user', 'images', 'children'])))->resolve();
+            $payload['mentioned_users'] = CommunityMentions::extract($textEn, $textAr);
 
-        return ApiResponse::success($payload, 'Reply updated successfully.', 'تم تحديث الرد بنجاح.');
+            return ApiResponse::success($payload, 'Reply updated successfully.', 'تم تحديث الرد بنجاح.');
+        });
     }
 
     public function destroy(Request $request, int $id): JsonResponse

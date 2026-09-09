@@ -533,6 +533,7 @@ class ClientFeedbackRoundTwoTest extends TestCase
         [$sponsorOrg] = $this->createOrganizationActor('sponsor.learn@test.com');
 
         $create = $this->api($token)->postJson('/api/learn-serve-opportunities/', [
+            ...$this->learningChoicePayload(),
             'title_en' => 'Leadership Course',
             'title_ar' => 'دورة القيادة',
             'description_en' => 'Desc',

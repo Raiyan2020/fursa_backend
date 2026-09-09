@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Calendar;
 
+use App\Enums\ApprovalStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -14,7 +15,6 @@ use App\Support\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class CalendarController extends Controller
 {
@@ -67,6 +67,16 @@ class CalendarController extends Controller
             );
         }
 
+        foreach (['volunteer_opportunity_id' => VolunteerOpportunity::class, 'learn_serve_opportunity_id' => LearnServeOpportunity::class, 'event_id' => Event::class] as $field => $class) {
+            if (empty($data[$field])) {
+                continue;
+            }
+            $source = $class::query()->notDeleted()->findOrFail($data[$field]);
+            $ownerId = $source instanceof Event ? $source->organization?->user_id : $source->created_by;
+            $public = $source->approval_status === ApprovalStatus::APPROVED
+                && (! $source instanceof VolunteerOpportunity || $source->is_public);
+            abort_unless($public || $ownerId === $request->user()->id, 404);
+        }
         $item = MyCalendar::create([
             'user_id' => $request->user()->id,
             'volunteer_opportunity_id' => $data['volunteer_opportunity_id'] ?? null,
@@ -113,7 +123,12 @@ class CalendarController extends Controller
 
     public function uploadIcs(Request $request): JsonResponse
     {
-        $request->validate(['ics_file' => ['required', 'file']]);
+        $request->validate(['ics_file' => ['required', 'file', 'max:1024', function ($attribute, $file, $fail) {
+            if (strtolower($file->getClientOriginalExtension()) !== 'ics'
+                || ! str_contains(file_get_contents($file->getRealPath()), 'BEGIN:VCALENDAR')) {
+                $fail('Upload a valid .ics calendar file.');
+            }
+        }]]);
 
         $path = $request->file('ics_file')->store('calendar_ics', 'public');
         $fileUrl = getimg($path);

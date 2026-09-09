@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
+use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
 use App\Models\Post;
 use App\Models\Sponsor;
@@ -56,9 +57,12 @@ class PublicAndCommunityFlowTest extends TestCase
             'approval_status' => 'pending',
         ]);
 
-        $this->patchJson('/api/sponsors/'.$sponsorId.'/', [
-            'person_name' => 'Updated Contact',
-        ])->assertOk()->assertJsonPath('key', 'success');
+        // BE-29: editing a sponsor is a staff action now — it used to be public.
+        [, $staffToken] = $this->createStaffActor();
+        $this->withToken($staffToken)
+            ->patchJson('/api/sponsors/'.$sponsorId.'/', [
+                'person_name' => 'Updated Contact',
+            ])->assertOk()->assertJsonPath('key', 'success');
 
         Sponsor::findOrFail($sponsorId)->update(['approval_status' => 'approved']);
         $this->getJson('/api/sponsors/'.$sponsorId.'/')
@@ -93,10 +97,11 @@ class PublicAndCommunityFlowTest extends TestCase
         $this->assertSuccessEnvelope($contact, 201);
         $contactId = (int) $contact->json('data.id');
 
-        $this->patchJson('/api/contact-us/'.$contactId.'/', [
+        // BE-29: reading/editing/deleting a submission is staff-only now.
+        $this->withToken($staffToken)->patchJson('/api/contact-us/'.$contactId.'/', [
             'message_en' => 'Updated contact message',
         ])->assertOk()->assertJsonPath('key', 'success');
-        $this->deleteJson('/api/contact-us/'.$contactId.'/')->assertNoContent();
+        $this->withToken($staffToken)->deleteJson('/api/contact-us/'.$contactId.'/')->assertNoContent();
     }
 
     public function test_community_create_update_like_and_deleted_target_flow(): void
@@ -201,7 +206,10 @@ class PublicAndCommunityFlowTest extends TestCase
         VolunteerOpportunity::query()->whereKey($opportunityId)->update(['approval_status' => 'approved']);
         Event::query()->whereKey($eventId)->update(['approval_status' => 'approved']);
 
-        $list = $this->api($volunteerToken)->getJson('/api/list-all-opportunities/?filter_type=organized_events&page=1&limit=9');
+        // `organized_events` means "events I organized", so it has to be queried by
+        // the organization that created it — a volunteer organizes none, which is
+        // why this returned an empty list when asked with the volunteer token.
+        $list = $this->api($organizationToken)->getJson('/api/list-all-opportunities/?filter_type=organized_events&page=1&limit=9');
         $this->assertSuccessEnvelope($list);
 
         $items = $list->json('data');
@@ -213,7 +221,7 @@ class PublicAndCommunityFlowTest extends TestCase
 
         $ids = array_column($items, 'id');
         $this->assertContains($eventId, $ids);
-        $this->assertNotContains($opportunityId, $ids);
+        $this->assertNotContains('volunteer_opportunity', array_column($items, 'opportunity_type'));
 
         $this->getJson('/api/events/'.$eventId.'/')
             ->assertOk()
@@ -241,6 +249,7 @@ class PublicAndCommunityFlowTest extends TestCase
         VolunteerOpportunity::query()->whereKey($volunteerId)->update(['approval_status' => 'approved']);
 
         $learnOpportunity = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
+            ...$this->learningChoicePayload(),
             'title_en' => 'Type Filter Learn Serve Opportunity',
             'title_ar' => 'فرصة تعلم وخدمة',
             'description_en' => 'Desc',
@@ -251,7 +260,7 @@ class PublicAndCommunityFlowTest extends TestCase
         ]);
         $this->assertSuccessEnvelope($learnOpportunity, 201);
         $learnId = (int) $learnOpportunity->json('data.id');
-        \App\Models\LearnServeOpportunity::query()->whereKey($learnId)->update(['approval_status' => 'approved']);
+        LearnServeOpportunity::query()->whereKey($learnId)->update(['approval_status' => 'approved']);
 
         $base = '/api/list-all-opportunities/?filter_type=organized&user_id='.$org->id;
 
@@ -316,6 +325,7 @@ class PublicAndCommunityFlowTest extends TestCase
         VolunteerOpportunity::query()->whereKey($volunteerId)->update(['approval_status' => 'approved']);
 
         $learnOpportunity = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
+            ...$this->learningChoicePayload(),
             'title_en' => 'Relationship Tags Learn Serve Opportunity',
             'title_ar' => 'فرصة تعلم وخدمة',
             'description_en' => 'Desc',
@@ -326,7 +336,7 @@ class PublicAndCommunityFlowTest extends TestCase
         ]);
         $this->assertSuccessEnvelope($learnOpportunity, 201);
         $learnId = (int) $learnOpportunity->json('data.id');
-        \App\Models\LearnServeOpportunity::query()->whereKey($learnId)->update(['approval_status' => 'approved']);
+        LearnServeOpportunity::query()->whereKey($learnId)->update(['approval_status' => 'approved']);
 
         $list = $this->api($organizationToken)
             ->getJson('/api/list-all-opportunities/?filter_type=organized&user_id='.$org->id);

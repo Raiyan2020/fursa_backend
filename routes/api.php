@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Base\BaseController;
 use App\Http\Controllers\Api\Base\HomeController;
+use App\Http\Controllers\Api\Calendar\CalendarController;
 use App\Http\Controllers\Api\Community\LikeController;
 use App\Http\Controllers\Api\Community\MentionSuggestionsController;
 use App\Http\Controllers\Api\Community\PostController;
@@ -16,7 +17,6 @@ use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Api\Event\EventTimeSlotController;
 use App\Http\Controllers\Api\Faq\FaqController;
 use App\Http\Controllers\Api\Notification\NotificationController;
-use App\Http\Controllers\Api\Page\PageController;
 use App\Http\Controllers\Api\Opportunity\CertificateController;
 use App\Http\Controllers\Api\Opportunity\LearnServeOpportunityController;
 use App\Http\Controllers\Api\Opportunity\LearnServeRegistrationController;
@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\Opportunity\VolunteerOpportunityRegistrationControl
 use App\Http\Controllers\Api\Opportunity\VolunteerOpportunityRoleController;
 use App\Http\Controllers\Api\Opportunity\VolunteerOpportunityTeamController;
 use App\Http\Controllers\Api\Organization\OrganizationProfileController;
+use App\Http\Controllers\Api\Page\PageController;
 use App\Http\Controllers\Api\Sponsor\SponsorController;
 use App\Http\Controllers\Api\Volunteer\VolunteerProfileController;
 use App\Http\Controllers\Api\Volunteer\VolunteerStatisticsController;
@@ -108,7 +109,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('volunteer-opportunities/', [VolunteerOpportunityController::class, 'index']);
     Route::post('volunteer-opportunities/', [VolunteerOpportunityController::class, 'store']);
     Route::get('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'show']);
-    Route::post('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update']);
+    Route::match(['post', 'put', 'patch'], 'volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update']);
     Route::post('volunteer-opportunities/{id}/close-registration/', [VolunteerOpportunityController::class, 'closeRegistration']);
     Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration']);
     Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit']);
@@ -205,19 +206,28 @@ Route::get('replies/', [ReplyController::class, 'index']);
 Route::get('replies/{id}/', [ReplyController::class, 'show']);
 Route::get('mention-suggestions/', [MentionSuggestionsController::class, 'index']);
 
-// Sponsors — public (Django ViewSet)
+// Sponsors — the read methods are deliberately public: index/show both filter to
+// approval_status=approved, and the website's sponsors section reads them.
+// store() is the public sponsor application and creates a PENDING row.
 Route::get('sponsors/', [SponsorController::class, 'index']);
 Route::get('sponsors/{id}/', [SponsorController::class, 'show']);
-Route::post('sponsors/', [SponsorController::class, 'store']);
-Route::match(['put', 'patch'], 'sponsors/{id}/', [SponsorController::class, 'update']);
-Route::delete('sponsors/{id}/', [SponsorController::class, 'destroy']);
+Route::post('sponsors/', [SponsorController::class, 'store'])->middleware('throttle:10,1');
 
-// Contact-us — public (Django ViewSet)
-Route::get('contact-us/', [ContactController::class, 'index']);
-Route::post('contact-us/', [ContactController::class, 'store']);
-Route::get('contact-us/{id}/', [ContactController::class, 'show']);
-Route::match(['put', 'patch'], 'contact-us/{id}/', [ContactController::class, 'update']);
-Route::delete('contact-us/{id}/', [ContactController::class, 'destroy']);
+// Contact-us — only submitting is public.
+Route::post('contact-us/', [ContactController::class, 'store'])->middleware('throttle:10,1');
+
+// BE-29: administrative reads and mutations. These were public with no
+// authorization in either controller, so anyone could list contact submissions
+// (names, emails, messages), edit or delete one, and edit or delete sponsors.
+Route::middleware(['auth:api', 'api.staff'])->group(function () {
+    Route::match(['put', 'patch'], 'sponsors/{id}/', [SponsorController::class, 'update']);
+    Route::delete('sponsors/{id}/', [SponsorController::class, 'destroy']);
+
+    Route::get('contact-us/', [ContactController::class, 'index']);
+    Route::get('contact-us/{id}/', [ContactController::class, 'show']);
+    Route::match(['put', 'patch'], 'contact-us/{id}/', [ContactController::class, 'update']);
+    Route::delete('contact-us/{id}/', [ContactController::class, 'destroy']);
+});
 
 // Volunteer statistics — public
 Route::get('statistics/', [VolunteerStatisticsController::class, 'statistics']);
@@ -280,7 +290,15 @@ Route::middleware('auth:api')->group(function () {
     Route::match(['post', 'patch'], 'notifications/{id}/unread/', [NotificationController::class, 'markOneUnread'])->whereNumber('id');
     Route::delete('notifications/{id}/', [NotificationController::class, 'destroyOne'])->whereNumber('id');
 
+    Route::post('event/republish/{id}', [EventController::class, 'republish']);
+    Route::post('events/{id}/sponsors/', [EventController::class, 'addSponsor']);
+    Route::delete('events/{id}/sponsors/{sponsorId}/', [EventController::class, 'removeSponsor']);
     // Calendar
+    Route::get('my-calendar/', [CalendarController::class, 'index']);
+    Route::post('my-calendar/save/', [CalendarController::class, 'store']);
+    Route::patch('my-calendar/{id}/', [CalendarController::class, 'update']);
+    Route::delete('my-calendar/{id}/', [CalendarController::class, 'destroy']);
+    Route::post('upload-ics/', [CalendarController::class, 'uploadIcs']);
 
     // Volunteer extras
     // Certificates — rendered HTML (browser handles Arabic shaping / print-to-PDF).

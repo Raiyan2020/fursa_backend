@@ -7,6 +7,7 @@ use App\Models\VolunteerOpportunityAttendance;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerProfile;
 use App\Models\VolunteerStatistic;
+use App\Services\Certificate\VolunteerCertificateService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -97,6 +98,11 @@ class AttendanceService
             if ($createdBy) {
                 SyncService::syncUser($createdBy);
             }
+        }
+
+        if ($delta !== 0.0 && $registration?->is_certified) {
+            $registration->update(['is_certified' => false, 'certificate_image' => null]);
+            VolunteerCertificateService::issue($registration->fresh(), notify: false);
         }
 
         return $attendance->refresh();

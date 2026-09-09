@@ -3,16 +3,14 @@
 namespace App\Http\Controllers\Api\Community;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Community\PostResource;
 use App\Http\Resources\Website\WebsitePostResource;
-use App\Models\CommunityLike;
 use App\Models\CommunityTag;
 use App\Models\Post;
 use App\Models\PostImage;
 use App\Models\Reply;
 use App\Support\ApiResponse;
-use App\Support\CommunityMentions;
 use App\Support\ForbiddenWordFilter;
+use App\Support\MediaKeepSet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,11 +67,24 @@ class PostController extends Controller
             $query->where('is_funding_required', false)->where('proposing_idea', false);
         }
         if ($search = $request->query('search')) {
+            // BE-33: one term, either side of the post. The author alternatives sit
+            // inside the SAME closure as the text ones so they OR together and the
+            // whole group ANDs with the other filters — `name` stays a separate,
+            // deliberately author-only filter and is unaffected.
             $query->where(function ($q) use ($search) {
                 $q->where('title_en', 'like', "%{$search}%")
                     ->orWhere('title_ar', 'like', "%{$search}%")
                     ->orWhere('idea_text_en', 'like', "%{$search}%")
-                    ->orWhere('idea_text_ar', 'like', "%{$search}%");
+                    ->orWhere('idea_text_ar', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($u) use ($search) {
+                        $u->where(function ($inner) use ($search) {
+                            $inner->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%")
+                                ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
+                                ->orWhereHas('volunteerProfile', fn ($p) => $p->where('nickname', 'like', "%{$search}%"))
+                                ->orWhereHas('organizationProfile', fn ($p) => $p->where('nickname', 'like', "%{$search}%"));
+                        });
+                    });
             });
         }
 
@@ -179,37 +190,42 @@ class PostController extends Controller
 
         $this->normalizeImageFiles($request);
 
-        $data = $request->validate([
-            'title_en' => ['nullable', 'string'],
-            'title_ar' => ['nullable', 'string'],
-            'idea_text_en' => ['nullable', 'string'],
-            'idea_text_ar' => ['nullable', 'string'],
-            'proposing_idea' => ['nullable', 'boolean'],
-            'is_funding_required' => ['nullable', 'boolean'],
-            'tags' => ['nullable', 'array'],
-            'tags.*' => ['string'],
-            'images' => ['nullable', 'array'],
-            'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
-        ]);
+        $keepIds = MediaKeepSet::validate($request, $post);
 
-        $titleEn = $data['title_en'] ?? $post->title_en;
-        $titleAr = $data['title_ar'] ?? $post->title_ar;
-        $ideaEn = $data['idea_text_en'] ?? $post->idea_text_en;
-        $ideaAr = $data['idea_text_ar'] ?? $post->idea_text_ar;
-        $detected = ForbiddenWordFilter::detect($titleEn, $titleAr, $ideaEn, $ideaAr);
+        return DB::transaction(function () use ($request, $post, $keepIds) {
+            MediaKeepSet::apply($post, $keepIds);
+            $data = $request->validate([
+                'title_en' => ['nullable', 'string'],
+                'title_ar' => ['nullable', 'string'],
+                'idea_text_en' => ['nullable', 'string'],
+                'idea_text_ar' => ['nullable', 'string'],
+                'proposing_idea' => ['nullable', 'boolean'],
+                'is_funding_required' => ['nullable', 'boolean'],
+                'tags' => ['nullable', 'array'],
+                'tags.*' => ['string'],
+                'images' => ['nullable', 'array'],
+                'images.*' => ['image', 'mimes:jpeg,jpg,png,webp', 'max:10240'],
+            ]);
 
-        $post->update(array_merge($data, [
-            'is_displayed' => $detected === [],
-        ]));
+            $titleEn = $data['title_en'] ?? $post->title_en;
+            $titleAr = $data['title_ar'] ?? $post->title_ar;
+            $ideaEn = $data['idea_text_en'] ?? $post->idea_text_en;
+            $ideaAr = $data['idea_text_ar'] ?? $post->idea_text_ar;
+            $detected = ForbiddenWordFilter::detect($titleEn, $titleAr, $ideaEn, $ideaAr);
 
-        if ($request->has('tags')) {
-            $this->syncTags($post, $data['tags'] ?? []);
-        }
-        $this->syncImages($post, $request);
+            $post->update(array_merge($data, [
+                'is_displayed' => $detected === [],
+            ]));
 
-        $payload = (new WebsitePostResource($post->fresh(['user', 'images', 'tags']), detail: true))->resolve();
+            if ($request->has('tags')) {
+                $this->syncTags($post, $data['tags'] ?? []);
+            }
+            $this->syncImages($post, $request);
 
-        return ApiResponse::success($payload, 'Post updated successfully.', 'تم تحديث المنشور بنجاح.');
+            $payload = (new WebsitePostResource($post->fresh(['user', 'images', 'tags']), detail: true))->resolve();
+
+            return ApiResponse::success($payload, 'Post updated successfully.', 'تم تحديث المنشور بنجاح.');
+        });
     }
 
     public function destroy(Request $request, int $id): JsonResponse
