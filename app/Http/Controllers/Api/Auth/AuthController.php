@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
-use App\Enums\ApprovalStatus;
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
@@ -16,6 +15,7 @@ use App\Http\Resources\Website\WebsiteRegisterUserResource;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use App\Support\ApiResponse;
+use App\Support\OrganizationApprovalGate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -112,6 +112,17 @@ class AuthController extends Controller
             ]);
         }
 
+        // Checked after the password so the response cannot be used to discover
+        // which accounts are banned without knowing the credentials.
+        if ($user->is_banned) {
+            return ApiResponse::error('Login failed.', 'فشل تسجيل الدخول.', 403, [
+                'email' => [
+                    'en' => 'This account has been suspended. Please contact support.',
+                    'ar' => 'تم إيقاف هذا الحساب. يرجى التواصل مع الدعم.',
+                ],
+            ]);
+        }
+
         // Pending/rejected organizations must not receive a token.
         if ($approvalResponse = $this->organizationApprovalResponse($user)) {
             return $approvalResponse;
@@ -131,44 +142,13 @@ class AuthController extends Controller
     /**
      * Organizations may only receive a token once the admin approves their
      * profile. Volunteers and approved organizations pass through untouched.
+     *
+     * Delegates to OrganizationApprovalGate so this and the per-request
+     * middleware share one definition and one response body.
      */
     protected function organizationApprovalResponse(User $user): ?JsonResponse
     {
-        if ($user->user_type !== UserType::ORGANIZATION) {
-            return null;
-        }
-
-        $status = $user->organizationProfile?->organization_status;
-
-        if ($status === ApprovalStatus::PENDING) {
-            return ApiResponse::error(
-                'Your organization account has not been approved by the admin yet.',
-                'لم يتم تأكيد حساب الجهة من قبل الإدارة بعد.',
-                403,
-                [
-                    'organization_status' => [
-                        'en' => 'Your organization account is pending admin approval.',
-                        'ar' => 'حساب الجهة في انتظار موافقة الإدارة.',
-                    ],
-                ]
-            );
-        }
-
-        if ($status === ApprovalStatus::REJECTED) {
-            return ApiResponse::error(
-                'Your organization account was rejected by the admin.',
-                'تم رفض حساب الجهة من قبل الإدارة.',
-                403,
-                [
-                    'organization_status' => [
-                        'en' => 'Your organization account was rejected by the admin.',
-                        'ar' => 'تم رفض حساب الجهة من قبل الإدارة.',
-                    ],
-                ]
-            );
-        }
-
-        return null;
+        return OrganizationApprovalGate::denialResponse($user);
     }
 
     public function forgotPassword(Request $request): JsonResponse

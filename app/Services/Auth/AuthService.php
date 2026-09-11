@@ -122,13 +122,14 @@ class AuthService
 
     public function sendAccountActivation(User $user): string
     {
+        // Transport identity (username) is dropped: it is half of the SMTP
+        // credential pair and adds nothing to diagnosing a delivery failure.
         Log::info('OTP sendAccountActivation started', [
             'user_id' => $user->id,
             'email' => $user->email,
             'mailer' => config('mail.default'),
             'mail_host' => config('mail.mailers.smtp.host'),
             'mail_port' => config('mail.mailers.smtp.port'),
-            'mail_username' => config('mail.mailers.smtp.username'),
             'mail_password_set' => filled(config('mail.mailers.smtp.password')),
             'mail_from' => config('mail.from.address'),
         ]);
@@ -138,10 +139,11 @@ class AuthService
             'verification_type' => VerificationType::ACCOUNT_ACTIVATION,
         ]);
 
+        // The code itself is a live credential and must never reach the log;
+        // user_id + otp_id are enough to trace an issuance.
         Log::info('OTP record created for account activation', [
             'user_id' => $user->id,
             'otp_id' => $otp->id,
-            'otp' => $otp->otp,
         ]);
 
         $expiry = (int) config('fursa.otp_or_link_expiry_time', 30);
@@ -191,10 +193,10 @@ class AuthService
             'verification_type' => VerificationType::FORGOT_PASSWORD,
         ]);
 
+        // See above: never log the live code.
         Log::info('OTP record created for forgot password', [
             'user_id' => $user->id,
             'otp_id' => $otp->id,
-            'otp' => $otp->otp,
         ]);
 
         $expiry = (int) config('fursa.otp_or_link_expiry_time', 30);
@@ -229,6 +231,25 @@ class AuthService
         return (string) $otp->otp;
     }
 
+    /**
+     * Charge a failed verification to the user's outstanding code.
+     *
+     * Counting on the live record (rather than the submitted value, which may
+     * match nothing) is what makes repeated guessing expensive: after
+     * OtpVerification::MAX_ATTEMPTS the code is burned and a resend is required.
+     */
+    protected function chargeFailedOtpAttempt(User $user, VerificationType $type): void
+    {
+        $outstanding = OtpVerification::query()
+            ->where('user_id', $user->id)
+            ->where('verification_type', $type)
+            ->where('is_used', false)
+            ->latest('id')
+            ->first();
+
+        $outstanding?->registerFailedAttempt();
+    }
+
     public function verifyRegisterOtp(User $user, string $otp): ExpiringToken
     {
         $record = OtpVerification::query()
@@ -240,6 +261,12 @@ class AuthService
             ->first();
 
         if (! $record || $record->isExpired()) {
+            // A wrong guess has to cost something, so charge the attempt to the
+            // code that is actually outstanding. The message is deliberately
+            // identical for wrong and expired so it never reveals which codes
+            // existed.
+            $this->chargeFailedOtpAttempt($user, VerificationType::ACCOUNT_ACTIVATION);
+
             throw new \InvalidArgumentException('Invalid or expired OTP');
         }
 
@@ -268,6 +295,12 @@ class AuthService
             ->first();
 
         if (! $record || $record->isExpired()) {
+            // A wrong guess has to cost something, so charge the attempt to the
+            // code that is actually outstanding. The message is deliberately
+            // identical for wrong and expired so it never reveals which codes
+            // existed.
+            $this->chargeFailedOtpAttempt($user, VerificationType::FORGOT_PASSWORD);
+
             throw new \InvalidArgumentException('Invalid or expired OTP');
         }
 

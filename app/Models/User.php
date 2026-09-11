@@ -228,6 +228,19 @@ class User extends Authenticatable
         return $this->hasMany(ExpiringToken::class);
     }
 
+    /**
+     * Drop every issued token so the account is signed out everywhere.
+     *
+     * Called whenever access is withdrawn (ban, deactivation, organization
+     * rejection). The guard already refuses banned owners, so this is defence
+     * in depth — and it also covers the case where the flag is later cleared
+     * but the old token should not silently come back to life.
+     */
+    public function revokeAllTokens(): int
+    {
+        return $this->expiringTokens()->delete();
+    }
+
     public function badge(): BelongsTo
     {
         return $this->belongsTo(Badge::class);

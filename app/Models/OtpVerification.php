@@ -16,11 +16,18 @@ class OtpVerification extends Model
         'verification_type',
         'otp',
         'is_used',
+        'attempts',
         'created_at',
     ];
 
+    /**
+     * Failed guesses allowed against one code before it is burned.
+     */
+    public const MAX_ATTEMPTS = 5;
+
     protected $casts = [
         'is_used' => 'boolean',
+        'attempts' => 'integer',
         'created_at' => 'datetime',
         'verification_type' => VerificationType::class,
     ];
@@ -47,5 +54,19 @@ class OtpVerification extends Model
         $minutes = (int) config('fursa.otp_or_link_expiry_time', 30);
 
         return Carbon::now()->greaterThan($this->created_at->copy()->addMinutes($minutes));
+    }
+
+    /**
+     * Count a failed guess, burning the code once the ceiling is reached.
+     */
+    public function registerFailedAttempt(): void
+    {
+        $this->attempts = (int) $this->attempts + 1;
+
+        if ($this->attempts >= self::MAX_ATTEMPTS) {
+            $this->is_used = true;
+        }
+
+        $this->save();
     }
 }

@@ -78,6 +78,10 @@ class OrganizationProfileController extends Controller
         $entity->rejection_reason = $request->reason;
         $entity->save();
 
+        // Withdrawing approval has to withdraw access; otherwise the
+        // organization keeps creating content until its token expires.
+        $entity->user?->revokeAllTokens();
+
         rejectedFlash();
 
         return back();

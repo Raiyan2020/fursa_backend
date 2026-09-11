@@ -53,6 +53,9 @@ class CheckAndBanNonAttendingCommand extends Command
             $user->manually_banned = false;
             $user->banned_time = now('Asia/Dubai');
             $user->save();
+
+            // Auto-bans run unattended, so the sign-out has to happen here too.
+            $user->revokeAllTokens();
             $banned++;
 
             NotificationService::createForUsers(

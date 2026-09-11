@@ -44,12 +44,12 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Auth — public
-Route::post('register/', [AuthController::class, 'register']);
-Route::post('login/', [AuthController::class, 'login']);
-Route::post('forgot-password/', [AuthController::class, 'forgotPassword']);
+Route::post('register/', [AuthController::class, 'register'])->middleware('throttle:auth-send');
+Route::post('login/', [AuthController::class, 'login'])->middleware('throttle:auth-attempts');
+Route::post('forgot-password/', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth-send');
 Route::post('change-password/', [AuthController::class, 'changePassword']);
-Route::post('verify_otp_or_token/', [AuthController::class, 'verifyOtpOrToken']);
-Route::post('resend_otp_or_token/', [AuthController::class, 'resendOtpOrToken']);
+Route::post('verify_otp_or_token/', [AuthController::class, 'verifyOtpOrToken'])->middleware('throttle:auth-attempts');
+Route::post('resend_otp_or_token/', [AuthController::class, 'resendOtpOrToken'])->middleware('throttle:auth-send');
 Route::post('check-user/', [AuthController::class, 'checkUser']);
 Route::post('social-auth/', [AuthController::class, 'socialAuth']);
 Route::post('linkedin/callback/', [AuthController::class, 'linkedinCallback']);
@@ -107,7 +107,7 @@ Route::get('download-certificate/', [OpportunityMediaController::class, 'certifi
 // Opportunity — protected
 Route::middleware('auth:api')->group(function () {
     Route::get('volunteer-opportunities/', [VolunteerOpportunityController::class, 'index']);
-    Route::post('volunteer-opportunities/', [VolunteerOpportunityController::class, 'store']);
+    Route::post('volunteer-opportunities/', [VolunteerOpportunityController::class, 'store'])->middleware('api.approved-org');
     Route::get('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'show']);
     Route::match(['post', 'put', 'patch'], 'volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update']);
     Route::post('volunteer-opportunities/{id}/close-registration/', [VolunteerOpportunityController::class, 'closeRegistration']);
@@ -123,7 +123,7 @@ Route::middleware('auth:api')->group(function () {
     Route::match(['delete', 'post'], 'volunteer-opportunities/{opportunity_id}/unregister/', [VolunteerOpportunityRegistrationController::class, 'unregister']);
 
     Route::get('learn-serve-opportunities/my_opportunities/', [LearnServeOpportunityController::class, 'myOpportunities']);
-    Route::post('learn-serve-opportunities/', [LearnServeOpportunityController::class, 'store']);
+    Route::post('learn-serve-opportunities/', [LearnServeOpportunityController::class, 'store'])->middleware('api.approved-org');
     Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update']);
     Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration']);
     Route::match(['post', 'patch'], 'learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages']);
@@ -138,7 +138,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('volunteer-opportunity-registrations/direct-register/', [VolunteerOpportunityRegistrationController::class, 'directRegister']);
     Route::post('volunteer-opportunity-registrations/direct-unregister/', [VolunteerOpportunityRegistrationController::class, 'directUnregister']);
     Route::patch('volunteer-opportunities/{opportunity_id}/registrations/status/', [VolunteerOpportunityRegistrationController::class, 'bulkStatus']);
-    Route::post('volunteer-opportunities/{opportunity_id}/registrations/message/', [VolunteerOpportunityRegistrationController::class, 'messageRegistrants']);
+    Route::post('volunteer-opportunities/{opportunity_id}/registrations/message/', [VolunteerOpportunityRegistrationController::class, 'messageRegistrants'])->middleware('api.approved-org');
     Route::get('volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'show']);
     Route::match(['put', 'patch'], 'volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'update']);
     Route::delete('volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'destroy']);
@@ -166,7 +166,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('learn-serve-opportunity-registrations/', [LearnServeRegistrationController::class, 'register']);
     Route::get('learn-serve-opportunities/{opportunity_id}/registrations/', [LearnServeRegistrationController::class, 'list']);
     Route::patch('learn-serve-opportunities/{opportunity_id}/registrations/status/', [LearnServeRegistrationController::class, 'bulkStatus']);
-    Route::post('learn-serve-opportunities/{opportunity_id}/registrations/message/', [LearnServeRegistrationController::class, 'messageRegistrants']);
+    Route::post('learn-serve-opportunities/{opportunity_id}/registrations/message/', [LearnServeRegistrationController::class, 'messageRegistrants'])->middleware('api.approved-org');
     Route::patch('learn-serve-opportunities/{opportunity_id}/update-attendance/', [LearnServeRegistrationController::class, 'updateAttendance']);
     Route::delete('learnserve/{opportunity_id}/unregister/{user_id}/', [LearnServeRegistrationController::class, 'unregisterUser']);
 
@@ -236,7 +236,7 @@ Route::get('user-certificates/', [VolunteerStatisticsController::class, 'userCer
 
 Route::middleware('auth:api')->group(function () {
     // Events — protected
-    Route::post('events/', [EventController::class, 'store']);
+    Route::post('events/', [EventController::class, 'store'])->middleware('api.approved-org');
     Route::match(['put', 'patch'], 'events/{id}/', [EventController::class, 'update']);
     Route::post('events/{id}/approve/', [EventController::class, 'approve']);
     Route::post('events/{id}/register/', [EventController::class, 'register']);

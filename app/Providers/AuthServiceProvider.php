@@ -49,6 +49,15 @@ class AuthServiceProvider extends ServiceProvider
                 return null;
             }
 
+            // A ban or deactivation has to take effect on tokens that already
+            // exist, otherwise it does nothing for up to the token lifetime
+            // (30 days with "remember me"). Treating the owner as absent makes
+            // the request a plain 401, which clients already handle as
+            // "session over".
+            if ($token->user->is_banned || ! $token->user->is_active || $token->user->is_deleted) {
+                return null;
+            }
+
             return $token->user;
         });
     }

@@ -212,6 +212,9 @@ class UserController extends Controller
         $user->banned_time = now();
         $user->save();
 
+        // Without this the ban only takes effect when the token expires.
+        $user->revokeAllTokens();
+
         statusChange();
 
         return back();
