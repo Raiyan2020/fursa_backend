@@ -5,12 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
-use App\Enums\InterestType;
 use App\Enums\VolunteerCategory;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
 use App\Http\Controllers\Controller;
-use App\Models\Interest;
 use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
 use App\Models\OpportunitySponsorImage;
@@ -24,6 +23,8 @@ use Illuminate\Validation\Rule;
 
 class VolunteerOpportunityController extends Controller
 {
+    use SyncsOpportunityInterests;
+
     public function index()
     {
         $opportunities = VolunteerOpportunity::query()
@@ -97,7 +98,7 @@ class VolunteerOpportunityController extends Controller
 
         $opportunity = DB::transaction(function () use ($data, $interestIds, $request) {
             $opportunity = VolunteerOpportunity::create($data);
-            $opportunity->interests()->sync($interestIds);
+            $this->syncOpportunityInterests($opportunity, $interestIds, 'volunteer_opportunity_interest');
             $this->storeImages($opportunity, $request);
 
             return $opportunity;
@@ -110,14 +111,14 @@ class VolunteerOpportunityController extends Controller
 
     public function show(VolunteerOpportunity $opportunity)
     {
-        $opportunity->load(['creator', 'gender', 'interests', 'images']);
+        $opportunity->load(['creator', 'gender', 'masterInterests', 'images']);
 
         return view('dashboard.volunteer-opportunities.show', compact('opportunity'));
     }
 
     public function edit(VolunteerOpportunity $opportunity)
     {
-        $opportunity->load(['interests', 'images', 'creator', 'sponsorImages' => fn ($q) => $q->where('is_deleted', false), 'sponsorImages.organization']);
+        $opportunity->load(['masterInterests', 'images', 'creator', 'sponsorImages' => fn ($q) => $q->where('is_deleted', false), 'sponsorImages.organization']);
 
         return view('dashboard.volunteer-opportunities.edit', array_merge(
             compact('opportunity'),
@@ -142,7 +143,7 @@ class VolunteerOpportunityController extends Controller
 
         DB::transaction(function () use ($opportunity, $data, $interestIds, $request) {
             $opportunity->update($data);
-            $opportunity->interests()->sync($interestIds);
+            $this->syncOpportunityInterests($opportunity, $interestIds, 'volunteer_opportunity_interest');
             $this->storeImages($opportunity, $request);
         });
 
@@ -310,11 +311,7 @@ class VolunteerOpportunityController extends Controller
                 ->orderBy('company_name')
                 ->get(['id', 'user_id', 'company_name', 'nickname']),
             'genders' => $this->choicesByType('opportunity_gender'),
-            'interests' => Interest::query()
-                ->notDeleted()
-                ->where('interest_type', InterestType::VOLUNTEER)
-                ->orderBy('name_en')
-                ->get(),
+            'interests' => $this->choicesByType('volunteer_opportunity_interest'),
             'sponsorOrganizations' => OrganizationProfile::query()
                 ->notDeleted()
                 ->whereIn('id', $this->sponsorEligibleOrganizationIds())
@@ -424,7 +421,7 @@ class VolunteerOpportunityController extends Controller
             'gender_id' => $choiceRule('opportunity_gender'),
             'participants_needed' => ['required', 'integer', 'min:1'],
             'volunteer_hours_per_day' => ['nullable', 'numeric', 'min:0'],
-            'link' => ['nullable', 'string', 'max:500'],
+            'link' => ['nullable', 'url', 'max:500'],
             'location_url' => ['nullable', 'url', 'max:500'],
             'map_desc' => ['nullable', 'string', 'max:500'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
@@ -444,10 +441,7 @@ class VolunteerOpportunityController extends Controller
             'beneficiaries_count' => ['nullable', 'integer', 'min:0'],
             'is_supports_disabled' => ['nullable', 'boolean'],
             'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => [
-                'integer',
-                Rule::exists('interests', 'id')->where(fn ($q) => $q->where('interest_type', InterestType::VOLUNTEER->value)),
-            ],
+            'interest_ids.*' => array_merge(['integer'], array_slice($choiceRule('volunteer_opportunity_interest'), 1)),
             'images' => ['nullable', 'array'],
             'images.*' => ['image', 'max:10240'],
             'after_images' => ['nullable', 'array'],

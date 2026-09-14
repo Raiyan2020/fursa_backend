@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Base\BaseController;
 use App\Http\Controllers\Api\Base\HomeController;
+use App\Http\Controllers\Api\Base\TestSupportController;
 use App\Http\Controllers\Api\Calendar\CalendarController;
 use App\Http\Controllers\Api\Community\LikeController;
 use App\Http\Controllers\Api\Community\MentionSuggestionsController;
@@ -60,6 +61,12 @@ Route::get('home/', HomeController::class);
 Route::get('choices/{choice_type}/', [BaseController::class, 'choices']);
 Route::get('banner-images/', [BaseController::class, 'bannerImages']);
 Route::get('proxy-image/', [BaseController::class, 'proxyImage']);
+
+// Test-only convenience: force-approve an opportunity/event so a local
+// Postman/newman run doesn't need a manual admin-dashboard approval step.
+// Controller itself 404s outside local/testing, same as expose_otp_in_response.
+Route::post('_test/approve/{type}/{id}/', [TestSupportController::class, 'approve']);
+Route::post('_test/set-org-status/{userId}/{status}/', [TestSupportController::class, 'setOrganizationStatus']);
 Route::options('proxy-image/', [BaseController::class, 'proxyImage']);
 Route::get('faqs/', [FaqController::class, 'index']);
 Route::get('pages/', [PageController::class, 'index']);
@@ -101,22 +108,20 @@ Route::get('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::
 Route::get('opportunity-feedbacks/', [OpportunityFeedbackController::class, 'index']);
 Route::get('opportunity-feedbacks/{id}/', [OpportunityFeedbackController::class, 'show']);
 Route::get('download-url/', [OpportunityMediaController::class, 'imageDownloadUrl']);
-Route::get('certificate/preview/{registration_id}/', [OpportunityMediaController::class, 'certificatePreview']);
-Route::get('download-certificate/', [OpportunityMediaController::class, 'certificateDownload']);
 
 // Opportunity — protected
 Route::middleware('auth:api')->group(function () {
     Route::get('volunteer-opportunities/', [VolunteerOpportunityController::class, 'index']);
     Route::post('volunteer-opportunities/', [VolunteerOpportunityController::class, 'store'])->middleware('api.approved-org');
     Route::get('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'show']);
-    Route::match(['post', 'put', 'patch'], 'volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update']);
-    Route::post('volunteer-opportunities/{id}/close-registration/', [VolunteerOpportunityController::class, 'closeRegistration']);
-    Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration']);
+    Route::match(['post', 'put', 'patch'], 'volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update'])->middleware('api.approved-org');
+    Route::post('volunteer-opportunities/{id}/close-registration/', [VolunteerOpportunityController::class, 'closeRegistration'])->middleware('api.approved-org');
+    Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration'])->middleware('api.approved-org');
     Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit']);
     // Accepts both verbs: the two update_images routes had drifted apart
     // (POST here, PATCH for learn-serve), which is an easy 405 to trip over.
-    Route::match(['post', 'patch'], 'volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages']);
-    Route::post('volunteer-opportunities/{id}/certificates/send/', [VolunteerOpportunityController::class, 'sendCertificates']);
+    Route::match(['post', 'patch'], 'volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages'])->middleware('api.approved-org');
+    Route::post('volunteer-opportunities/{id}/certificates/send/', [VolunteerOpportunityController::class, 'sendCertificates'])->middleware('api.approved-org');
     Route::post('volunteer-opportunities/{id}/sponsors/', [VolunteerOpportunityController::class, 'addSponsor']);
     Route::delete('volunteer-opportunities/{id}/sponsors/{sponsorId}/', [VolunteerOpportunityController::class, 'removeSponsor']);
     Route::delete('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'destroy']);
@@ -124,9 +129,9 @@ Route::middleware('auth:api')->group(function () {
 
     Route::get('learn-serve-opportunities/my_opportunities/', [LearnServeOpportunityController::class, 'myOpportunities']);
     Route::post('learn-serve-opportunities/', [LearnServeOpportunityController::class, 'store'])->middleware('api.approved-org');
-    Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update']);
-    Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration']);
-    Route::match(['post', 'patch'], 'learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages']);
+    Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update'])->middleware('api.approved-org');
+    Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration'])->middleware('api.approved-org');
+    Route::match(['post', 'patch'], 'learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{id}/sponsors/', [LearnServeOpportunityController::class, 'addSponsor']);
     Route::delete('learn-serve-opportunities/{id}/sponsors/{sponsorId}/', [LearnServeOpportunityController::class, 'removeSponsor']);
     Route::delete('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'destroy']);
@@ -137,7 +142,7 @@ Route::middleware('auth:api')->group(function () {
     Route::patch('volunteer-opportunity-registrations/', [VolunteerOpportunityRegistrationController::class, 'updateAssignment']);
     Route::post('volunteer-opportunity-registrations/direct-register/', [VolunteerOpportunityRegistrationController::class, 'directRegister']);
     Route::post('volunteer-opportunity-registrations/direct-unregister/', [VolunteerOpportunityRegistrationController::class, 'directUnregister']);
-    Route::patch('volunteer-opportunities/{opportunity_id}/registrations/status/', [VolunteerOpportunityRegistrationController::class, 'bulkStatus']);
+    Route::patch('volunteer-opportunities/{opportunity_id}/registrations/status/', [VolunteerOpportunityRegistrationController::class, 'bulkStatus'])->middleware('api.approved-org');
     Route::post('volunteer-opportunities/{opportunity_id}/registrations/message/', [VolunteerOpportunityRegistrationController::class, 'messageRegistrants'])->middleware('api.approved-org');
     Route::get('volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'show']);
     Route::match(['put', 'patch'], 'volunteer-opportunity-registrations/{id}/', [VolunteerOpportunityRegistrationController::class, 'update']);
@@ -165,9 +170,9 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('learn-serve-opportunity-registrations/', [LearnServeRegistrationController::class, 'register']);
     Route::get('learn-serve-opportunities/{opportunity_id}/registrations/', [LearnServeRegistrationController::class, 'list']);
-    Route::patch('learn-serve-opportunities/{opportunity_id}/registrations/status/', [LearnServeRegistrationController::class, 'bulkStatus']);
+    Route::patch('learn-serve-opportunities/{opportunity_id}/registrations/status/', [LearnServeRegistrationController::class, 'bulkStatus'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{opportunity_id}/registrations/message/', [LearnServeRegistrationController::class, 'messageRegistrants'])->middleware('api.approved-org');
-    Route::patch('learn-serve-opportunities/{opportunity_id}/update-attendance/', [LearnServeRegistrationController::class, 'updateAttendance']);
+    Route::patch('learn-serve-opportunities/{opportunity_id}/update-attendance/', [LearnServeRegistrationController::class, 'updateAttendance'])->middleware('api.approved-org');
     Route::delete('learnserve/{opportunity_id}/unregister/{user_id}/', [LearnServeRegistrationController::class, 'unregisterUser']);
 
     Route::post('volunteer-attendance/scan/', [VolunteerAttendanceController::class, 'scan']);
@@ -189,6 +194,13 @@ Route::middleware('auth:api')->group(function () {
     Route::post('opportunity-feedback/{feedback_id}/like/', [OpportunityFeedbackController::class, 'like']);
 
     Route::delete('delete-opportunity-image/', [OpportunityMediaController::class, 'deleteImages']);
+
+    // BE-46: these were public with no ownership check, so any caller who
+    // knew or guessed a registration/user id could read or download anyone's
+    // certificate. Scoped to the registration's owner or issuing organization.
+    Route::get('certificate/preview/{registration_id}/', [OpportunityMediaController::class, 'certificatePreview']);
+    Route::get('download-certificate/', [OpportunityMediaController::class, 'certificateDownload']);
+    Route::get('user-certificates/', [VolunteerStatisticsController::class, 'userCertificates']);
 });
 
 // Events — public list/detail
@@ -232,15 +244,14 @@ Route::middleware(['auth:api', 'api.staff'])->group(function () {
 // Volunteer statistics — public
 Route::get('statistics/', [VolunteerStatisticsController::class, 'statistics']);
 Route::get('statistics/top/', [VolunteerStatisticsController::class, 'topVolunteers']);
-Route::get('user-certificates/', [VolunteerStatisticsController::class, 'userCertificates']);
 
 Route::middleware('auth:api')->group(function () {
     // Events — protected
     Route::post('events/', [EventController::class, 'store'])->middleware('api.approved-org');
-    Route::match(['put', 'patch'], 'events/{id}/', [EventController::class, 'update']);
+    Route::match(['put', 'patch'], 'events/{id}/', [EventController::class, 'update'])->middleware('api.approved-org');
     Route::post('events/{id}/approve/', [EventController::class, 'approve']);
     Route::post('events/{id}/register/', [EventController::class, 'register']);
-    Route::post('events/{id}/close-registration/', [EventController::class, 'closeRegistration']);
+    Route::post('events/{id}/close-registration/', [EventController::class, 'closeRegistration'])->middleware('api.approved-org');
     Route::post('events/{id}/reject/', [EventController::class, 'reject']);
     Route::delete('events/{id}/', [EventController::class, 'destroy']);
     Route::match(['delete', 'post'], 'events/{event_id}/unregister/', [EventRegistrationController::class, 'unregister']);
@@ -303,7 +314,7 @@ Route::middleware('auth:api')->group(function () {
     // Volunteer extras
     // Certificates — rendered HTML (browser handles Arabic shaping / print-to-PDF).
     Route::get('certificates/{registration_id}/', [CertificateController::class, 'show']);
-    Route::post('certificates/{registration_id}/issue/', [CertificateController::class, 'store']);
+    Route::post('certificates/{registration_id}/issue/', [CertificateController::class, 'store'])->middleware('api.approved-org');
     Route::get('available-volunteers/', [VolunteerStatisticsController::class, 'availableVolunteers']);
     Route::get('volunteer-detail/', [VolunteerStatisticsController::class, 'volunteerDetail']);
     Route::get('download-qr-code/', [VolunteerStatisticsController::class, 'downloadQrCode']);

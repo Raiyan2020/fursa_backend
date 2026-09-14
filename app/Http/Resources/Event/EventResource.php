@@ -73,6 +73,8 @@ class EventResource extends JsonResource
             'interest_display' => $this->interestDisplayPayload($this->effectiveInterests($this->resource), 'event_interest'),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+            'is_saved_to_calendar' => $this->isSavedToEventCalendar($this->resource, $request),
+            'calendar_id' => $this->eventCalendarId($this->resource, $request),
             // One computed state so every screen renders the same button.
             'action_state' => $this->resource->actionState($this->isRegisteredForEvent($request)),
             'is_full' => $this->resource->isAtCapacity(),
@@ -128,12 +130,10 @@ class EventResource extends JsonResource
             }
         }
 
-        $registration = $this->eventRegistrationFor($request);
-        if ($registration) {
+        // Events carry no attendance record (BE-41): registered is as far as
+        // the tag vocabulary goes for them.
+        if ($this->eventRegistrationFor($request)) {
             $tags[] = 'registered';
-            if ($registration->is_attended) {
-                $tags[] = 'attended';
-            }
         }
 
         return array_values(array_unique($tags));

@@ -18,7 +18,6 @@ class EventRegistrationResource extends JsonResource
             'time_slot_id' => $this->time_slot_id,
             'registration_date' => $this->registration_date?->toIso8601String(),
             'registration_status' => $this->registration_status?->value,
-            'is_attended' => (bool) $this->is_attended,
             'payment_status' => $this->payment_status?->value,
             'user' => $this->whenLoaded('user', fn () => [
                 'id' => $this->user->id,

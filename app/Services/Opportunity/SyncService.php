@@ -272,8 +272,12 @@ class SyncService
                 ->get();
 
             foreach ($learnOpps as $opp) {
+                // Kept in sync with LearnServeOpportunity::NO_CHECK_IN_TYPES —
+                // an exact-match list here missed the merged `Class/Workshop`
+                // choice the same way requiresCheckIn() did (BE-47 part 2).
                 $learningType = strtolower(trim((string) ($opp->learningType?->value_en ?? '')));
-                $countsWithoutAttendance = in_array($learningType, ['class', 'workshop', 'consultation'], true);
+                $countsWithoutAttendance = collect(LearnServeOpportunity::NO_CHECK_IN_TYPES)
+                    ->contains(fn ($noCheckInType) => str_contains($learningType, $noCheckInType));
 
                 if (! $countsWithoutAttendance) {
                     $hasAttendance = LearnServeOpportunityRegistration::query()

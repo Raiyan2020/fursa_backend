@@ -5,13 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
-use App\Enums\InterestType;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventImage;
-use App\Models\Interest;
 use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
 use Illuminate\Http\Request;
@@ -21,6 +20,8 @@ use Illuminate\Validation\Rule;
 
 class EventController extends Controller
 {
+    use SyncsOpportunityInterests;
+
     public function index()
     {
         $events = Event::query()
@@ -87,7 +88,7 @@ class EventController extends Controller
 
         $event = DB::transaction(function () use ($data, $interestIds, $request) {
             $event = Event::create($data);
-            $event->interests()->sync($interestIds);
+            $this->syncOpportunityInterests($event, $interestIds, 'event_interest');
             $this->storeImages($event, $request);
 
             return $event;
@@ -116,7 +117,7 @@ class EventController extends Controller
 
     public function edit(Event $event)
     {
-        $event->load(['interests', 'images']);
+        $event->load(['masterInterests', 'images']);
 
         return view('dashboard.events.edit', array_merge(
             compact('event'),
@@ -135,7 +136,7 @@ class EventController extends Controller
 
         DB::transaction(function () use ($event, $data, $interestIds, $request) {
             $event->update($data);
-            $event->interests()->sync($interestIds);
+            $this->syncOpportunityInterests($event, $interestIds, 'event_interest');
             $this->storeImages($event, $request);
         });
 
@@ -247,11 +248,7 @@ class EventController extends Controller
             'genders' => $this->choicesByType('opportunity_gender'),
             'attendanceTypes' => $this->choicesByType('event_attendance_type'),
             'participationTypes' => $this->choicesByType('event_participation_type'),
-            'interests' => Interest::query()
-                ->notDeleted()
-                ->where('interest_type', InterestType::EVENT)
-                ->orderBy('name_en')
-                ->get(),
+            'interests' => $this->choicesByType('event_interest'),
         ];
     }
 
@@ -332,10 +329,7 @@ class EventController extends Controller
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],
             'event_status' => ['required', Rule::in(OpportunityStatus::values())],
             'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => [
-                'integer',
-                Rule::exists('interests', 'id')->where(fn ($q) => $q->where('interest_type', InterestType::EVENT->value)),
-            ],
+            'interest_ids.*' => array_merge(['integer'], array_slice($choiceRule('event_interest'), 1)),
             'images' => ['nullable', 'array'],
             'images.*' => ['image', 'max:5120'],
         ], [], [

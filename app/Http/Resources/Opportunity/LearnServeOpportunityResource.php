@@ -86,6 +86,7 @@ class LearnServeOpportunityResource extends JsonResource
             'requires_check_in' => $this->requiresCheckIn(),
             'preparation_valid_until' => optional($this->preparationValidUntil())?->toDateString(),
             'is_saved_to_calendar' => $this->isSavedToLearnServeCalendar($this->resource, $request),
+            'calendar_id' => $this->learnServeCalendarId($this->resource, $request),
             'interest_display' => $this->interestDisplayPayload($this->effectiveInterests($this->resource), 'learnserve_opportunity_interest'),
             'is_kuwaitis' => (bool) $this->is_kuwaitis,
             'timeslots_display' => LearnServeTimeSlotResource::collection($timeSlots)->resolve(),

@@ -23,6 +23,8 @@ class RepublishMedia
 
     public static function source(Request $request, string $class): ?object
     {
+        MediaKeepSet::normalizeEmptySignal($request);
+
         if (! $request->filled('opportunity_id')) {
             if ($request->input('existing_image_ids', []) !== []) {
                 throw ValidationException::withMessages(['opportunity_id' => ['A source is required to copy images.']]);

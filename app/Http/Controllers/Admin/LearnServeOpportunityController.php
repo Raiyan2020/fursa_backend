@@ -5,11 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
-use App\Enums\InterestType;
 use App\Enums\Language;
 use App\Enums\OpportunityStatus;
+use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
 use App\Http\Controllers\Controller;
-use App\Models\Interest;
 use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
 use App\Models\OpportunityImage;
@@ -23,6 +22,8 @@ use Illuminate\Validation\Rule;
 
 class LearnServeOpportunityController extends Controller
 {
+    use SyncsOpportunityInterests;
+
     public function index()
     {
         $opportunities = LearnServeOpportunity::query()
@@ -98,7 +99,7 @@ class LearnServeOpportunityController extends Controller
 
         DB::transaction(function () use ($data, $interestIds, $request) {
             $opportunity = LearnServeOpportunity::create($data);
-            $opportunity->interests()->sync($interestIds);
+            $this->syncOpportunityInterests($opportunity, $interestIds, 'learnserve_opportunity_interest');
             $this->storeImages($opportunity, $request);
 
             return $opportunity;
@@ -111,14 +112,14 @@ class LearnServeOpportunityController extends Controller
 
     public function show(LearnServeOpportunity $opportunity)
     {
-        $opportunity->load(['creator', 'gender', 'learningType', 'format', 'certificateType', 'interests', 'images']);
+        $opportunity->load(['creator', 'gender', 'learningType', 'format', 'certificateType', 'masterInterests', 'images']);
 
         return view('dashboard.learn-serve-opportunities.show', compact('opportunity'));
     }
 
     public function edit(LearnServeOpportunity $opportunity)
     {
-        $opportunity->load(['interests', 'images', 'creator', 'sponsorImages' => fn ($q) => $q->where('is_deleted', false), 'sponsorImages.organization']);
+        $opportunity->load(['masterInterests', 'images', 'creator', 'sponsorImages' => fn ($q) => $q->where('is_deleted', false), 'sponsorImages.organization']);
 
         return view('dashboard.learn-serve-opportunities.edit', array_merge(
             compact('opportunity'),
@@ -143,7 +144,7 @@ class LearnServeOpportunityController extends Controller
 
         DB::transaction(function () use ($opportunity, $data, $interestIds, $request) {
             $opportunity->update($data);
-            $opportunity->interests()->sync($interestIds);
+            $this->syncOpportunityInterests($opportunity, $interestIds, 'learnserve_opportunity_interest');
             $this->storeImages($opportunity, $request);
         });
 
@@ -314,11 +315,7 @@ class LearnServeOpportunityController extends Controller
             'learningTypes' => $this->choicesByType('learning_type'),
             'formats' => $this->choicesByType('learn_serve_format'),
             'certificateTypes' => $this->choicesByType('learn_serve_certificate_type'),
-            'interests' => Interest::query()
-                ->notDeleted()
-                ->where('interest_type', InterestType::LEARNSHARE)
-                ->orderBy('name_en')
-                ->get(),
+            'interests' => $this->choicesByType('learnserve_opportunity_interest'),
             'sponsorOrganizations' => OrganizationProfile::query()
                 ->notDeleted()
                 ->whereIn('id', $this->sponsorEligibleOrganizationIds())
@@ -412,7 +409,7 @@ class LearnServeOpportunityController extends Controller
             'format_id' => $choiceRule('learn_serve_format'),
             'certificate_type_id' => $choiceRule('learn_serve_certificate_type'),
             'participants_needed' => ['required', 'integer', 'min:1'],
-            'link' => ['nullable', 'string', 'max:500'],
+            'link' => ['nullable', 'url', 'max:500'],
             'location_url' => ['nullable', 'url', 'max:500'],
             'map_desc' => ['nullable', 'string', 'max:500'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
@@ -425,10 +422,7 @@ class LearnServeOpportunityController extends Controller
             'is_kuwaitis' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
             'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => [
-                'integer',
-                Rule::exists('interests', 'id')->where(fn ($q) => $q->where('interest_type', InterestType::LEARNSHARE->value)),
-            ],
+            'interest_ids.*' => array_merge(['integer'], array_slice($choiceRule('learnserve_opportunity_interest'), 1)),
             'images' => ['nullable', 'array'],
             'images.*' => ['image', 'max:10240'],
             'after_images' => ['nullable', 'array'],

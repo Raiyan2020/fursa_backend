@@ -31,9 +31,6 @@ class EventRegistrationController extends Controller
         if ($paymentStatus = $request->query('payment_status')) {
             $query->where('payment_status', $paymentStatus);
         }
-        if ($request->has('is_attended')) {
-            $query->where('is_attended', filter_var($request->query('is_attended'), FILTER_VALIDATE_BOOLEAN));
-        }
         if ($search = $request->query('search')) {
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
@@ -50,7 +47,6 @@ class EventRegistrationController extends Controller
             'name' => 'users.first_name',
             'email' => 'users.email',
             'status' => 'registration_status',
-            'attendance' => 'is_attended',
             'payment' => 'payment_status',
         ];
         if (isset($sortMap[$sortBy])) {
@@ -202,10 +198,12 @@ class EventRegistrationController extends Controller
             $payload['registration_status'] = $payload['status'];
         }
 
+        // is_attended is deliberately not accepted here: events are an
+        // announcement, not a participation record — Fursa does not take
+        // attendance for them (BE-41).
         $data = validator($payload, [
             'registration_status' => ['sometimes', 'string'],
             'payment_status' => ['sometimes', 'string'],
-            'is_attended' => ['sometimes', 'boolean'],
             'time_slot_id' => ['nullable', 'integer', Rule::exists('event_time_slots', 'id')->where('event_id', $registration->event_id)->where('is_deleted', false)],
         ])->validate();
 

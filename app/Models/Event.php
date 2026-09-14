@@ -111,9 +111,4 @@ class Event extends Model
     {
         return $this->hasMany(EventFeedback::class);
     }
-
-    public function scanPermissions(): HasMany
-    {
-        return $this->hasMany(ScanPermission::class);
-    }
 }

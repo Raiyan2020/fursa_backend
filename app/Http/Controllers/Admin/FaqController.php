@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Faq;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\Request;
 
 class FaqController extends Controller
@@ -29,6 +30,8 @@ class FaqController extends Controller
             'answer_ar' => ['required', 'string'],
         ]);
 
+        $data = HtmlSanitizer::cleanFields($data, ['answer_en', 'answer_ar']);
+
         Faq::create($data);
         added();
 
@@ -48,6 +51,8 @@ class FaqController extends Controller
             'answer_en' => ['required', 'string'],
             'answer_ar' => ['required', 'string'],
         ]);
+
+        $data = HtmlSanitizer::cleanFields($data, ['answer_en', 'answer_ar']);
 
         $faq->update($data);
         updated();

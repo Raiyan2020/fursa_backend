@@ -88,7 +88,7 @@ class OwnerReportBackendTest extends TestCase
     public function test_certificate_preview_returns_arabic_course_title(): void
     {
         [, $organizationToken] = $this->createOrganizationActor('cert.org@test.com');
-        [$volunteer] = $this->createVolunteerActor('cert.vol@test.com');
+        [$volunteer, $volunteerToken] = $this->createVolunteerActor('cert.vol@test.com');
 
         $create = $this->api($organizationToken)->postJson('/api/learn-serve-opportunities/', [
             ...$this->learningChoicePayload(),
@@ -110,7 +110,7 @@ class OwnerReportBackendTest extends TestCase
             'is_certified' => true,
         ]);
 
-        $preview = $this->withHeaders(['Lang' => 'ar', 'Accept' => 'application/json'])
+        $preview = $this->api($volunteerToken)->withHeaders(['Lang' => 'ar'])
             ->getJson('/api/certificate/preview/'.$registration->id.'/');
         $this->assertSuccessEnvelope($preview);
         $preview->assertJsonPath('data.course_ar', 'دورة القيادة')
@@ -143,7 +143,7 @@ class OwnerReportBackendTest extends TestCase
             'is_certified' => true,
         ]);
 
-        $tab = $this->getJson('/api/user-certificates/?user_id='.$volunteer->id);
+        $tab = $this->api($volunteerToken)->getJson('/api/user-certificates/');
         $this->assertSuccessEnvelope($tab);
         $tab->assertJsonPath('data.0.organizer_name', 'Fursa Academy');
 
@@ -248,7 +248,7 @@ class OwnerReportBackendTest extends TestCase
         [$org] = $this->createOrganizationActor('class.org@test.com');
         $classType = MasterChoice::query()
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'learning_type'))
-            ->where('value_en', 'Class')
+            ->where('value_en', 'Class/Workshop')
             ->firstOrFail();
 
         LearnServeOpportunity::query()->create([

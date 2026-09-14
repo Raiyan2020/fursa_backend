@@ -5,7 +5,6 @@ namespace App\Services\Opportunity;
 use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
 use App\Models\Event;
-use App\Models\VolunteerOpportunity;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
@@ -13,8 +12,10 @@ class RegistrationEligibility
 {
     public static function reject(object $item): ?JsonResponse
     {
-        if ($item->is_deleted || $item->approval_status !== ApprovalStatus::APPROVED
-            || ($item instanceof VolunteerOpportunity && ! $item->is_public)) {
+        // `is_public` governs discovery, not eligibility: a private opportunity
+        // reached by direct link registers exactly like a public one, subject
+        // to the same checks below (BE-45).
+        if ($item->is_deleted || $item->approval_status !== ApprovalStatus::APPROVED) {
             return ApiResponse::error('Item not found.', 'العنصر غير موجود.', 404);
         }
         $status = $item instanceof Event ? $item->event_status : $item->opportunity_status;

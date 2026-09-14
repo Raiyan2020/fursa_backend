@@ -3,13 +3,48 @@
 namespace App\Http\Resources\Concerns;
 
 use App\Enums\ApprovalStatus;
+use App\Models\Event;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\MasterChoice;
+use App\Models\MyCalendar;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 
 trait ResolvesApiPayloads
 {
+    /**
+     * BE-48 part 1/2: a detail screen could tell an item was saved but had
+     * no id to unsave it with. `notDeleted()` on the query is required — it
+     * is a local scope on MyCalendar, not global, so a plain lookup kept
+     * reporting a removed item as saved forever (the row survives with
+     * `is_saved` still true and only `is_deleted` flipped).
+     */
+    protected function calendarEntryId(Model $opportunity, Request $request, string $column): ?int
+    {
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        return MyCalendar::query()
+            ->notDeleted()
+            ->where('user_id', $user->id)
+            ->where($column, $opportunity->id)
+            ->where('is_saved', true)
+            ->value('id');
+    }
+
+    protected function isSavedToEventCalendar(Event $event, Request $request): bool
+    {
+        return $this->calendarEntryId($event, $request, 'event_id') !== null;
+    }
+
+    protected function eventCalendarId(Event $event, Request $request): ?int
+    {
+        return $this->calendarEntryId($event, $request, 'event_id');
+    }
     /**
      * "خبير / Expert": a volunteer who runs their own workshops, courses or
      * consultations (created at least one approved development opportunity).

@@ -420,7 +420,7 @@ class ClientFeedbackRoundTwoTest extends TestCase
         $profile->assertJsonPath('data.counter_visibility.development', true);
 
         // The certificates tab itself is untouched by hiding the counter.
-        $certificatesTab = $this->getJson('/api/user-certificates/?user_id='.$volunteer->id);
+        $certificatesTab = $this->api($volunteerToken)->getJson('/api/user-certificates/');
         $this->assertCount(1, $certificatesTab->json('data'));
     }
 

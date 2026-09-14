@@ -341,9 +341,10 @@ class VolunteerStatisticsController extends Controller
 
     public function userCertificates(Request $request): JsonResponse
     {
-        $data = $request->validate(['user_id' => ['required', 'integer']]);
-
-        $profile = VolunteerProfile::query()->notDeleted()->where('user_id', $data['user_id'])->first();
+        // BE-46: this used to trust an arbitrary `user_id` query param with no
+        // auth at all, so any caller could enumerate every volunteer's
+        // certificates. Always the caller's own id now — never the request's.
+        $profile = VolunteerProfile::query()->notDeleted()->where('user_id', $request->user()->id)->first();
         if (! $profile) {
             return ApiResponse::error('User not found or profile is deleted.', 'لم يتم العثور على المستخدم أو تم حذف الملف الشخصي.', 404);
         }

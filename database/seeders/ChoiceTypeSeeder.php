@@ -16,14 +16,15 @@ class ChoiceTypeSeeder extends Seeder
                 ['Male', 'ذكر'],
                 ['Female', 'أنثى'],
             ],
+            // BE-47 part 4: reconciled to the client's four approved choices.
+            // Class and Workshop are one merged choice in production, and the
+            // lowercase `internship`/`course` duplicates never belonged here —
+            // both used to produce a seven-option dropdown with visible dupes.
             'learning_type' => [
                 ['Course', 'دورة'],
-                ['Class', 'درس'],
+                ['Class/Workshop', 'درس/ورشة'],
                 ['Consultation', 'استشارة'],
                 ['Internship', 'تدريب عملي'],
-                ['Workshop', 'ورشة'],
-                ['internship', 'تدريب'],
-                ['course', 'دورة'],
             ],
             'learn_serve_format' => [
                 ['ONLINE', 'عن بعد'],

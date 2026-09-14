@@ -101,8 +101,11 @@ class BackendMissingItemsTest extends TestCase
             [, $otherToken] = $this->createVolunteerActor();
             $this->api($otherToken)->postJson("/api/$path-registrations/", $body)->assertStatus(400);
             if ($class === VolunteerOpportunity::class) {
+                // Private opportunities stay joinable by direct link (BE-45):
+                // going private no longer turns registration into a 404, it's
+                // just the pre-existing full/duplicate 400 from above.
                 $item->update(['is_public' => false]);
-                $this->api($token)->postJson("/api/$path-registrations/", $body)->assertNotFound();
+                $this->api($token)->postJson("/api/$path-registrations/", $body)->assertStatus(400);
             }
         }
     }

@@ -42,7 +42,31 @@ class CalendarController extends Controller
             $this->createdItems($user, $itemType, $search, $startDate, $endDate)
         );
 
+        $items = $this->deduplicateByStatusPriority($items);
+
         return ApiResponse::success($items, 'User items retrieved successfully.', 'تم استرجاع عناصر المستخدم بنجاح.');
+    }
+
+    /**
+     * BE-49 part 5: the same opportunity/event can legitimately match more
+     * than one of saved/registered/organized, and used to render as one
+     * card per match. Keep a single entry per (type, id), preferring
+     * whichever status is most specific to the caller's relationship to it.
+     */
+    protected function deduplicateByStatusPriority(array $items): array
+    {
+        $priority = ['Organized' => 3, 'Registered' => 2, 'Saved' => 1];
+
+        $winners = [];
+        foreach ($items as $item) {
+            $key = ($item['type'] ?? '').':'.($item['id'] ?? '');
+            $existing = $winners[$key] ?? null;
+            if (! $existing || ($priority[$item['status']] ?? 0) > ($priority[$existing['status']] ?? 0)) {
+                $winners[$key] = $item;
+            }
+        }
+
+        return array_values($winners);
     }
 
     public function store(Request $request): JsonResponse
@@ -77,12 +101,22 @@ class CalendarController extends Controller
                 && (! $source instanceof VolunteerOpportunity || $source->is_public);
             abort_unless($public || $ownerId === $request->user()->id, 404);
         }
-        $item = MyCalendar::create([
+        // firstOrCreate rather than create(): two taps on Save used to create
+        // two rows (BE-48 part 4), since nothing enforced uniqueness. A
+        // soft-deleted row for the same item is revived instead of stacking
+        // a third one on top of it.
+        $identity = [
             'user_id' => $request->user()->id,
             'volunteer_opportunity_id' => $data['volunteer_opportunity_id'] ?? null,
             'learn_serve_opportunity_id' => $data['learn_serve_opportunity_id'] ?? null,
             'event_id' => $data['event_id'] ?? null,
+        ];
+
+        $item = MyCalendar::query()->firstOrCreate($identity, ['is_saved' => $data['is_saved'] ?? true]);
+        $item->update([
             'is_saved' => $data['is_saved'] ?? true,
+            'is_deleted' => false,
+            'deleted_at' => null,
         ]);
 
         return ApiResponse::success($this->formatCalendarRow($item), 'Calendar item saved.', 'تم حفظ عنصر التقويم.', 201);
@@ -146,11 +180,20 @@ class CalendarController extends Controller
             ->notDeleted()
             ->where('user_id', $userId)
             ->where('is_saved', $isSaved)
-            ->with(['volunteerOpportunity', 'learnServeOpportunity', 'event']);
+            ->with([
+                // BE-49 part 2: `notDeleted()` on the relation itself is
+                // required — it is a local scope, not global, so a plain
+                // eager load still resolved a soft-deleted source and kept
+                // it on the calendar forever.
+                'volunteerOpportunity' => fn ($q) => $q->notDeleted(),
+                'learnServeOpportunity' => fn ($q) => $q->notDeleted()->with('learningType'),
+                'event' => fn ($q) => $q->notDeleted()->with('eventType'),
+            ]);
 
         $this->applyItemTypeFilter($query, $itemType);
 
         return $query->get()
+            ->filter(fn (MyCalendar $row) => $row->volunteerOpportunity || $row->learnServeOpportunity || $row->event)
             ->map(fn (MyCalendar $row) => $this->formatCalendarRow($row, 'Saved'))
             ->filter(fn ($row) => $this->matchesFilters($row, $search, $startDate, $endDate))
             ->values()
@@ -165,7 +208,7 @@ class CalendarController extends Controller
             VolunteerOpportunityRegistration::query()
                 ->notDeleted()
                 ->where('user_id', $userId)
-                ->with('opportunity')
+                ->with(['opportunity' => fn ($q) => $q->notDeleted()])
                 ->get()
                 ->each(function ($reg) use (&$items) {
                     if ($reg->opportunity) {
@@ -178,7 +221,7 @@ class CalendarController extends Controller
             LearnServeOpportunityRegistration::query()
                 ->notDeleted()
                 ->where('user_id', $userId)
-                ->with('opportunity')
+                ->with(['opportunity' => fn ($q) => $q->notDeleted()->with('learningType')])
                 ->get()
                 ->each(function ($reg) use (&$items) {
                     if ($reg->opportunity) {
@@ -191,7 +234,7 @@ class CalendarController extends Controller
             EventRegistration::query()
                 ->notDeleted()
                 ->where('user_id', $userId)
-                ->with('event')
+                ->with(['event' => fn ($q) => $q->notDeleted()->with('eventType')])
                 ->get()
                 ->each(function ($reg) use (&$items) {
                     if ($reg->event) {
@@ -222,6 +265,7 @@ class CalendarController extends Controller
             LearnServeOpportunity::query()
                 ->notDeleted()
                 ->where('created_by', $user->id)
+                ->with('learningType')
                 ->get()
                 ->each(fn ($opp) => $items[] = $this->formatOpportunity($opp, 'Learn', 'Organized'));
         }
@@ -230,6 +274,7 @@ class CalendarController extends Controller
             Event::query()
                 ->notDeleted()
                 ->where('created_by', $user->organizationProfile->id)
+                ->with('eventType')
                 ->get()
                 ->each(fn ($event) => $items[] = $this->formatEvent($event, 'Organized'));
         }
@@ -259,9 +304,18 @@ class CalendarController extends Controller
 
     protected function formatOpportunity($opp, string $type, string $status): array
     {
+        // BE-49 part 1: the React/Python original branched on the specific
+        // choice (Course, Internship, ...), which this Laravel port never
+        // emitted. `type` stays the coarse Volunteer/Learn bucket for
+        // backward compatibility; type_en/type_ar carry the real choice the
+        // frontend already prefers when present.
+        $learningType = $type === 'Learn' ? $opp->learningType : null;
+
         return [
             'id' => $opp->id,
             'type' => $type,
+            'type_en' => $learningType?->value_en ?? 'Opportunity',
+            'type_ar' => $learningType?->value_ar ?? 'فرصة',
             'status' => $status,
             'title_en' => $opp->title_en,
             'title_ar' => $opp->title_ar,
@@ -275,9 +329,13 @@ class CalendarController extends Controller
 
     protected function formatEvent(Event $event, string $status): array
     {
+        $eventType = $event->relationLoaded('eventType') ? $event->eventType : $event->eventType()->first();
+
         return [
             'id' => $event->id,
             'type' => 'Event',
+            'type_en' => $eventType?->value_en ?? 'Event',
+            'type_ar' => $eventType?->value_ar ?? 'حدث',
             'status' => $status,
             'title_en' => $event->title_en,
             'title_ar' => $event->title_ar,

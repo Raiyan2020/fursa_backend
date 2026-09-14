@@ -7,11 +7,30 @@ use Illuminate\Validation\ValidationException;
 
 class MediaKeepSet
 {
+    /**
+     * `existing_image_ids[]` sent zero times has no multipart representation,
+     * so a client cannot say "keep none" — the key is simply absent, which
+     * this class already reads as "keep everything". A scalar sentinel gives
+     * clients a way to say "keep none" over the same transport: normalise it
+     * to an empty array before anything validates the key as an array.
+     */
+    public static function normalizeEmptySignal(Request $request): void
+    {
+        $value = $request->input('existing_image_ids');
+
+        if (is_string($value) && in_array(trim($value), ['', 'none'], true)) {
+            $request->merge(['existing_image_ids' => []]);
+        }
+    }
+
     public static function validate(Request $request, $parent): ?array
     {
         if (! $request->exists('existing_image_ids')) {
             return null;
         }
+
+        self::normalizeEmptySignal($request);
+
         $data = $request->validate([
             'existing_image_ids' => ['present', 'array'],
             'existing_image_ids.*' => ['integer', 'distinct'],

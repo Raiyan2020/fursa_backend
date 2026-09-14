@@ -18,6 +18,8 @@ use App\Models\MasterChoice;
 use App\Services\Opportunity\OpportunityChangeNotifier;
 use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
+use App\Support\HtmlSanitizer;
+use App\Support\MediaKeepSet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -355,6 +357,7 @@ class LearnServeOpportunityController extends Controller
         // `lat` / `lng` from the map picker land on the real column names
         // before the rules run.
         $this->normalizeMapLocation($request);
+        MediaKeepSet::normalizeEmptySignal($request);
 
         $rules = [
             ...RepublishMedia::rules(),
@@ -395,14 +398,32 @@ class LearnServeOpportunityController extends Controller
         $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
 
         $data = $request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/learnserve_opportunity_interest/'])]);
+        $data = HtmlSanitizer::cleanFields($data, ['description_en', 'description_ar']);
         $existing = $partial ? LearnServeOpportunity::query()->find($request->route('id')) : null;
         $learningTypeId = $data['learning_type_id'] ?? $existing?->learning_type_id;
         $type = strtolower((string) MasterChoice::find($learningTypeId)?->value_en);
+        $grantsCertificate = in_array($type, ['course', 'internship'], true);
         $certificateId = array_key_exists('certificate_type_id', $data) ? $data['certificate_type_id'] : $existing?->certificate_type_id;
-        if (in_array($type, ['course', 'internship'], true) && ! $certificateId) {
+
+        if ($grantsCertificate && ! $certificateId) {
             throw ValidationException::withMessages([
                 'certificate_type_id' => ['Certificate type is required for courses and internships.'],
             ]);
+        }
+
+        if (! $grantsCertificate) {
+            if (array_key_exists('certificate_type_id', $data) && $data['certificate_type_id']) {
+                throw ValidationException::withMessages([
+                    'certificate_type_id' => ['Certificate type is only allowed for courses and internships.'],
+                ]);
+            }
+
+            // A partial update that moves the type off course/internship must
+            // clear a certificate_type_id left over from before, even though
+            // the request never mentions the field.
+            if ($existing && $existing->certificate_type_id) {
+                $data['certificate_type_id'] = null;
+            }
         }
 
         return $data;

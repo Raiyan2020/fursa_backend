@@ -44,7 +44,7 @@ class VolunteerOpportunityCertificatesTest extends TestCase
     public function test_completing_an_opportunity_automatically_issues_certificates_for_already_attended_registrations(): void
     {
         [$org] = $this->createOrganizationActor();
-        [$volunteer] = $this->createVolunteerActor();
+        [$volunteer, $volunteerToken] = $this->createVolunteerActor();
 
         $opportunity = $this->makeCompletedOpportunity($org);
         $registration = VolunteerOpportunityRegistration::query()->create([
@@ -65,14 +65,14 @@ class VolunteerOpportunityCertificatesTest extends TestCase
         $this->assertNotNull($registration->certificate_image);
         $this->assertSame(OpportunityStatus::COMPLETED, $opportunity->fresh()->opportunity_status);
 
-        $certificates = $this->getJson('/api/user-certificates/?user_id='.$volunteer->id);
+        $certificates = $this->api($volunteerToken)->getJson('/api/user-certificates/');
         $this->assertSuccessEnvelope($certificates);
         $entry = collect($certificates->json('data'))->firstWhere('registration_id', $registration->id);
         $this->assertNotNull($entry);
         $this->assertSame('Reeest', $entry['opportunity__title_en']);
         $this->assertNotEmpty($entry['certificate_image']);
 
-        $download = $this->getJson('/api/download-certificate/?registration_id='.$registration->id.'&registration_type=volunteer');
+        $download = $this->api($volunteerToken)->getJson('/api/download-certificate/?registration_id='.$registration->id.'&registration_type=volunteer');
         $download->assertOk();
 
         $this->assertSame(1, $volunteer->volunteerProfile->fresh()->total_certificates);

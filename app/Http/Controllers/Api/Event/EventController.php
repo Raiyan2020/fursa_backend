@@ -21,6 +21,7 @@ use App\Models\MasterChoice;
 use App\Services\Opportunity\EventParticipation;
 use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
+use App\Support\HtmlSanitizer;
 use App\Support\MediaKeepSet;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -352,6 +353,7 @@ class EventController extends Controller
         // `lat` / `lng` from the map picker land on the real column names
         // before the rules run.
         $this->normalizeMapLocation($request);
+        MediaKeepSet::normalizeEmptySignal($request);
 
         $rules = [
             ...RepublishMedia::rules(),
@@ -398,7 +400,11 @@ class EventController extends Controller
             'interest_ids', 'images', 'sponsor_images', 'license_image', 'existing_image_ids',
         ]);
 
-        return EventParticipation::normalize($request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/event_interest/'])]), $event);
+        $validated = $request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/event_interest/'])]);
+
+        $validated = HtmlSanitizer::cleanFields($validated, ['description_en', 'description_ar']);
+
+        return EventParticipation::normalize($validated, $event);
     }
 
     protected function syncEventRelations(Event $event, Request $request, bool $syncLicense = true): void

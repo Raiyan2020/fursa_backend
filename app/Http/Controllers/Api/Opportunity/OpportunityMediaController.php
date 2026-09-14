@@ -93,13 +93,15 @@ class OpportunityMediaController extends Controller
         return Storage::disk('public')->download($image->image, basename($image->image));
     }
 
-    public function certificatePreview(int $registration_id): JsonResponse
+    public function certificatePreview(Request $request, int $registration_id): JsonResponse
     {
         $registration = LearnServeOpportunityRegistration::query()
             ->with(['user', 'opportunity.creator.organizationProfile', 'opportunity.certificateType'])
             ->find($registration_id);
 
-        if (! $registration) {
+        // 404 rather than 403 on a mismatch: confirming a registration id
+        // exists at all is exactly the enumeration this endpoint used to allow.
+        if (! $registration || ! $this->canAccessCertificate($request, $registration)) {
             return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
         }
 
@@ -160,7 +162,7 @@ class OpportunityMediaController extends Controller
                 ?? VolunteerOpportunityRegistration::query()->find($registrationId),
         };
 
-        if (! $registration) {
+        if (! $registration || ! $this->canAccessCertificate($request, $registration)) {
             return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
         }
 
@@ -172,5 +174,26 @@ class OpportunityMediaController extends Controller
             $registration->certificate_image,
             basename($registration->certificate_image)
         );
+    }
+
+    /**
+     * The certificate belongs to the volunteer it was issued to, or to the
+     * organization that issued it (they are the ones who send it out).
+     * Everyone else gets treated as if the registration does not exist.
+     */
+    private function canAccessCertificate(Request $request, VolunteerOpportunityRegistration|LearnServeOpportunityRegistration $registration): bool
+    {
+        $user = $request->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ((int) $registration->user_id === (int) $user->id) {
+            return true;
+        }
+
+        // Volunteer/Learn&Serve opportunities record `created_by` as the
+        // organization's own user id (not the organization_profile id).
+        return (int) $registration->opportunity?->created_by === (int) $user->id;
     }
 }

@@ -21,7 +21,7 @@
     };
     $selected = fn ($field, $fallback = null) => (string) ($eventValue($field, $fallback) ?? '');
     $invalid = fn (string $field) => $errors->has($field) ? ' is-invalid' : '';
-    $selectedInterests = collect(old('interest_ids', optional($event)->interests?->pluck('id')->all() ?? []))->map(fn ($id) => (string) $id);
+    $selectedInterests = collect(old('interest_ids', optional($event)->masterInterests?->pluck('id')->all() ?? []))->map(fn ($id) => (string) $id);
 @endphp
 
 @if ($errors->any())
@@ -264,7 +264,7 @@
         <select name="interest_ids[]" class="form-control{{ $invalid('interest_ids') }}" multiple size="6">
             @foreach ($interests as $interest)
                 <option value="{{ $interest->id }}" {{ $selectedInterests->contains((string) $interest->id) ? 'selected' : '' }}>
-                    {{ $locale === 'ar' ? ($interest->name_ar ?: $interest->name_en) : ($interest->name_en ?: $interest->name_ar) }}
+                    {{ $locale === 'ar' ? ($interest->value_ar ?: $interest->value_en) : ($interest->value_en ?: $interest->value_ar) }}
                 </option>
             @endforeach
         </select>

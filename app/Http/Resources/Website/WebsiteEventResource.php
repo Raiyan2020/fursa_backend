@@ -64,11 +64,10 @@ class WebsiteEventResource extends JsonResource
                 $relationshipTags[] = 'sponsor';
             }
         }
+        // Events carry no attendance record (BE-41): registered is as far as
+        // the tag vocabulary goes for them.
         if ($isRegistered) {
             $relationshipTags[] = 'registered';
-            if ($viewerRegistration->is_attended) {
-                $relationshipTags[] = 'attended';
-            }
         }
 
         $payload = [
@@ -104,6 +103,8 @@ class WebsiteEventResource extends JsonResource
                 : ($creatorUser ? ['id' => $creatorUser->id] : null),
             'is_creator' => $isCreator,
             'is_registered' => $isRegistered,
+            'is_saved_to_calendar' => $this->isSavedToEventCalendar($event, $request),
+            'calendar_id' => $this->eventCalendarId($event, $request),
             'relationship_tags' => array_values(array_unique($relationshipTags)),
             // One computed state so every screen renders the same button.
             'action_state' => $event->actionState($isRegistered, $registeredCount),

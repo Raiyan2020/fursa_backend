@@ -53,8 +53,13 @@ class LearnServeOpportunity extends Model
      * Workshops and consultations have no attendance to take, but the client
      * still wants their hours in the organizer's counters, so registrations are
      * treated as attended once the opportunity completes.
+     *
+     * Production merged "Class" and "Workshop" into one choice, `Class/Workshop`
+     * — this exact-match list predates that and silently stopped matching it
+     * (BE-47 part 2). Kept alongside the legacy singular names in case any
+     * environment still seeds those instead.
      */
-    public const NO_CHECK_IN_TYPES = ['workshop', 'consultation'];
+    public const NO_CHECK_IN_TYPES = ['workshop', 'consultation', 'class', 'class/workshop'];
 
     public function requiresCheckIn(): bool
     {
@@ -64,7 +69,19 @@ class LearnServeOpportunity extends Model
             return true;
         }
 
-        return ! in_array(strtolower(trim($type)), self::NO_CHECK_IN_TYPES, true);
+        $normalized = strtolower(trim($type));
+
+        // A label match against user-editable master data will keep drifting;
+        // "contains" tolerates separator/spacing variants of the merged
+        // choice ("Class/Workshop", "Class / Workshop", ...) without needing
+        // to enumerate every one.
+        foreach (self::NO_CHECK_IN_TYPES as $noCheckInType) {
+            if (str_contains($normalized, $noCheckInType)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function creator(): BelongsTo

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Page;
+use App\Support\HtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -31,6 +32,8 @@ class PageController extends Controller
             'content_ar' => ['nullable', 'string'],
         ]);
 
+        $data = HtmlSanitizer::cleanFields($data, ['content_en', 'content_ar']);
+
         Page::create($data);
         added();
 
@@ -57,6 +60,8 @@ class PageController extends Controller
             'content_en' => ['nullable', 'string'],
             'content_ar' => ['nullable', 'string'],
         ]);
+
+        $data = HtmlSanitizer::cleanFields($data, ['content_en', 'content_ar']);
 
         $page->update($data);
         updated();

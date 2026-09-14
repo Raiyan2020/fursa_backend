@@ -6,7 +6,6 @@ use App\Http\Resources\Auth\CustomUserResource;
 use App\Models\Config;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
-use App\Models\MyCalendar;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
@@ -122,30 +121,22 @@ trait ResolvesOpportunitySerializerFields
 
     protected function isSavedToVolunteerCalendar(VolunteerOpportunity $opportunity, Request $request): bool
     {
-        $user = $request->user();
-        if (! $user) {
-            return false;
-        }
+        return $this->calendarEntryId($opportunity, $request, 'volunteer_opportunity_id') !== null;
+    }
 
-        return MyCalendar::query()
-            ->where('user_id', $user->id)
-            ->where('volunteer_opportunity_id', $opportunity->id)
-            ->where('is_saved', true)
-            ->exists();
+    protected function volunteerCalendarId(VolunteerOpportunity $opportunity, Request $request): ?int
+    {
+        return $this->calendarEntryId($opportunity, $request, 'volunteer_opportunity_id');
     }
 
     protected function isSavedToLearnServeCalendar(LearnServeOpportunity $opportunity, Request $request): bool
     {
-        $user = $request->user();
-        if (! $user) {
-            return false;
-        }
+        return $this->calendarEntryId($opportunity, $request, 'learn_serve_opportunity_id') !== null;
+    }
 
-        return MyCalendar::query()
-            ->where('user_id', $user->id)
-            ->where('learn_serve_opportunity_id', $opportunity->id)
-            ->where('is_saved', true)
-            ->exists();
+    protected function learnServeCalendarId(LearnServeOpportunity $opportunity, Request $request): ?int
+    {
+        return $this->calendarEntryId($opportunity, $request, 'learn_serve_opportunity_id');
     }
 
     protected function manualTracking(?int $participantsNeeded): bool

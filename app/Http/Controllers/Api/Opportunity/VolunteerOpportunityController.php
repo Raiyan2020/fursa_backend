@@ -25,11 +25,14 @@ use App\Services\Certificate\VolunteerCertificateService;
 use App\Services\Opportunity\OpportunityChangeNotifier;
 use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
+use App\Support\HtmlSanitizer;
+use App\Support\MediaKeepSet;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class VolunteerOpportunityController extends Controller
@@ -94,6 +97,10 @@ class VolunteerOpportunityController extends Controller
                 'approval_status' => ApprovalStatus::PENDING,
                 'deletion_status' => DeletionStatus::NOT_REQUESTED,
                 'opportunity_status' => OpportunityStatus::UPCOMING,
+                // BE-45: the private-opportunity Share button copies this back
+                // to the caller. An unguessable token, not the numeric id, so
+                // a private opportunity's link cannot be enumerated.
+                'generated_link' => (string) Str::uuid(),
             ]));
 
             $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'volunteer_opportunity_interest');
@@ -584,6 +591,7 @@ class VolunteerOpportunityController extends Controller
         // `lat` / `lng` from the map picker land on the real column names
         // before the rules run.
         $this->normalizeMapLocation($request);
+        MediaKeepSet::normalizeEmptySignal($request);
 
         $rules = [
             ...RepublishMedia::rules(),
@@ -636,6 +644,8 @@ class VolunteerOpportunityController extends Controller
         $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
 
         $validated = $request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/volunteer_opportunity_interest/'])]);
+
+        $validated = HtmlSanitizer::cleanFields($validated, ['description_en', 'description_ar']);
 
         return $this->normalizeBeneficiaries($validated);
     }
@@ -802,6 +812,23 @@ class VolunteerOpportunityController extends Controller
                 422,
                 ['filter_type' => [__('apis.invalid_filter_type')]]
             );
+        }
+
+        // BE-45: private volunteer opportunities are reachable by direct link
+        // only — they must never surface through a catalogue query. The
+        // organization's own "organized" view is the one legitimate exception.
+        if ($filterType !== 'organized') {
+            $volunteerQuery->where('is_public', true);
+        }
+
+        // The fully unscoped call (no filter_type, no user_id — see
+        // resolveListUser) only excluded REJECTED, so PENDING rows leaked into
+        // it too. Every other branch above already scopes to a specific
+        // owner or relationship, where a pending row can legitimately appear.
+        if ($filterType === '') {
+            $volunteerQuery->where('approval_status', ApprovalStatus::APPROVED);
+            $learnQuery->where('approval_status', ApprovalStatus::APPROVED);
+            $eventQuery->where('approval_status', ApprovalStatus::APPROVED);
         }
 
         $opportunityType = $this->normalizeOpportunityTypeFilter($request);

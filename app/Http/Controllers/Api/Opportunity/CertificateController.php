@@ -48,6 +48,14 @@ class CertificateController extends Controller
             );
         }
 
+        if (! $this->learningTypeGrantsCertificate($registration)) {
+            return ApiResponse::error(
+                'This learning type does not grant a certificate.',
+                'هذا النوع من الفرص لا يمنح شهادة.',
+                422
+            );
+        }
+
         return response(CertificateRenderer::html($registration), 200, [
             'Content-Type' => 'text/html; charset=UTF-8',
         ]);
@@ -84,6 +92,14 @@ class CertificateController extends Controller
             );
         }
 
+        if (! $this->learningTypeGrantsCertificate($registration)) {
+            return ApiResponse::error(
+                'This learning type does not grant a certificate.',
+                'هذا النوع من الفرص لا يمنح شهادة.',
+                422
+            );
+        }
+
         $path = CertificateRenderer::store($registration);
         $registration->certificate_image = $path;
         $registration->is_certified = true;
@@ -97,5 +113,17 @@ class CertificateController extends Controller
             'Certificate issued successfully.',
             'تم إصدار الشهادة بنجاح.'
         );
+    }
+
+    /**
+     * Product rule: of the four learning types, only Course and Internship
+     * grant a certificate — Class/Workshop and Consultation never do, no
+     * matter how attendance was recorded (BE-47).
+     */
+    private function learningTypeGrantsCertificate(LearnServeOpportunityRegistration $registration): bool
+    {
+        $type = strtolower(trim((string) $registration->opportunity?->learningType?->value_en));
+
+        return in_array($type, ['course', 'internship'], true);
     }
 }

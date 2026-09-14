@@ -141,11 +141,6 @@ class LifecycleFlowTest extends TestCase
             ->where('user_id', $volunteer->id)
             ->value('id');
 
-        $this->api($organizationToken)
-            ->patchJson('/api/event-registrations/'.$eventRegistrationId.'/', ['is_attended' => true])
-            ->assertOk()
-            ->assertJsonPath('key', 'success');
-
         $this->api($volunteerToken)
             ->postJson('/api/sync-statistics/')
             ->assertOk()
@@ -164,7 +159,7 @@ class LifecycleFlowTest extends TestCase
         $this->assertDatabaseHas('event_registrations', [
             'event_id' => $eventId,
             'user_id' => $volunteer->id,
-            'is_attended' => 1,
+            'is_deleted' => 0,
         ]);
         $this->assertDatabaseHas('volunteer_statistics', [
             'user_id' => $volunteer->id,
