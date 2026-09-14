@@ -13,6 +13,7 @@ use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Support\ApiResponse;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -191,11 +192,11 @@ class CalendarController extends Controller
             ]);
 
         $this->applyItemTypeFilter($query, $itemType);
+        $this->applySavedSourceFilters($query, $itemType, $search, $startDate, $endDate);
 
         return $query->get()
             ->filter(fn (MyCalendar $row) => $row->volunteerOpportunity || $row->learnServeOpportunity || $row->event)
             ->map(fn (MyCalendar $row) => $this->formatCalendarRow($row, 'Saved'))
-            ->filter(fn ($row) => $this->matchesFilters($row, $search, $startDate, $endDate))
             ->values()
             ->all();
     }
@@ -205,10 +206,12 @@ class CalendarController extends Controller
         $items = [];
 
         if (! $itemType || $itemType === 'volunteer_opportunity') {
-            VolunteerOpportunityRegistration::query()
+            $query = VolunteerOpportunityRegistration::query()
                 ->notDeleted()
                 ->where('user_id', $userId)
-                ->with(['opportunity' => fn ($q) => $q->notDeleted()])
+                ->whereHas('opportunity', fn ($q) => $this->applySourceFilters($q->notDeleted(), $search, $startDate, $endDate))
+                ->with(['opportunity' => fn ($q) => $q->notDeleted()]);
+            $query
                 ->get()
                 ->each(function ($reg) use (&$items) {
                     if ($reg->opportunity) {
@@ -218,10 +221,12 @@ class CalendarController extends Controller
         }
 
         if (! $itemType || $itemType === 'learn_serve_opportunity') {
-            LearnServeOpportunityRegistration::query()
+            $query = LearnServeOpportunityRegistration::query()
                 ->notDeleted()
                 ->where('user_id', $userId)
-                ->with(['opportunity' => fn ($q) => $q->notDeleted()->with('learningType')])
+                ->whereHas('opportunity', fn ($q) => $this->applySourceFilters($q->notDeleted(), $search, $startDate, $endDate))
+                ->with(['opportunity' => fn ($q) => $q->notDeleted()->with('learningType')]);
+            $query
                 ->get()
                 ->each(function ($reg) use (&$items) {
                     if ($reg->opportunity) {
@@ -231,10 +236,12 @@ class CalendarController extends Controller
         }
 
         if (! $itemType || $itemType === 'event') {
-            EventRegistration::query()
+            $query = EventRegistration::query()
                 ->notDeleted()
                 ->where('user_id', $userId)
-                ->with(['event' => fn ($q) => $q->notDeleted()->with('eventType')])
+                ->whereHas('event', fn ($q) => $this->applySourceFilters($q->notDeleted(), $search, $startDate, $endDate))
+                ->with(['event' => fn ($q) => $q->notDeleted()->with('eventType')]);
+            $query
                 ->get()
                 ->each(function ($reg) use (&$items) {
                     if ($reg->event) {
@@ -243,10 +250,7 @@ class CalendarController extends Controller
                 });
         }
 
-        return collect($items)
-            ->filter(fn ($row) => $this->matchesFilters($row, $search, $startDate, $endDate))
-            ->values()
-            ->all();
+        return $items;
     }
 
     protected function createdItems($user, ?string $itemType, ?string $search, ?Carbon $startDate, ?Carbon $endDate): array
@@ -254,35 +258,38 @@ class CalendarController extends Controller
         $items = [];
 
         if (! $itemType || $itemType === 'volunteer_opportunity') {
-            VolunteerOpportunity::query()
+            $query = VolunteerOpportunity::query()
                 ->notDeleted()
-                ->where('created_by', $user->id)
+                ->where('created_by', $user->id);
+            $this->applySourceFilters($query, $search, $startDate, $endDate);
+            $query
                 ->get()
                 ->each(fn ($opp) => $items[] = $this->formatOpportunity($opp, 'Volunteer', 'Organized'));
         }
 
         if (! $itemType || $itemType === 'learn_serve_opportunity') {
-            LearnServeOpportunity::query()
+            $query = LearnServeOpportunity::query()
                 ->notDeleted()
                 ->where('created_by', $user->id)
-                ->with('learningType')
+                ->with('learningType');
+            $this->applySourceFilters($query, $search, $startDate, $endDate);
+            $query
                 ->get()
                 ->each(fn ($opp) => $items[] = $this->formatOpportunity($opp, 'Learn', 'Organized'));
         }
 
         if ((! $itemType || $itemType === 'event') && $user->organizationProfile) {
-            Event::query()
+            $query = Event::query()
                 ->notDeleted()
                 ->where('created_by', $user->organizationProfile->id)
-                ->with('eventType')
+                ->with('eventType');
+            $this->applySourceFilters($query, $search, $startDate, $endDate);
+            $query
                 ->get()
                 ->each(fn ($event) => $items[] = $this->formatEvent($event, 'Organized'));
         }
 
-        return collect($items)
-            ->filter(fn ($row) => $this->matchesFilters($row, $search, $startDate, $endDate))
-            ->values()
-            ->all();
+        return $items;
     }
 
     protected function formatCalendarRow(MyCalendar $row, string $status = 'Saved'): array
@@ -364,6 +371,58 @@ class CalendarController extends Controller
         }
 
         return true;
+    }
+
+    /**
+     * Keep filtering in SQL so a one-day calendar request does not hydrate a
+     * user's complete registration/creation history first (BE-49 part 3).
+     */
+    protected function applySourceFilters(Builder $query, ?string $search, ?Carbon $startDate, ?Carbon $endDate): Builder
+    {
+        if ($search) {
+            $query->where(function (Builder $inner) use ($search) {
+                $inner->where('title_en', 'like', "%{$search}%")
+                    ->orWhere('title_ar', 'like', "%{$search}%");
+            });
+        }
+
+        if ($startDate) {
+            $query->where(function (Builder $inner) use ($startDate) {
+                $inner->whereNull('end_date')->orWhereDate('end_date', '>=', $startDate->toDateString());
+            });
+        }
+
+        if ($endDate) {
+            $query->where(function (Builder $inner) use ($endDate) {
+                $inner->whereNull('start_date')->orWhereDate('start_date', '<=', $endDate->toDateString());
+            });
+        }
+
+        return $query;
+    }
+
+    protected function applySavedSourceFilters(
+        Builder $query,
+        ?string $itemType,
+        ?string $search,
+        ?Carbon $startDate,
+        ?Carbon $endDate
+    ): void {
+        $relations = match ($itemType) {
+            'volunteer_opportunity' => ['volunteerOpportunity'],
+            'learn_serve_opportunity' => ['learnServeOpportunity'],
+            'event' => ['event'],
+            default => ['volunteerOpportunity', 'learnServeOpportunity', 'event'],
+        };
+
+        $query->where(function (Builder $outer) use ($relations, $search, $startDate, $endDate) {
+            foreach ($relations as $relation) {
+                $outer->orWhereHas(
+                    $relation,
+                    fn (Builder $source) => $this->applySourceFilters($source->notDeleted(), $search, $startDate, $endDate)
+                );
+            }
+        });
     }
 
     protected function applyItemTypeFilter($query, ?string $itemType): void

@@ -117,14 +117,14 @@ Route::middleware('auth:api')->group(function () {
     Route::match(['post', 'put', 'patch'], 'volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'update'])->middleware('api.approved-org');
     Route::post('volunteer-opportunities/{id}/close-registration/', [VolunteerOpportunityController::class, 'closeRegistration'])->middleware('api.approved-org');
     Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration'])->middleware('api.approved-org');
-    Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit']);
+    Route::post('volunteer-opportunities/{id}/resubmit/', [VolunteerOpportunityController::class, 'resubmit'])->middleware('api.approved-org');
     // Accepts both verbs: the two update_images routes had drifted apart
     // (POST here, PATCH for learn-serve), which is an easy 405 to trip over.
     Route::match(['post', 'patch'], 'volunteer-opportunities/{id}/update_images/', [VolunteerOpportunityController::class, 'updateImages'])->middleware('api.approved-org');
     Route::post('volunteer-opportunities/{id}/certificates/send/', [VolunteerOpportunityController::class, 'sendCertificates'])->middleware('api.approved-org');
-    Route::post('volunteer-opportunities/{id}/sponsors/', [VolunteerOpportunityController::class, 'addSponsor']);
-    Route::delete('volunteer-opportunities/{id}/sponsors/{sponsorId}/', [VolunteerOpportunityController::class, 'removeSponsor']);
-    Route::delete('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'destroy']);
+    Route::post('volunteer-opportunities/{id}/sponsors/', [VolunteerOpportunityController::class, 'addSponsor'])->middleware('api.approved-org');
+    Route::delete('volunteer-opportunities/{id}/sponsors/{sponsorId}/', [VolunteerOpportunityController::class, 'removeSponsor'])->middleware('api.approved-org');
+    Route::delete('volunteer-opportunities/{id}/', [VolunteerOpportunityController::class, 'destroy'])->middleware('api.approved-org');
     Route::match(['delete', 'post'], 'volunteer-opportunities/{opportunity_id}/unregister/', [VolunteerOpportunityRegistrationController::class, 'unregister']);
 
     Route::get('learn-serve-opportunities/my_opportunities/', [LearnServeOpportunityController::class, 'myOpportunities']);
@@ -132,9 +132,9 @@ Route::middleware('auth:api')->group(function () {
     Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration'])->middleware('api.approved-org');
     Route::match(['post', 'patch'], 'learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages'])->middleware('api.approved-org');
-    Route::post('learn-serve-opportunities/{id}/sponsors/', [LearnServeOpportunityController::class, 'addSponsor']);
-    Route::delete('learn-serve-opportunities/{id}/sponsors/{sponsorId}/', [LearnServeOpportunityController::class, 'removeSponsor']);
-    Route::delete('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'destroy']);
+    Route::post('learn-serve-opportunities/{id}/sponsors/', [LearnServeOpportunityController::class, 'addSponsor'])->middleware('api.approved-org');
+    Route::delete('learn-serve-opportunities/{id}/sponsors/{sponsorId}/', [LearnServeOpportunityController::class, 'removeSponsor'])->middleware('api.approved-org');
+    Route::delete('learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'destroy'])->middleware('api.approved-org');
     Route::match(['delete', 'post'], 'learn-serve-opportunities/{opportunity_id}/unregister/', [LearnServeRegistrationController::class, 'unregister']);
 
     Route::get('volunteer-opportunity-registrations/', [VolunteerOpportunityRegistrationController::class, 'index']);
@@ -253,7 +253,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('events/{id}/register/', [EventController::class, 'register']);
     Route::post('events/{id}/close-registration/', [EventController::class, 'closeRegistration'])->middleware('api.approved-org');
     Route::post('events/{id}/reject/', [EventController::class, 'reject']);
-    Route::delete('events/{id}/', [EventController::class, 'destroy']);
+    Route::delete('events/{id}/', [EventController::class, 'destroy'])->middleware('api.approved-org');
     Route::match(['delete', 'post'], 'events/{event_id}/unregister/', [EventRegistrationController::class, 'unregister']);
     Route::post('events/{event_id}/request-deletion/', [EventDeletionController::class, 'requestDeletion']);
     Route::post('admin/event-deletion-action/', [EventDeletionController::class, 'adminAction']);
@@ -301,9 +301,9 @@ Route::middleware('auth:api')->group(function () {
     Route::match(['post', 'patch'], 'notifications/{id}/unread/', [NotificationController::class, 'markOneUnread'])->whereNumber('id');
     Route::delete('notifications/{id}/', [NotificationController::class, 'destroyOne'])->whereNumber('id');
 
-    Route::post('event/republish/{id}', [EventController::class, 'republish']);
-    Route::post('events/{id}/sponsors/', [EventController::class, 'addSponsor']);
-    Route::delete('events/{id}/sponsors/{sponsorId}/', [EventController::class, 'removeSponsor']);
+    Route::post('event/republish/{id}', [EventController::class, 'republish'])->middleware('api.approved-org');
+    Route::post('events/{id}/sponsors/', [EventController::class, 'addSponsor'])->middleware('api.approved-org');
+    Route::delete('events/{id}/sponsors/{sponsorId}/', [EventController::class, 'removeSponsor'])->middleware('api.approved-org');
     // Calendar
     Route::get('my-calendar/', [CalendarController::class, 'index']);
     Route::post('my-calendar/save/', [CalendarController::class, 'store']);

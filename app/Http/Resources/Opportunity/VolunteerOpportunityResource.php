@@ -63,7 +63,11 @@ class VolunteerOpportunityResource extends JsonResource
             'opportunity_sponsor_images' => $this->opportunitySponsorImagesPayload($this->sponsorImages ?? collect()),
             'created_by' => $this->createdByPayload($this->creator, $request),
             'user_type' => $this->creator?->user_type?->value ?? $this->creator?->user_type,
-            'registration_link' => $this->generated_link,
+            // Private opportunities are shared by their real frontend detail
+            // URL. generated_link remains an opaque invite token for legacy
+            // rows, but a bare UUID is not navigable and must not be exposed
+            // as though it were a URL.
+            'registration_link' => rtrim((string) config('fursa.frontend_host'), '/').'/volunteer-event-detail/'.$this->id,
             'after_completed_images_count' => $this->afterCompletedImagesCount($images),
             'opportunity_type' => 'volunteer_opportunity',
             'registered_volunteers_count' => $this->registeredVolunteersCount($registrations),

@@ -43,14 +43,12 @@ class OrganizationProfileController extends Controller
             'organization_status' => ['required', Rule::in(ApprovalStatus::values())],
         ]);
 
-        $wasApproved = $entity->organization_status === ApprovalStatus::APPROVED;
-
         $entity->update($data);
 
         // Withdrawing approval from this screen must withdraw access exactly
         // like the dedicated Reject button does — otherwise the organization
         // keeps a live token until it expires (up to 30 days).
-        if ($wasApproved && $entity->organization_status !== ApprovalStatus::APPROVED) {
+        if ($entity->organization_status !== ApprovalStatus::APPROVED) {
             $entity->user?->revokeAllTokens();
         }
 

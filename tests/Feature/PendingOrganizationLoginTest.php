@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\UserType;
+use App\Models\ExpiringToken;
 use App\Models\OrganizationProfile;
 use App\Models\User;
+use App\Models\VolunteerOpportunity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Concerns\AssertsDjangoApiEnvelope;
@@ -62,6 +64,31 @@ class PendingOrganizationLoginTest extends TestCase
 
         $this->assertSuccessEnvelope($login, 200, 'Login successful.');
         $this->assertNotEmpty($login->json('data.data.auth_token'));
+    }
+
+    public function test_withdrawn_approval_blocks_existing_token_on_privileged_writes(): void
+    {
+        $user = $this->createOrganization(ApprovalStatus::APPROVED);
+        $token = ExpiringToken::issueFor($user, 30);
+        $opportunity = VolunteerOpportunity::query()->create([
+            'created_by' => $user->id,
+            'title_en' => 'Owned opportunity',
+            'start_date' => now()->addDay(),
+            'end_date' => now()->addDays(2),
+            'is_public' => true,
+        ]);
+
+        $user->organizationProfile->update(['organization_status' => ApprovalStatus::PENDING]);
+
+        foreach ([
+            ['PATCH', "/api/volunteer-opportunities/$opportunity->id/"],
+            ['POST', "/api/volunteer-opportunities/$opportunity->id/resubmit/"],
+            ['DELETE', "/api/volunteer-opportunities/$opportunity->id/"],
+        ] as [$method, $url]) {
+            $this->withToken($token->key)->json($method, $url, ['title_en' => 'Blocked'])
+                ->assertForbidden()
+                ->assertJsonPath('msg', 'Your organization account has not been approved by the admin yet.');
+        }
     }
 
     protected function createOrganization(ApprovalStatus $status): User

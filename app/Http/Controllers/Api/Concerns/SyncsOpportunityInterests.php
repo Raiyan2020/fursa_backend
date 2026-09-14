@@ -40,7 +40,10 @@ trait SyncsOpportunityInterests
             $legacyIds = $choices->map(function ($choice) use ($type) {
                 $name = trim($choice->value_en);
 
-                return (Interest::whereRaw('LOWER(TRIM(name_en)) = ?', [mb_strtolower($name)])->first()
+                return (Interest::query()
+                    ->where('interest_type', $type->value)
+                    ->whereRaw('LOWER(TRIM(name_en)) = ?', [mb_strtolower($name)])
+                    ->first()
                     ?? Interest::create(['name_en' => $name, 'name_ar' => $choice->value_ar ?: $name, 'interest_type' => $type]))->id;
             });
             $model->masterInterests()->sync($choices->pluck('id'));

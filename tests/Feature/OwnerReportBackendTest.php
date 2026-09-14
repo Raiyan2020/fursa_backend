@@ -115,6 +115,12 @@ class OwnerReportBackendTest extends TestCase
         $this->assertSuccessEnvelope($preview);
         $preview->assertJsonPath('data.course_ar', 'دورة القيادة')
             ->assertJsonPath('data.course', 'دورة القيادة');
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeader('Authorization', '')->getJson('/api/certificate/preview/'.$registration->id.'/')->assertUnauthorized();
+        [, $strangerToken] = $this->createVolunteerActor('cert.stranger@test.com');
+        $this->api($strangerToken)->getJson('/api/certificate/preview/'.$registration->id.'/')->assertNotFound();
+        $this->api($organizationToken)->getJson('/api/certificate/preview/'.$registration->id.'/')->assertOk();
     }
 
     public function test_certificates_tab_includes_the_organizing_entity_name(): void

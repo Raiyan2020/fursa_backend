@@ -60,14 +60,6 @@ class AdvanceOpportunityStatusesCommand extends Command
 
                 $opp->opportunity_status = $newStatus;
 
-                if (
-                    $model === VolunteerOpportunity::class
-                    && $newStatus === OpportunityStatus::COMPLETED
-                    && ! $opp->is_public
-                ) {
-                    $opp->is_public = true;
-                }
-
                 $opp->save();
 
                 if ($newStatus === OpportunityStatus::COMPLETED) {

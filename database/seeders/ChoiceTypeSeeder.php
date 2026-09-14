@@ -256,15 +256,25 @@ class ChoiceTypeSeeder extends Seeder
         foreach ($map as $typeName => $values) {
             $type = ChoiceType::query()->firstOrCreate(['name' => $typeName]);
             foreach ($values as [$en, $ar]) {
-                MasterChoice::query()->firstOrCreate(
+                MasterChoice::query()->updateOrCreate(
                     [
                         'choice_type_id' => $type->id,
                         'value_en' => $en,
                     ],
                     [
                         'value_ar' => $ar,
+                        'is_deleted' => false,
+                        'deleted_at' => null,
                     ]
                 );
+            }
+
+            if ($typeName === 'learning_type') {
+                $approvedValues = array_column($values, 0);
+                MasterChoice::query()
+                    ->where('choice_type_id', $type->id)
+                    ->whereNotIn('value_en', $approvedValues)
+                    ->update(['is_deleted' => true, 'deleted_at' => now()]);
             }
         }
 

@@ -6,7 +6,6 @@
  *
  * Covers ALL routes defined in routes/api.php across 13 top-level folders.
  */
-
 $out = __DIR__.'/../docs/postman/Fursa_API.postman_collection.json';
 
 function fd(array $fields): array
@@ -126,25 +125,25 @@ $loginEvent = [[
     'script' => [
         'type' => 'text/javascript',
         'exec' => [
-            "try {",
-            "  const json = pm.response.json();",
-            "  const token =",
-            "    (json.data && json.data.data && json.data.data.auth_token) ||",
-            "    (json.data && json.data.auth_token) ||",
-            "    (json.data && json.data.token) ||",
-            "    json.auth_token ||",
-            "    json.token;",
-            "  if (token) {",
+            'try {',
+            '  const json = pm.response.json();',
+            '  const token =',
+            '    (json.data && json.data.data && json.data.data.auth_token) ||',
+            '    (json.data && json.data.auth_token) ||',
+            '    (json.data && json.data.token) ||',
+            '    json.auth_token ||',
+            '    json.token;',
+            '  if (token) {',
             "    pm.collectionVariables.set('token', token);",
             "    console.log('Saved {{token}} from login/verify response');",
-            "  }",
-            "  if (json.data && json.data.data && json.data.data.id) {",
+            '  }',
+            '  if (json.data && json.data.data && json.data.data.id) {',
             "    pm.collectionVariables.set('user_id', String(json.data.data.id));",
-            "  } else if (json.data && json.data.user_id) {",
+            '  } else if (json.data && json.data.user_id) {',
             "    pm.collectionVariables.set('user_id', String(json.data.user_id));",
-            "  } else if (json.data && json.data.id) {",
+            '  } else if (json.data && json.data.id) {',
             "    pm.collectionVariables.set('user_id', String(json.data.id));",
-            "  }",
+            '  }',
             "} catch (e) { console.log('No JSON body to parse for token'); }",
         ],
     ],
@@ -155,10 +154,10 @@ $verifyEvent = [[
     'script' => [
         'type' => 'text/javascript',
         'exec' => [
-            "try {",
-            "  const json = pm.response.json();",
-            "  if (json.data && json.data.token) {",
-            "    if (pm.request.body && pm.request.body.urlencoded) { /* noop */ }",
+            'try {',
+            '  const json = pm.response.json();',
+            '  if (json.data && json.data.token) {',
+            '    if (pm.request.body && pm.request.body.urlencoded) { /* noop */ }',
             "    const typeField = (pm.request.body.formdata || []).find(f => f.key === 'type');",
             "    const type = typeField ? typeField.value : '';",
             "    if (type === 'register') {",
@@ -167,12 +166,12 @@ $verifyEvent = [[
             "    } else if (type === 'password') {",
             "      pm.collectionVariables.set('reset_token', json.data.token);",
             "      console.log('Saved {{reset_token}} for change-password');",
-            "    }",
-            "  }",
-            "  if (json.data && json.data.user_id) {",
+            '    }',
+            '  }',
+            '  if (json.data && json.data.user_id) {',
             "    pm.collectionVariables.set('user_id', String(json.data.user_id));",
-            "  }",
-            "} catch (e) {}",
+            '  }',
+            '} catch (e) {}',
         ],
     ],
 ]];
@@ -241,6 +240,7 @@ MD,
         ['key' => 'password', 'value' => 'Password1'],
         ['key' => 'org_email', 'value' => 'organization@fursa.local'],
         ['key' => 'user_id', 'value' => '1'],
+        ['key' => 'organization_status', 'value' => 'approved'],
         ['key' => 'choice_type', 'value' => 'gender'],
         ['key' => 'volunteer_uuid', 'value' => '00000000-0000-0000-0000-000000000001'],
         ['key' => 'otp', 'value' => '123456'],
@@ -248,6 +248,9 @@ MD,
         ['key' => 'event_id', 'value' => '1'],
         ['key' => 'post_id', 'value' => '1'],
         ['key' => 'registration_id', 'value' => '1'],
+        ['key' => 'attendance_id', 'value' => '1'],
+        ['key' => 'calendar_id', 'value' => '1'],
+        ['key' => 'notification_id', 'value' => '1'],
         ['key' => 'feedback_id', 'value' => '1'],
         ['key' => 'sponsor_id', 'value' => '1'],
         ['key' => 'contact_id', 'value' => '1'],
@@ -368,7 +371,7 @@ $auth = [
                 ),
                 req(
                     'Update Account',
-                    'PUT',
+                    'POST',
                     'account/',
                     "## Update Account\nUpdates account fields for the authenticated user. Supports profile image upload via form-data. `PATCH` is also accepted.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| profile_pic | No | New avatar image file |\n| first_name / last_name | No | Name fields |\n| email | No | New unique email |\n| phone_number / country_code | No | Phone |\n| birth_year / nationality / preferred_language | No | Profile meta |\n| civil_id | No | Unique civil ID |\n| emergency_contact_* | No | Emergency contact block |",
                     true,
@@ -2278,7 +2281,7 @@ $calendar = [
         req(
             'Save Calendar Item',
             'POST',
-            'my-calendar/',
+            'my-calendar/save/',
             "## Save Calendar Item\nBookmarks exactly one of a volunteer opportunity, learn & serve opportunity, or event to the calendar.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| volunteer_opportunity_id | One of | `volunteer_opportunities.id` |\n| learn_serve_opportunity_id | One of | `learn_serve_opportunities.id` |\n| event_id | One of | `events.id` |\n| is_saved | No | Defaults to `true` |",
             true,
             [
@@ -2290,8 +2293,8 @@ $calendar = [
         ),
         req(
             'Update Calendar Item',
-            'PUT',
-            'my-calendar/{{time_slot_id}}/',
+            'PATCH',
+            'my-calendar/{{calendar_id}}/',
             "## Update Calendar Item\nToggles the `is_saved` flag on your own calendar entry. `PATCH` is also accepted.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Path params\n| Param | Description |\n|-------|-------------|\n| id | `my_calendars.id` (reuse `{{time_slot_id}}` as a generic numeric id placeholder) |\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| is_saved | No | `true`/`false` |",
             true,
             [
@@ -2301,7 +2304,7 @@ $calendar = [
         req(
             'Remove Calendar Item',
             'DELETE',
-            'my-calendar/{{time_slot_id}}/',
+            'my-calendar/{{calendar_id}}/',
             "## Remove Calendar Item\nSoft-deletes your own calendar entry.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Path params\n| Param | Description |\n|-------|-------------|\n| id | `my_calendars.id` (reuse `{{time_slot_id}}` as a generic numeric id placeholder) |",
             true
         ),
@@ -2470,12 +2473,8 @@ $statistics = [
             'User Certificates',
             'GET',
             'user-certificates/',
-            "## User Certificates\nReturns every certified Learn & Serve certificate image for a given user.\n\n**Auth:** Public (no auth).\n\n### Query params\n| Param | Required | Description |\n|-------|----------|-------------|\n| user_id | Yes | `users.id` whose certificates to return |",
-            false,
-            [],
-            [
-                ['key' => 'user_id', 'value' => '{{user_id}}', 'description' => 'users.id whose certificates to return (required).'],
-            ]
+            "## User Certificates\nReturns the authenticated volunteer's certified Learn & Serve certificates.\n\n**Auth required:** Bearer `{{token}}`. The API deliberately ignores arbitrary user ids.",
+            true
         ),
         req(
             'Available Volunteers',
@@ -2523,6 +2522,98 @@ $statistics = [
     ],
 ];
 
+// =====================================================================
+// 14 Additional route coverage
+// =====================================================================
+// These are valid Laravel routes that were historically absent from the
+// collection even though the collection claimed full route coverage. Keep
+// them explicit so every endpoint is discoverable and its body mode is clear:
+// requests without payloads have no `body`; payload requests use form-data.
+$additionalRoutes = [
+    'name' => '14 Additional Route Coverage',
+    'description' => 'Lifecycle, moderation, sponsorship, attendance, certificate, notification, and public lookup routes that are also registered by routes/api.php.',
+    'item' => [
+        req('Home Feed', 'GET', 'home/', 'Public homepage payload.', false),
+        req('List CMS Pages', 'GET', 'pages/', 'Public CMS page list.', false),
+        req('Get CMS Page', 'GET', 'pages/{{choice_type}}/', 'Public CMS page by slug; set choice_type to the page slug.', false),
+        req('List Volunteer Profiles', 'GET', 'profiles/volunteers/', 'Public volunteer profile directory.', false),
+        req('List Organization Profiles', 'GET', 'profiles/organizations/', 'Public organization profile directory.', false),
+        req('List Volunteer Team Profiles', 'GET', 'profiles/volunteer-teams/', 'Public volunteer-team profile directory.', false),
+
+        req('Close Volunteer Registration', 'POST', 'volunteer-opportunities/{{opportunity_id}}/close-registration/', 'Close registration for an owned volunteer opportunity. No request body.', true),
+        req('Reopen Volunteer Registration', 'POST', 'volunteer-opportunities/{{opportunity_id}}/reopen-registration/', 'Reopen registration for an owned volunteer opportunity. No request body.', true),
+        req('Resubmit Volunteer Opportunity', 'POST', 'volunteer-opportunities/{{opportunity_id}}/resubmit/', 'Resubmit an owned rejected volunteer opportunity. No request body.', true),
+        req('Send Volunteer Certificates', 'POST', 'volunteer-opportunities/{{opportunity_id}}/certificates/send/', 'Issue/send certificates for eligible registrations. No request body.', true),
+        req('Add Volunteer Opportunity Sponsor', 'POST', 'volunteer-opportunities/{{opportunity_id}}/sponsors/', 'Attach a sponsor to an owned volunteer opportunity.', true, [
+            ['key' => 'organization_id', 'value' => '{{sponsor_id}}', 'description' => 'Organization profile id to attach as sponsor.'],
+        ]),
+        req('Remove Volunteer Opportunity Sponsor', 'DELETE', 'volunteer-opportunities/{{opportunity_id}}/sponsors/{{sponsor_id}}/', 'Remove a sponsor from an owned volunteer opportunity. No request body.', true),
+        req('Update Volunteer Registration Statuses', 'PATCH', 'volunteer-opportunities/{{opportunity_id}}/registrations/status/', 'Bulk update volunteer registration statuses.', true, [
+            ['key' => 'registration_ids[0]', 'value' => '{{registration_id}}', 'description' => 'Registration id.'],
+            ['key' => 'status', 'value' => 'approved', 'description' => 'Target registration status.'],
+        ]),
+        req('Message Volunteer Registrants', 'POST', 'volunteer-opportunities/{{opportunity_id}}/registrations/message/', 'Email/message selected volunteer registrants.', true, [
+            ['key' => 'registration_ids[0]', 'value' => '{{registration_id}}', 'description' => 'Registration id.'],
+            ['key' => 'subject', 'value' => 'Opportunity update', 'description' => 'Message subject.'],
+            ['key' => 'message', 'value' => 'Please review the latest opportunity update.', 'description' => 'Message body.'],
+        ]),
+        req('Reopen Volunteer Check-in', 'POST', 'admin/volunteer-opportunities/{{opportunity_id}}/reopen-check-in/', 'Temporarily reopen check-in for an owned volunteer opportunity.', true, [
+            ['key' => 'extra_hours', 'value' => '24', 'description' => 'Hours to extend the check-in window.'],
+        ]),
+        req('Record Manual Volunteer Attendance', 'POST', 'volunteer-attendance/manual/', 'Record manual attendance for a volunteer registration.', true, [
+            ['key' => 'opportunity_id', 'value' => '{{opportunity_id}}', 'description' => 'Owned volunteer opportunity id.'],
+            ['key' => 'registration_id', 'value' => '{{registration_id}}', 'description' => 'Volunteer registration id.'],
+            ['key' => 'attendance_date', 'value' => '2026-09-14', 'description' => 'Attendance date.'],
+            ['key' => 'total_hours', 'value' => '2', 'description' => 'Credited hours.'],
+        ]),
+        req('Update Volunteer Attendance Hours', 'PATCH', 'volunteer-attendance/{{attendance_id}}/hours/', 'Correct credited attendance hours.', true, [
+            ['key' => 'total_hours', 'value' => '2', 'description' => 'Corrected hours.'],
+        ]),
+        req('Undo Volunteer Attendance', 'POST', 'volunteer-attendance/{{attendance_id}}/undo/', 'Undo an attendance record. No request body.', true),
+
+        req('Close Learn & Serve Registration', 'POST', 'learn-serve-opportunities/{{opportunity_id}}/close-registration/', 'Close registration for an owned Learn & Serve opportunity. No request body.', true),
+        req('Add Learn & Serve Sponsor', 'POST', 'learn-serve-opportunities/{{opportunity_id}}/sponsors/', 'Attach a sponsor to an owned Learn & Serve opportunity.', true, [
+            ['key' => 'organization_id', 'value' => '{{sponsor_id}}', 'description' => 'Organization profile id to attach as sponsor.'],
+        ]),
+        req('Remove Learn & Serve Sponsor', 'DELETE', 'learn-serve-opportunities/{{opportunity_id}}/sponsors/{{sponsor_id}}/', 'Remove a sponsor from an owned Learn & Serve opportunity. No request body.', true),
+        req('Update Learn & Serve Registration Statuses', 'PATCH', 'learn-serve-opportunities/{{opportunity_id}}/registrations/status/', 'Bulk update Learn & Serve registration statuses.', true, [
+            ['key' => 'registration_ids[0]', 'value' => '{{registration_id}}', 'description' => 'Registration id.'],
+            ['key' => 'status', 'value' => 'approved', 'description' => 'Target registration status.'],
+        ]),
+        req('Message Learn & Serve Registrants', 'POST', 'learn-serve-opportunities/{{opportunity_id}}/registrations/message/', 'Email/message selected Learn & Serve registrants.', true, [
+            ['key' => 'registration_ids[0]', 'value' => '{{registration_id}}', 'description' => 'Registration id.'],
+            ['key' => 'subject', 'value' => 'Opportunity update', 'description' => 'Message subject.'],
+            ['key' => 'message', 'value' => 'Please review the latest opportunity update.', 'description' => 'Message body.'],
+        ]),
+
+        req('Close Event Registration', 'POST', 'events/{{event_id}}/close-registration/', 'Close the legacy event registration channel. No request body.', true),
+        req('Republish Event', 'POST', 'event/republish/{{event_id}}', 'Republish an owned event from an existing record.', true, [
+            ['key' => 'existing_image_ids', 'value' => 'none', 'description' => 'Use none to copy no existing gallery images.'],
+        ]),
+        req('Add Event Sponsor', 'POST', 'events/{{event_id}}/sponsors/', 'Attach a sponsor to an owned event.', true, [
+            ['key' => 'organization_id', 'value' => '{{sponsor_id}}', 'description' => 'Organization profile id to attach as sponsor.'],
+        ]),
+        req('Remove Event Sponsor', 'DELETE', 'events/{{event_id}}/sponsors/{{sponsor_id}}/', 'Remove a sponsor from an owned event. No request body.', true),
+        req('List Registrations By Event', 'GET', 'event-registrations/by-event/{{event_id}}/', 'List registrations for an owned event.', true),
+
+        req('Preview Learn & Serve Certificate HTML', 'GET', 'certificates/{{registration_id}}/', 'Render an owned Learn & Serve certificate as HTML.', true),
+        req('Issue Learn & Serve Certificate', 'POST', 'certificates/{{registration_id}}/issue/', 'Issue the authenticated volunteer certificate after eligible attendance. No request body.', true),
+
+        req('Mark One Notification Read', 'POST', 'notifications/{{notification_id}}/read/', 'Mark one notification read. No request body.', true),
+        req('Mark One Notification Unread', 'POST', 'notifications/{{notification_id}}/unread/', 'Mark one notification unread. No request body.', true),
+        req('Delete One Notification', 'DELETE', 'notifications/{{notification_id}}/', 'Delete one notification. No request body.', true),
+    ],
+];
+
+$testSupport = [
+    'name' => '15 Local Test Support',
+    'description' => 'Local/testing-only helpers. They return 404 outside local or testing environments.',
+    'item' => [
+        req('Approve Test Record', 'POST', '_test/approve/{{choice_type}}/{{opportunity_id}}/', 'Local-only approval helper. choice_type is volunteer, learn, or event. No request body.', false),
+        req('Set Test Organization Status', 'POST', '_test/set-org-status/{{user_id}}/{{organization_status}}/', 'Local-only organization status helper. Use approved, pending, or rejected in the path. No request body.', false),
+    ],
+];
+
 $collection['item'] = [
     $auth,
     $base,
@@ -2537,6 +2628,8 @@ $collection['item'] = [
     $sponsors,
     $contactUs,
     $statistics,
+    $additionalRoutes,
+    $testSupport,
 ];
 
 $json = json_encode($collection, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

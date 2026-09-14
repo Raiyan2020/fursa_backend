@@ -15,7 +15,6 @@ use App\Models\MasterChoice;
 use App\Models\MyCalendar;
 use App\Models\Post;
 use App\Models\Reply;
-use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Services\Certificate\VolunteerCertificateRenderer;
@@ -124,24 +123,41 @@ class BackendMissingItemsTest extends TestCase
         $this->api($token)->getJson("/api/event-registrations/$reg->id/")->assertOk();
         $this->api($ownerToken)->getJson("/api/event-registrations/$reg->id/")->assertOk();
         $this->api($ownerToken)->patchJson("/api/event-registrations/$reg->id/", ['time_slot_id' => $slot->id])->assertUnprocessable();
-        $this->api($stranger)->getJson("/api/scan-permissions/list/?event_id=$event->id")->assertForbidden();
-        $this->api($ownerToken)->getJson("/api/scan-permissions/list/?event_id=$event->id")->assertOk();
+        // Events do not have Fursa attendance/check-in, so event-scoped scan
+        // permissions are rejected for every caller (BE-41).
+        $this->api($stranger)->getJson("/api/scan-permissions/list/?event_id=$event->id")->assertStatus(400);
+        $this->api($ownerToken)->getJson("/api/scan-permissions/list/?event_id=$event->id")->assertStatus(400);
+        $this->api($ownerToken)->postJson('/api/scan-permissions/bulk-update/', [
+            'event_id' => $event->id,
+            'user_ids' => [$user->id],
+        ])->assertStatus(400);
     }
 
     public function test_calendar_routes_scope_saved_items_and_upload_ics(): void
     {
         [$owner] = $this->createOrganizationActor();
-        [, $token] = $this->createVolunteerActor();
+        [$volunteer, $token] = $this->createVolunteerActor();
         [, $stranger] = $this->createVolunteerActor();
         $event = $this->item(Event::class, $owner);
         $response = $this->api($token)->postJson('/api/my-calendar/save/', ['event_id' => $event->id])->assertCreated();
         $id = MyCalendar::firstOrFail()->id;
+        $response->assertJsonPath('data.calendar_id', $id);
+        $this->api($token)->getJson("/api/events/$event->id/")
+            ->assertOk()
+            ->assertJsonPath('data.is_saved_to_calendar', true)
+            ->assertJsonPath('data.calendar_id', $id);
+        $this->api($token)->postJson('/api/my-calendar/save/', ['event_id' => $event->id])->assertCreated();
+        $this->assertSame(1, MyCalendar::query()->where('user_id', $volunteer->id)->count());
         $this->api($stranger)->patchJson("/api/my-calendar/$id/", ['is_saved' => false])->assertNotFound();
         $this->api($stranger)->deleteJson("/api/my-calendar/$id/")->assertNotFound();
         $this->api($token)->getJson('/api/my-calendar/')->assertOk();
         $this->api($token)->patchJson("/api/my-calendar/$id/", ['is_saved' => false])->assertOk();
         $this->api($token)->postJson('/api/upload-ics/', ['ics_file' => UploadedFile::fake()->createWithContent('calendar.ics', "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR")])->assertCreated()->assertJsonStructure(['data' => ['file_url', 'webcal_url']]);
         $this->api($token)->deleteJson("/api/my-calendar/$id/")->assertNoContent();
+        $this->api($token)->getJson("/api/events/$event->id/")
+            ->assertOk()
+            ->assertJsonPath('data.is_saved_to_calendar', false)
+            ->assertJsonPath('data.calendar_id', null);
     }
 
     public function test_media_keep_sets_remove_one_of_three_and_cannot_take_foreign_images(): void
@@ -161,7 +177,66 @@ class BackendMissingItemsTest extends TestCase
             $this->assertSame(2, $parent->images()->notDeleted()->count());
             $this->api($token)->patchJson("/api/$path/$parent->id/", ['existing_image_ids' => []])->assertOk();
             $this->assertSame(0, $parent->images()->notDeleted()->count());
+
+            if ($path === 'events') {
+                $parent->images()->create(['image' => "$path/recreated.png"]);
+                $this->api($token)->patch("/api/$path/$parent->id/", ['existing_image_ids' => 'none'])->assertOk();
+                $this->assertSame(0, $parent->images()->notDeleted()->count());
+            }
         }
+    }
+
+    public function test_private_opportunity_is_joinable_hidden_shareable_and_stays_private(): void
+    {
+        [$owner, $ownerToken] = $this->createOrganizationActor();
+        [, $volunteerToken] = $this->createVolunteerActor();
+
+        $opportunity = $this->item(VolunteerOpportunity::class, $owner, [
+            'is_public' => false,
+            'generated_link' => 'opaque-token',
+        ]);
+
+        $this->api($volunteerToken)->postJson('/api/volunteer-opportunity-registrations/', [
+            'opportunity_id' => $opportunity->id,
+        ])->assertCreated();
+
+        $this->api($volunteerToken)->getJson('/api/list-all-opportunities/')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $opportunity->id, 'opportunity_type' => 'volunteer_opportunity']);
+
+        config(['fursa.frontend_host' => 'https://frontend.example']);
+        $this->api($volunteerToken)->getJson("/api/opportunities/$opportunity->id/details/")
+            ->assertOk()
+            ->assertJsonPath('data.registration_link', "https://frontend.example/volunteer-event-detail/$opportunity->id");
+
+        $opportunity->update([
+            'start_date' => now()->subDays(2),
+            'end_date' => now()->subDay(),
+            'opportunity_status' => OpportunityStatus::INPROGRESS,
+        ]);
+        $this->artisan('fursa:advance-statuses')->assertSuccessful();
+        $this->assertFalse($opportunity->fresh()->is_public);
+
+        $opportunity->update(['title_en' => 'Still private']);
+        $this->api($ownerToken)->getJson('/api/list-all-opportunities/?filter_type=organized')
+            ->assertOk()
+            ->assertJsonFragment(['title_en' => 'Still private']);
+    }
+
+    public function test_api_rich_text_is_sanitized_on_the_real_write_path(): void
+    {
+        [, $token] = $this->createOrganizationActor();
+        $payload = $this->payload(VolunteerOpportunity::class);
+        $payload['description_en'] = '<p>Safe</p><img src="x" onerror="alert(1)"><script>alert(2)</script>';
+
+        $id = $this->api($token)->postJson('/api/volunteer-opportunities/', $payload)
+            ->assertCreated()
+            ->json('data.id');
+
+        $stored = VolunteerOpportunity::query()->findOrFail($id)->description_en;
+        $this->assertStringContainsString('<p>Safe</p>', $stored);
+        $this->assertStringNotContainsString('onerror', $stored);
+        $this->assertStringNotContainsString('<script', $stored);
     }
 
     public function test_sponsors_can_be_removed_then_restored_with_position_for_all_types(): void
@@ -228,8 +303,7 @@ class BackendMissingItemsTest extends TestCase
         $learn = $this->item(LearnServeOpportunity::class, $owner);
         EventRegistration::create(['event_id' => $event->id, 'user_id' => $user->id, 'registration_date' => now(), 'registration_status' => ApprovalStatus::APPROVED]);
         LearnServeOpportunityRegistration::create(['opportunity_id' => $learn->id, 'user_id' => $user->id, 'registration_date' => now(), 'status' => ApprovalStatus::APPROVED]);
-        ScanPermission::create(['event_id' => $event->id, 'user_id' => $user->id, 'is_allowed' => true]);
-        foreach (["event-registrations/by-event/$event->id/?status=approved", "learn-serve-opportunities/$learn->id/registrations/?status=approved", "scan-permissions/list/?event_id=$event->id"] as $path) {
+        foreach (["event-registrations/by-event/$event->id/?status=approved", "learn-serve-opportunities/$learn->id/registrations/?status=approved"] as $path) {
             $url = "/api/$path&download=true";
             $this->api($stranger)->getJson($url)->assertForbidden();
             $download = $this->api($token)->getJson($url)->assertOk()->json('data.downloadUrl');
@@ -243,6 +317,9 @@ class BackendMissingItemsTest extends TestCase
             $zip->close();
             $this->api($token)->getJson($url.'&mark_attendance=true')->assertUnprocessable();
         }
+
+        $this->api($token)->getJson("/api/scan-permissions/list/?event_id=$event->id&download=true")
+            ->assertStatus(400);
     }
 
     public function test_participation_matrix_and_required_learning_choices(): void
@@ -258,6 +335,24 @@ class BackendMissingItemsTest extends TestCase
         $body = $this->payload(LearnServeOpportunity::class);
         unset($body['certificate_type_id']);
         $this->api($token)->postJson('/api/learn-serve-opportunities/', $body)->assertUnprocessable();
+
+        $workshopPayload = array_replace($this->payload(LearnServeOpportunity::class), [
+            'learning_type_id' => $this->choice('learning_type', 'Class/Workshop'),
+        ]);
+        $this->api($token)->postJson('/api/learn-serve-opportunities/', $workshopPayload)->assertUnprocessable();
+
+        unset($workshopPayload['certificate_type_id']);
+        $this->api($token)->postJson('/api/learn-serve-opportunities/', $workshopPayload)
+            ->assertCreated()
+            ->assertJsonPath('data.requires_check_in', false);
+
+        $course = $this->api($token)->postJson('/api/learn-serve-opportunities/', $this->payload(LearnServeOpportunity::class))
+            ->assertCreated();
+        $courseId = $course->json('data.id');
+        $this->api($token)->patchJson("/api/learn-serve-opportunities/$courseId/", [
+            'learning_type_id' => $this->choice('learning_type', 'Consultation'),
+        ])->assertOk();
+        $this->assertNull(LearnServeOpportunity::query()->findOrFail($courseId)->certificate_type_id);
     }
 
     public function test_correcting_hours_reissues_certificate_without_double_counting(): void

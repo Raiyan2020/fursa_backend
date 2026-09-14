@@ -30,7 +30,7 @@ class OrganizationApprovalGate
 
         $status = $user->organizationProfile?->organization_status;
 
-        if ($status === ApprovalStatus::PENDING) {
+        if ($status === ApprovalStatus::PENDING || $status === null) {
             return ApiResponse::error(
                 'Your organization account has not been approved by the admin yet.',
                 'لم يتم تأكيد حساب الجهة من قبل الإدارة بعد.',
@@ -55,6 +55,14 @@ class OrganizationApprovalGate
                         'ar' => 'تم رفض حساب الجهة من قبل الإدارة.',
                     ],
                 ]
+            );
+        }
+
+        if ($status !== ApprovalStatus::APPROVED) {
+            return ApiResponse::error(
+                'Your organization account is not approved.',
+                'حساب الجهة غير معتمد.',
+                403
             );
         }
 

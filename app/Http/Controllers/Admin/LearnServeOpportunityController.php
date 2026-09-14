@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
@@ -15,10 +14,12 @@ use App\Models\OpportunityImage;
 use App\Models\OpportunitySponsorImage;
 use App\Models\OrganizationProfile;
 use App\Services\Opportunity\OpportunityAudienceNotifier;
+use App\Support\AdminExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LearnServeOpportunityController extends Controller
 {
@@ -387,7 +388,7 @@ class LearnServeOpportunityController extends Controller
             }),
         ];
 
-        return $request->validate([
+        $data = $request->validate([
             'created_by' => ['required', 'integer', Rule::exists('users', 'id')],
             'title_en' => ['required', 'string', 'max:255'],
             'title_ar' => ['required', 'string', 'max:255'],
@@ -460,5 +461,25 @@ class LearnServeOpportunityController extends Controller
             'after_images' => __('admin.attributes.after_images'),
             'license_image' => __('admin.attributes.license_image'),
         ]);
+
+        $learningType = MasterChoice::query()->find($data['learning_type_id'] ?? null)?->value_en;
+        $grantsCertificate = in_array(strtolower(trim((string) $learningType)), ['course', 'internship'], true);
+
+        if ($grantsCertificate && empty($data['certificate_type_id'])) {
+            throw ValidationException::withMessages([
+                'certificate_type_id' => ['Certificate type is required for courses and internships.'],
+            ]);
+        }
+
+        if (! $grantsCertificate) {
+            if (! empty($data['certificate_type_id'])) {
+                throw ValidationException::withMessages([
+                    'certificate_type_id' => ['Certificate type is only allowed for courses and internships.'],
+                ]);
+            }
+            $data['certificate_type_id'] = null;
+        }
+
+        return $data;
     }
 }
