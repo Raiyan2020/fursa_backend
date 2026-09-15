@@ -225,22 +225,29 @@ class OwnerReportBackendTest extends TestCase
 
     public function test_community_org_type_exists_and_relief_label_updated(): void
     {
-        // The client's later feedback renamed "Community" to "Society" as part
-        // of the six-option org_type classification, so that is what the
-        // signup flow must now offer.
-        $society = MasterChoice::query()
+        // BE-51 (round two): "Society" was renamed "Association" and "Community"
+        // split off as its own live option, so both now exist and "Society" no
+        // longer does.
+        $association = MasterChoice::query()
             ->notDeleted()
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-            ->where('value_en', 'Society')
+            ->where('value_en', 'Association')
             ->first();
-        $this->assertNotNull($society);
+        $this->assertNotNull($association);
 
-        $retiredCommunity = MasterChoice::query()
+        $community = MasterChoice::query()
             ->notDeleted()
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
             ->where('value_en', 'Community')
             ->first();
-        $this->assertNull($retiredCommunity);
+        $this->assertNotNull($community);
+
+        $retiredSociety = MasterChoice::query()
+            ->notDeleted()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
+            ->where('value_en', 'Society')
+            ->first();
+        $this->assertNull($retiredSociety);
 
         $relief = MasterChoice::query()
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'volunteer_opportunity_interest'))

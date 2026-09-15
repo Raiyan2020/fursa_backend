@@ -109,6 +109,8 @@ class BackendIssuesRoundTwoTest extends TestCase
         $event = $this->withToken($orgToken)->postJson('/api/events/', [
             'title_en' => 'Event tags',
             'title_ar' => 'وسوم',
+            'description_en' => 'Event tags description',
+            'description_ar' => 'وصف الفعالية',
             'event_type_id' => $eventTypeId,
             'start_date' => now()->addDays(3)->toDateString(),
             'end_date' => now()->addDays(4)->toDateString(),

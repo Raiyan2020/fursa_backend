@@ -312,6 +312,23 @@ trait HandlesOpportunities
         }
     }
 
+    /** Store a conventional multipart image array used by the dashboard fields. */
+    protected function storeImageArrayFromRequest(
+        Request $request,
+        object $opportunity,
+        string $foreignKey,
+        string $field,
+        bool $isAfterCompleted
+    ): void {
+        foreach ($request->file($field, []) as $file) {
+            OpportunityImage::query()->create([
+                $foreignKey => $opportunity->id,
+                'image' => $file->store('opportunity-images', 'public'),
+                'is_after_completed' => $isAfterCompleted,
+            ]);
+        }
+    }
+
     /**
      * Dedicated after-completion gallery upload endpoint (is_after_completed=true).
      */

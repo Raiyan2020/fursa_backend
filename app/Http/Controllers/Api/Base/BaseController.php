@@ -49,6 +49,13 @@ class BaseController extends Controller
             $choices = MasterChoice::query()
                 ->notDeleted()
                 ->where('choice_type_id', $type->id)
+                // This internal type powers the Join Us volunteer-team
+                // shortcut but is not one of the six organization signup
+                // choices approved in BE-51.
+                ->when($choice_type === 'org_type', fn ($query) => $query->where('value_en', '!=', 'Volunteer Team'))
+                ->when($choice_type === 'org_type', fn ($query) => $query->orderByRaw(
+                    "CASE value_en WHEN 'Governmental' THEN 1 WHEN 'Commercial' THEN 2 WHEN 'Educational' THEN 3 WHEN 'NonProfit' THEN 4 WHEN 'Association' THEN 5 WHEN 'Community' THEN 6 ELSE 99 END"
+                ))
                 ->get()
                 ->map(fn (MasterChoice $c) => [
                     'id' => $c->id,
@@ -146,11 +153,13 @@ class BaseController extends Controller
                 $userRoleType = 'volunteer_team';
                 $userRoleDisplay = 'Volunteer Team';
             } else {
-                // "Society" is the renamed "Community"; both resolve to the
-                // licence-exempt role so older profiles keep working.
+                // BE-51: "Society" was renamed "Association" and split off
+                // "Community" as its own option. The `society` licence role
+                // name was kept as-is (it identifies the role, not the label),
+                // so it now matches "Association" instead of "Society".
                 $societyType = MasterChoice::query()
                     ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
-                    ->whereIn('value_en', ['Society', 'Community'])
+                    ->whereIn('value_en', ['Association', 'Community'])
                     ->pluck('value_en', 'id');
 
                 $matchedSociety = $org?->organizer_type_id
@@ -158,7 +167,7 @@ class BaseController extends Controller
                     : null;
 
                 if ($matchedSociety) {
-                    $userRoleType = $matchedSociety === 'Society' ? 'society' : 'community';
+                    $userRoleType = $matchedSociety === 'Association' ? 'society' : 'community';
                     $userRoleDisplay = $matchedSociety;
                 } else {
                     $userRoleType = 'organization';

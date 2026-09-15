@@ -54,19 +54,19 @@
         @error('title_en') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
     <div class="col-md-6 mb-1">
-        <label>{{ __('title_ar') }} <span class="text-danger">*</span></label>
-        <input type="text" name="title_ar" class="form-control{{ $invalid('title_ar') }}" value="{{ $eventValue('title_ar') }}" required>
+        <label>{{ __('title_ar') }}</label>
+        <input type="text" name="title_ar" class="form-control{{ $invalid('title_ar') }}" value="{{ $eventValue('title_ar') }}">
         @error('title_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 
     <div class="col-md-6 mb-1">
-        <label>{{ __('description_en') }} <span class="text-danger">*</span></label>
-        <textarea name="description_en" class="form-control{{ $invalid('description_en') }}" rows="5" required>{{ $eventValue('description_en') }}</textarea>
+        <label>{{ __('description_en') }}</label>
+        <textarea name="description_en" class="form-control{{ $invalid('description_en') }}" rows="5">{{ $eventValue('description_en') }}</textarea>
         @error('description_en') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
     <div class="col-md-6 mb-1">
-        <label>{{ __('description_ar') }} <span class="text-danger">*</span></label>
-        <textarea name="description_ar" class="form-control{{ $invalid('description_ar') }}" rows="5" required>{{ $eventValue('description_ar') }}</textarea>
+        <label>{{ __('description_ar') }}</label>
+        <textarea name="description_ar" class="form-control{{ $invalid('description_ar') }}" rows="5">{{ $eventValue('description_ar') }}</textarea>
         @error('description_ar') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 

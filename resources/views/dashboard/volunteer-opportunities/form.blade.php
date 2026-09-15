@@ -125,6 +125,41 @@
                     value="{{ $opportunityValue('due_date') }}">
                 @error('due_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
+            @php
+                $savedSlots = optional($opportunity)->timeSlots ?? collect();
+                $scheduleRows = collect(old('time_slots', $savedSlots->map(fn ($slot) => [
+                    'date' => optional($slot->date)->format('Y-m-d'),
+                    'start_time' => $slot->start_time ? substr($slot->start_time, 0, 5) : '',
+                    'end_time' => $slot->end_time ? substr($slot->end_time, 0, 5) : '',
+                ])->all()));
+                $scheduleRowCount = max(7, $scheduleRows->count());
+            @endphp
+            <div class="col-md-12 mt-1">
+                <label>{{ __('custom schedule') }}</label>
+                <small class="text-muted d-block mb-1">{{ __('Leave every row blank to use the opportunity-wide date and time range.') }}</small>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ __('date') }}</th>
+                                <th>{{ __('start time') }}</th>
+                                <th>{{ __('end time') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for ($slotIndex = 0; $slotIndex < $scheduleRowCount; $slotIndex++)
+                                @php $slot = $scheduleRows->get($slotIndex, []); @endphp
+                                <tr>
+                                    <td><input type="date" name="time_slots[{{ $slotIndex }}][date]" class="form-control form-control-sm" value="{{ $slot['date'] ?? '' }}"></td>
+                                    <td><input type="time" name="time_slots[{{ $slotIndex }}][start_time]" class="form-control form-control-sm" value="{{ $slot['start_time'] ?? '' }}"></td>
+                                    <td><input type="time" name="time_slots[{{ $slotIndex }}][end_time]" class="form-control form-control-sm" value="{{ $slot['end_time'] ?? '' }}"></td>
+                                </tr>
+                            @endfor
+                        </tbody>
+                    </table>
+                </div>
+                @error('time_slots') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
         </div>
     </div>
 </div>

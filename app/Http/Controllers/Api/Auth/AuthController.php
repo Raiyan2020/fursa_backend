@@ -2,32 +2,33 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Enums\Nationality;
+use App\Enums\ResidencyStatus;
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\Auth\AccountResource;
-use App\Http\Resources\Auth\PublicProfileResource;
-use App\Http\Resources\Auth\SocialAuthUserResource;
-use App\Http\Resources\Auth\UserResource;
 use App\Http\Resources\Website\WebsiteLoginUserResource;
 use App\Http\Resources\Website\WebsitePublicProfileResource;
 use App\Http\Resources\Website\WebsiteRegisterUserResource;
+use App\Models\OrganizationProfile;
 use App\Models\User;
+use App\Models\VolunteerProfile;
 use App\Services\Auth\AuthService;
 use App\Support\ApiResponse;
+use App\Support\Auth\IdentityDocumentValidator;
 use App\Support\OrganizationApprovalGate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(protected AuthService $authService)
-    {
-    }
+    public function __construct(protected AuthService $authService) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -335,10 +336,10 @@ class AuthController extends Controller
             ];
         }
         if (! empty($data['nickname'])) {
-            $volunteerExists = \App\Models\VolunteerProfile::query()
+            $volunteerExists = VolunteerProfile::query()
                 ->whereRaw('LOWER(nickname) = ?', [strtolower($data['nickname'])])
                 ->exists();
-            $orgExists = \App\Models\OrganizationProfile::query()
+            $orgExists = OrganizationProfile::query()
                 ->whereRaw('LOWER(nickname) = ?', [strtolower($data['nickname'])])
                 ->exists();
             $result['nickname'] = ['is_new_user' => ! ($volunteerExists || $orgExists)];
@@ -363,8 +364,23 @@ class AuthController extends Controller
         $user = $request->user();
         if ($request->filled('nationality')) {
             $request->merge([
-                'nationality' => \App\Enums\Nationality::normalize($request->input('nationality')),
+                'nationality' => Nationality::normalize($request->input('nationality')),
             ]);
+        } elseif (! $request->has('nationality') && $user->nationality) {
+            $request->merge(['nationality' => $user->nationality->value]);
+        }
+
+        // The identity-document rule below needs the whole picture even when
+        // this call only touches an unrelated field (BE-50 part 3), so a field
+        // the client didn't resend falls back to what is already stored.
+        if (! $request->has('residency_status') && $user->residency_status) {
+            $request->merge(['residency_status' => $user->residency_status->value]);
+        }
+        if (! $request->has('civil_id') && $user->civil_id) {
+            $request->merge(['civil_id' => $user->civil_id]);
+        }
+        if (! $request->has('passport_number') && $user->passport_number) {
+            $request->merge(['passport_number' => $user->passport_number]);
         }
 
         $stringFields = [];
@@ -393,8 +409,8 @@ class AuthController extends Controller
             'phone_number' => ['nullable', 'string', 'max:15'],
             'country_code' => ['nullable', 'string', 'max:5'],
             'birth_year' => ['nullable', 'integer'],
-            'nationality' => ['nullable', 'string', Rule::in(\App\Enums\Nationality::values())],
-            'residency_status' => ['nullable', 'string', Rule::in(\App\Enums\ResidencyStatus::values())],
+            'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
+            'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
             'preferred_language' => ['nullable', 'in:en,ar'],
             'civil_id' => ['nullable', 'string', 'max:12', Rule::unique('users', 'civil_id')->ignore($user->id)],
             'passport_number' => ['nullable', 'string', 'max:20', Rule::unique('users', 'passport_number')->ignore($user->id)],
@@ -406,7 +422,15 @@ class AuthController extends Controller
         ]);
 
         if (array_key_exists('nationality', $data)) {
-            $data['nationality'] = \App\Enums\Nationality::normalize($data['nationality']);
+            $data['nationality'] = Nationality::normalize($data['nationality']);
+        }
+
+        if ($user->isVolunteer()) {
+            $identityValidator = ValidatorFacade::make($request->all(), []);
+            $identityValidator->after(function ($validator) use ($request, $user) {
+                IdentityDocumentValidator::validate($request, $validator, $user->id);
+            });
+            $identityValidator->validate();
         }
 
         if (! empty($data['profile_pic'])) {
@@ -453,6 +477,10 @@ class AuthController extends Controller
 
     public function socialAuth(Request $request): JsonResponse
     {
+        if ($request->filled('nationality')) {
+            $request->merge(['nationality' => Nationality::normalize($request->input('nationality'))]);
+        }
+
         $data = $request->validate([
             'email' => ['required', 'email'],
             'social_media_provider' => ['required', Rule::in(['google', 'linkedin'])],
@@ -462,6 +490,9 @@ class AuthController extends Controller
             'social_profile_pic_url' => ['nullable', 'url'],
             'user_type' => ['nullable', Rule::in(UserType::values())],
             'civil_id' => ['nullable', 'string', 'max:12'],
+            'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
+            'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
+            'passport_number' => ['nullable', 'string', 'max:20'],
             'nickname' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string'],
             'organizer_type' => ['nullable', 'integer', 'exists:master_choices,id'],
@@ -483,10 +514,14 @@ class AuthController extends Controller
         if (! $user) {
             $isNewUser = true;
             $userType = UserType::from($data['user_type'] ?? UserType::VOLUNTEER->value);
-            if ($userType === UserType::VOLUNTEER && empty($data['civil_id'])) {
-                return ApiResponse::error('Social auth failed.', 'فشل الدخول الاجتماعي.', 400, [
-                    'civil_id' => [__('validation.required', ['attribute' => __('validation.attributes.civil_id')])],
-                ]);
+            if ($userType === UserType::VOLUNTEER) {
+                $identityValidator = ValidatorFacade::make($data, []);
+                $identityValidator->after(function ($validator) use ($request) {
+                    IdentityDocumentValidator::validate($request, $validator);
+                });
+                if ($identityValidator->fails()) {
+                    return ApiResponse::error('Social auth failed.', 'فشل الدخول الاجتماعي.', 400, $identityValidator->errors()->toArray());
+                }
             }
 
             $user = $this->authService->register(array_merge($data, [

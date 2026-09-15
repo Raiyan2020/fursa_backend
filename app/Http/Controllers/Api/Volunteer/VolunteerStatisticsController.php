@@ -18,10 +18,12 @@ use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityRegistration;
 use App\Models\VolunteerProfile;
 use App\Models\VolunteerStatistic;
+use App\Services\Report\AchievementReportRenderer;
 use App\Support\ApiResponse;
 use App\Support\RankingCycle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -349,6 +351,29 @@ class VolunteerStatisticsController extends Controller
             return ApiResponse::error('User not found or profile is deleted.', 'لم يتم العثور على المستخدم أو تم حذف الملف الشخصي.', 404);
         }
 
+        // BE-53: an unrecognised value is a 422, not a silently unfiltered list —
+        // the convention BE-18 set for filter_type.
+        $certificateType = $request->query('certificate_type');
+        $normalizedCertificateType = null;
+        if ($certificateType !== null && $certificateType !== '') {
+            $allowedTypes = MasterChoice::query()
+                ->notDeleted()
+                ->whereHas('choiceType', fn ($q) => $q->where('name', 'certificate_filter_type'))
+                ->pluck('value_en');
+
+            $normalizedCertificateType = collect($allowedTypes)
+                ->first(fn ($value) => strcasecmp($value, $certificateType) === 0);
+
+            if ($normalizedCertificateType === null) {
+                return ApiResponse::error(
+                    'Invalid certificate type.',
+                    'نوع الشهادة غير صالح.',
+                    422,
+                    ['certificate_type' => [__('validation.in', ['attribute' => 'certificate_type'])]]
+                );
+            }
+        }
+
         $certifiedScope = function ($q) {
             $q->where('is_certified', true)
                 ->orWhere(function ($inner) {
@@ -361,6 +386,16 @@ class VolunteerStatisticsController extends Controller
             ->notDeleted()
             ->where('user_id', $profile->user_id)
             ->where($certifiedScope)
+            // "Volunteer" never matches a learn-serve row; the other two values
+            // select by the opportunity's learning type (BE-53).
+            ->when($normalizedCertificateType !== null, function ($query) use ($normalizedCertificateType) {
+                if (strcasecmp($normalizedCertificateType, 'Volunteer') === 0) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->whereHas('opportunity.learningType', fn ($q) => $q->whereRaw('LOWER(value_en) = ?', [strtolower($normalizedCertificateType)]));
+            })
             ->with('opportunity.creator.organizationProfile')
             ->get()
             ->map(fn ($row) => [
@@ -379,6 +414,10 @@ class VolunteerStatisticsController extends Controller
             ->notDeleted()
             ->where('user_id', $profile->user_id)
             ->where($certifiedScope)
+            ->when(
+                $normalizedCertificateType !== null && strcasecmp($normalizedCertificateType, 'Volunteer') !== 0,
+                fn ($query) => $query->whereRaw('1 = 0')
+            )
             ->with('opportunity.creator.organizationProfile')
             ->get()
             ->map(fn ($row) => [
@@ -395,7 +434,7 @@ class VolunteerStatisticsController extends Controller
         return ApiResponse::success($certificates, 'Certificates retrieved successfully.', 'تم استرجاع الشهادات بنجاح.');
     }
 
-    public function volunteerDetail(Request $request): JsonResponse|\Illuminate\Http\Response
+    public function volunteerDetail(Request $request): JsonResponse|Response
     {
         $profile = $request->user()->volunteerProfile;
         if (! $profile) {
@@ -407,7 +446,7 @@ class VolunteerStatisticsController extends Controller
         }
 
         if ($request->query('download') === 'true') {
-            $pdf = (new \App\Services\Report\AchievementReportRenderer())->render(
+            $pdf = (new AchievementReportRenderer)->render(
                 $request->user(),
                 $profile,
                 app()->getLocale() === 'ar'

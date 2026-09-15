@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api\Volunteer;
 
+use App\Enums\Nationality;
 use App\Http\Controllers\Api\Concerns\HandlesProfileInterests;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Volunteer\VolunteerProfileUpdateRequest;
 use App\Http\Resources\Volunteer\VolunteerProfileResource;
 use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
 use App\Http\Resources\Volunteer\VolunteerVerificationResource;
@@ -11,8 +13,6 @@ use App\Models\VolunteerProfile;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 
 class VolunteerProfileController extends Controller
 {
@@ -40,7 +40,7 @@ class VolunteerProfileController extends Controller
         );
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(VolunteerProfileUpdateRequest $request): JsonResponse
     {
         $user = $request->user();
         $profile = $user->volunteerProfile;
@@ -49,63 +49,10 @@ class VolunteerProfileController extends Controller
             return ApiResponse::error('Volunteer profile not found.', 'ملف المتطوع غير موجود.', 404);
         }
 
-        if ($request->filled('nationality')) {
-            $request->merge([
-                'nationality' => \App\Enums\Nationality::normalize($request->input('nationality')),
-            ]);
-        }
-
-        // Coerce numeric phone fields to strings (frontend may send ints)
-        $stringFields = [];
-        foreach (['phone_number', 'country_code', 'emergency_contact_phone', 'emergency_contact_country_code', 'emergency_contact_civil_id'] as $field) {
-            $value = $request->input($field);
-            if (is_int($value) || is_float($value)) {
-                $stringFields[$field] = (string) $value;
-            }
-        }
-        if ($stringFields !== []) {
-            $request->merge($stringFields);
-        }
-
-        $interestIds = $this->extractProfileInterestIds($request);
-        if ($interestIds !== null) {
-            $request->merge(['interest_ids' => $interestIds]);
-        }
-
-        $data = $request->validate([
-            'profile_pic' => ['nullable', 'image'],
-            'first_name' => ['nullable', 'string', 'max:150'],
-            'last_name' => ['nullable', 'string', 'max:150'],
-            'nickname' => ['nullable', 'string', 'max:50'],
-            'occupation' => ['nullable', 'string', 'max:100'],
-            'experience' => ['nullable', 'string'],
-            'health_concerns' => ['nullable', 'in:yes,no'],
-            'is_public' => ['nullable', 'boolean'],
-            'is_verified' => ['nullable', 'boolean'],
-            'gender' => ['nullable', 'integer', 'exists:master_choices,id'],
-            'civil_id' => ['required', 'string', 'max:12', Rule::unique('users', 'civil_id')->ignore($user->id)],
-            'email' => ['nullable', 'email', Rule::unique('users', 'email')->ignore($user->id)],
-            'nationality' => ['nullable', 'string', Rule::in(\App\Enums\Nationality::values())],
-            'dob' => ['nullable', 'date'],
-            'birth_year' => ['nullable', 'integer'],
-            'instagram_link' => ['nullable', 'url'],
-            'whatsapp_link' => ['nullable', 'url'],
-            'linkedin_link' => ['nullable', 'url'],
-            'facebook_link' => ['nullable', 'url'],
-            'twitter_link' => ['nullable', 'url'],
-            'phone_number' => ['nullable', 'string', 'max:15'],
-            'country_code' => ['nullable', 'string', 'max:5'],
-            'emergency_contact_name' => ['nullable', 'string', 'max:100'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
-            'emergency_contact_country_code' => ['nullable', 'string', 'max:10'],
-            'emergency_contact_civil_id' => ['nullable', 'string', 'max:12'],
-            'emergency_contact_relationship' => ['nullable', 'integer', 'exists:master_choices,id'],
-            'interest_ids' => ['nullable', 'array'],
-            'interest_ids.*' => ['integer'],
-        ]);
+        $data = $request->validated();
 
         if (array_key_exists('nationality', $data)) {
-            $data['nationality'] = \App\Enums\Nationality::normalize($data['nationality']);
+            $data['nationality'] = Nationality::normalize($data['nationality']);
         }
 
         $profile->fill([
@@ -138,9 +85,11 @@ class VolunteerProfileController extends Controller
         $user->fill([
             'first_name' => $data['first_name'] ?? $user->first_name,
             'last_name' => $data['last_name'] ?? $user->last_name,
-            'civil_id' => $data['civil_id'],
+            'civil_id' => array_key_exists('civil_id', $data) ? $data['civil_id'] : $user->civil_id,
+            'passport_number' => array_key_exists('passport_number', $data) ? $data['passport_number'] : $user->passport_number,
             'email' => $data['email'] ?? $user->email,
             'nationality' => $data['nationality'] ?? $user->nationality,
+            'residency_status' => array_key_exists('residency_status', $data) ? $data['residency_status'] : $user->residency_status,
             'dob' => $data['dob'] ?? $user->dob,
             'birth_year' => $data['birth_year'] ?? $user->birth_year,
             'phone_number' => array_key_exists('phone_number', $data) ? $data['phone_number'] : $user->phone_number,
@@ -258,5 +207,4 @@ class VolunteerProfileController extends Controller
             'volunteer' => (new VolunteerVerificationResource($profile))->resolve(),
         ]);
     }
-
 }

@@ -75,6 +75,8 @@ class LifecycleFlowTest extends TestCase
         $eventCreate = $this->api($organizationToken)->postJson('/api/events/', [
             'title_en' => 'Cycle Event',
             'title_ar' => 'فعالية دورة اختبار',
+            'description_en' => 'Cycle event description',
+            'description_ar' => 'وصف الفعالية',
             'event_type_id' => $eventType->id,
             'start_date' => now()->addDays(5)->toDateString(),
             'end_date' => now()->addDays(5)->toDateString(),

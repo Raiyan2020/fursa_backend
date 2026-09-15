@@ -34,6 +34,8 @@ class OrganizationProfile extends Model
         'longitude' => 'float',
     ];
 
+    private ?object $allTimeStatisticCache = null;
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -62,5 +64,53 @@ class OrganizationProfile extends Model
     public function isApproved(): bool
     {
         return $this->organization_status === ApprovalStatus::APPROVED;
+    }
+
+    /** Yearly rollup rows (month = NULL) written by SyncService::syncOrganization(). */
+    public function statistics(): HasMany
+    {
+        return $this->hasMany(OrganizationStatistic::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * All-time counters are not stored on this model — they are the sum of the
+     * per-year rollup rows in organization_statistics. Cached per-instance so the
+     * four accessors below share one query.
+     */
+    protected function allTimeStatistic(): object
+    {
+        if ($this->allTimeStatisticCache === null) {
+            $this->allTimeStatisticCache = $this->statistics()
+                ->whereNull('month')
+                ->selectRaw('
+                    COALESCE(SUM(organization_hours), 0) as organization_hours,
+                    COALESCE(SUM(vol_opportunity_organized), 0) as vol_opportunity_organized,
+                    COALESCE(SUM(learn_opportunity_organized), 0) as learn_opportunity_organized,
+                    COALESCE(SUM(sponsored), 0) as sponsored
+                ')
+                ->first();
+        }
+
+        return $this->allTimeStatisticCache;
+    }
+
+    public function getOrganizationHoursAttribute(): float
+    {
+        return (float) $this->allTimeStatistic()->organization_hours;
+    }
+
+    public function getVolOpportunityOrganizedAttribute(): float
+    {
+        return (float) $this->allTimeStatistic()->vol_opportunity_organized;
+    }
+
+    public function getLearnOpportunityOrganizedAttribute(): float
+    {
+        return (float) $this->allTimeStatistic()->learn_opportunity_organized;
+    }
+
+    public function getSponsoredCountAttribute(): float
+    {
+        return (float) $this->allTimeStatistic()->sponsored;
     }
 }

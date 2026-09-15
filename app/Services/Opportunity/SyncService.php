@@ -2,13 +2,14 @@
 
 namespace App\Services\Opportunity;
 
+use App\Enums\ApprovalStatus;
 use App\Enums\OpportunityStatus;
 use App\Models\Badge;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
+use App\Models\OpportunitySponsorImage;
 use App\Models\OrganizationProfile;
 use App\Models\OrganizationStatistic;
-use App\Models\OpportunitySponsorImage;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAttendance;
@@ -153,6 +154,34 @@ class SyncService
                 ->distinct()
                 ->count('volunteer_opportunities.id');
 
+            // BE-54 part a: an attended course/workshop is a development
+            // opportunity the volunteer participated in and previously counted
+            // for nothing here. `is_attended` already reflects a real check-in
+            // or the no-check-in-type auto-credit on completion (see
+            // AdvanceOpportunityStatusesCommand), so no extra status filter is
+            // needed — same signal profileActivityTag() uses per row.
+            $strictTotalOpportunities += (int) LearnServeOpportunity::query()
+                ->where('is_deleted', false)
+                ->whereHas('registrations', function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                        ->where('is_deleted', false)
+                        ->where('is_attended', true);
+                })
+                ->distinct()
+                ->count('learn_serve_opportunities.id');
+
+            // BE-54 part b: the Provider side — development opportunities this
+            // volunteer created/ran. Column is fillable and already returned by
+            // four resources, but nothing wrote it until now. Same "approved,
+            // not deleted" rule as the existing خبير/Expert badge computation
+            // (ResolvesApiPayloads::expertOpportunitiesCount) — a volunteer is
+            // credited for running it once it's live, not only once it ends.
+            $opportunitiesOrganized = (int) LearnServeOpportunity::query()
+                ->where('created_by', $user->id)
+                ->where('is_deleted', false)
+                ->where('approval_status', ApprovalStatus::APPROVED)
+                ->count();
+
             $certifiedScope = function ($q) {
                 $q->where('is_certified', true)
                     ->orWhere(function ($inner) {
@@ -179,6 +208,7 @@ class SyncService
                 'total_volunteer_hours' => $totalHoursAllTime,
                 'total_opportunities' => $strictTotalOpportunities,
                 'total_certificates' => $totalCertificates,
+                'opportunities_organized' => $opportunitiesOrganized,
                 'current_badge_id' => $badge?->id,
             ]);
 

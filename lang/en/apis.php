@@ -2,6 +2,7 @@
 
 return [
     'invalid_filter_type' => 'Unrecognised filter_type value.',
+    'invalid_profile_activity_tag' => 'Unrecognised profile_activity_tag value.',
     'unknown_interest_ids_scoped' => 'One or more tag ids are not valid for this resource. Use the ids served by :endpoint.',
     'unknown_interest_ids' => 'One or more tag ids are not valid.',
     'unknown_write_field' => 'This endpoint does not accept this field. Check the field name.',

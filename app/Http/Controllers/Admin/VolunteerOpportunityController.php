@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
-use App\Enums\VolunteerCategory;
 use App\Enums\Language;
+use App\Enums\Nationality;
 use App\Enums\OpportunityStatus;
+use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
 use App\Http\Controllers\Controller;
 use App\Models\MasterChoice;
@@ -16,6 +16,9 @@ use App\Models\OpportunitySponsorImage;
 use App\Models\OrganizationProfile;
 use App\Models\VolunteerOpportunity;
 use App\Services\Opportunity\OpportunityAudienceNotifier;
+use App\Support\AdminExport;
+use App\Support\Opportunity\OpportunityValidationRules;
+use App\Support\Opportunity\VolunteerOpportunitySchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -83,7 +86,8 @@ class VolunteerOpportunityController extends Controller
     {
         $data = $this->validated($request);
         $interestIds = $data['interest_ids'] ?? [];
-        unset($data['interest_ids'], $data['images'], $data['after_images'], $data['license_image']);
+        $timeSlots = $data['time_slots'] ?? null;
+        unset($data['interest_ids'], $data['images'], $data['after_images'], $data['license_image'], $data['time_slots']);
 
         $data = $this->applyBooleans($request, $data);
         $data['approval_status'] = $data['approval_status'] ?? ApprovalStatus::APPROVED->value;
@@ -96,9 +100,12 @@ class VolunteerOpportunityController extends Controller
             $data['license_image'] = uploader($request->file('license_image'), 'license_images');
         }
 
-        $opportunity = DB::transaction(function () use ($data, $interestIds, $request) {
+        $opportunity = DB::transaction(function () use ($data, $interestIds, $request, $timeSlots) {
             $opportunity = VolunteerOpportunity::create($data);
             $this->syncOpportunityInterests($opportunity, $interestIds, 'volunteer_opportunity_interest');
+            if ($timeSlots !== null) {
+                VolunteerOpportunitySchedule::sync($opportunity, $timeSlots);
+            }
             $this->storeImages($opportunity, $request);
 
             return $opportunity;
@@ -118,7 +125,7 @@ class VolunteerOpportunityController extends Controller
 
     public function edit(VolunteerOpportunity $opportunity)
     {
-        $opportunity->load(['masterInterests', 'images', 'creator', 'sponsorImages' => fn ($q) => $q->where('is_deleted', false), 'sponsorImages.organization']);
+        $opportunity->load(['masterInterests', 'images', 'creator', 'timeSlots' => fn ($q) => $q->notDeleted(), 'sponsorImages' => fn ($q) => $q->where('is_deleted', false), 'sponsorImages.organization']);
 
         return view('dashboard.volunteer-opportunities.edit', array_merge(
             compact('opportunity'),
@@ -130,7 +137,8 @@ class VolunteerOpportunityController extends Controller
     {
         $data = $this->validated($request, updating: true);
         $interestIds = $data['interest_ids'] ?? [];
-        unset($data['interest_ids'], $data['images'], $data['after_images'], $data['license_image']);
+        $timeSlots = $data['time_slots'] ?? null;
+        unset($data['interest_ids'], $data['images'], $data['after_images'], $data['license_image'], $data['time_slots']);
 
         $data = $this->applyBooleans($request, $data);
 
@@ -141,9 +149,12 @@ class VolunteerOpportunityController extends Controller
             $data['license_image'] = uploader($request->file('license_image'), 'license_images');
         }
 
-        DB::transaction(function () use ($opportunity, $data, $interestIds, $request) {
+        DB::transaction(function () use ($opportunity, $data, $interestIds, $request, $timeSlots) {
             $opportunity->update($data);
             $this->syncOpportunityInterests($opportunity, $interestIds, 'volunteer_opportunity_interest');
+            if ($timeSlots !== null) {
+                VolunteerOpportunitySchedule::sync($opportunity, $timeSlots);
+            }
             $this->storeImages($opportunity, $request);
         });
 
@@ -383,6 +394,15 @@ class VolunteerOpportunityController extends Controller
 
     protected function validated(Request $request, bool $updating = false): array
     {
+        if ($request->has('time_slots')) {
+            $request->merge([
+                'time_slots' => collect($request->input('time_slots', []))
+                    ->filter(fn ($slot) => filled($slot['date'] ?? null))
+                    ->values()
+                    ->all(),
+            ]);
+        }
+
         foreach (['start_time', 'end_time'] as $timeField) {
             if ($request->filled($timeField)) {
                 $request->merge([
@@ -403,30 +423,17 @@ class VolunteerOpportunityController extends Controller
 
         return $request->validate([
             'created_by' => ['required', 'integer', Rule::exists('users', 'id')],
-            'title_en' => ['required', 'string', 'max:255'],
-            'title_ar' => ['required', 'string', 'max:255'],
-            'description_en' => ['required', 'string'],
-            'description_ar' => ['required', 'string'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'start_time' => ['nullable', 'date_format:H:i'],
-            'end_time' => ['nullable', 'date_format:H:i'],
-            'due_date' => ['nullable', 'date'],
-            'location_en' => ['nullable', 'string', 'max:255'],
-            'location_ar' => ['nullable', 'string', 'max:255'],
+            ...OpportunityValidationRules::core(),
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'from_age' => ['nullable', 'integer', 'min:0', 'max:120'],
-            'to_age' => ['nullable', 'integer', 'min:0', 'max:120', 'gte:from_age'],
             'gender_id' => $choiceRule('opportunity_gender'),
-            'participants_needed' => ['required', 'integer', 'min:1'],
             'volunteer_hours_per_day' => ['nullable', 'numeric', 'min:0'],
             'link' => ['nullable', 'url', 'max:500'],
             'location_url' => ['nullable', 'url', 'max:500'],
             'map_desc' => ['nullable', 'string', 'max:500'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
-            'opportunity_nationality' => ['nullable', Rule::in(\App\Enums\Nationality::values())],
+            'opportunity_nationality' => ['nullable', Rule::in(Nationality::values())],
             'primary_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],
             'opportunity_status' => ['required', Rule::in(OpportunityStatus::values())],
@@ -446,6 +453,10 @@ class VolunteerOpportunityController extends Controller
             'images.*' => ['image', 'max:10240'],
             'after_images' => ['nullable', 'array'],
             'after_images.*' => ['image', 'max:10240'],
+            'time_slots' => ['nullable', 'array'],
+            'time_slots.*.date' => ['required', 'date'],
+            'time_slots.*.start_time' => ['nullable', 'date_format:H:i'],
+            'time_slots.*.end_time' => ['nullable', 'date_format:H:i'],
             'license_image' => ['nullable', 'image', 'max:10240'],
         ], [], [
             'created_by' => __('admin.attributes.created_by'),

@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ApprovalStatus;
+use App\Enums\Nationality;
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
 use App\Models\MasterChoice;
 use App\Models\OrganizationDocument;
 use App\Models\OrganizationProfile;
-use App\Enums\Nationality;
 use App\Models\User;
 use App\Models\VolunteerProfile;
 use Illuminate\Http\RedirectResponse;
@@ -381,7 +381,7 @@ class UserController extends Controller
             ],
             'phone_number' => ['nullable', 'string', 'max:30'],
             'country_code' => ['nullable', 'string', 'max:10'],
-            'nationality' => ['nullable', Rule::in(Nationality::values())],
+            'nationality' => ['nullable', Rule::in(Nationality::personValues())],
             'civil_id' => ['nullable', 'string', 'max:30'],
             'account_type' => ['required', Rule::in(['volunteer', 'organization', 'volunteer_team', 'admin'])],
             'preferred_language' => ['required', 'in:en,ar'],

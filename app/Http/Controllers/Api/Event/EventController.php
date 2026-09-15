@@ -23,6 +23,7 @@ use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
 use App\Support\HtmlSanitizer;
 use App\Support\MediaKeepSet;
+use App\Support\Opportunity\OpportunityValidationRules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -357,27 +358,14 @@ class EventController extends Controller
 
         $rules = [
             ...RepublishMedia::rules(),
-            'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
-            'title_ar' => ['nullable', 'string', 'max:255'],
-            'description_en' => ['nullable', 'string'],
-            'description_ar' => ['nullable', 'string'],
+            ...OpportunityValidationRules::core($partial, participantsRequired: false, secondaryContentRequired: false),
             'event_type_id' => [$partial ? 'sometimes' : 'required', 'integer', 'exists:master_choices,id'],
-            'due_date' => ['nullable', 'date'],
-            'start_date' => [$partial ? 'sometimes' : 'required', 'date'],
-            'end_date' => [$partial ? 'sometimes' : 'required', 'date'],
-            'start_time' => ['nullable', 'string'],
-            'end_time' => ['nullable', 'string'],
             'registration_required' => ['nullable', 'boolean'],
-            'participants_needed' => ['nullable', 'integer', 'min:0'],
             'paid_registration' => ['nullable', 'boolean'],
             'registration_fee' => ['nullable', 'numeric', 'min:0'],
             ...$this->mapLocationRules($partial),
-            'location_en' => ['nullable', 'string'],
-            'location_ar' => ['nullable', 'string'],
             'location_url' => ['nullable', 'url'],
             'is_registration_closed' => ['nullable', 'boolean'],
-            'from_age' => ['nullable', 'integer'],
-            'to_age' => ['nullable', 'integer'],
             'gender_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'attendance_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'participation_type_id' => ['nullable', 'integer', 'exists:master_choices,id'],

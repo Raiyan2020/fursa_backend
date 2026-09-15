@@ -30,9 +30,9 @@ class WebsiteProfileListItemResource extends JsonResource
                 'nickname' => $profile->nickname,
                 'is_public' => (bool) $profile->is_public,
                 'user_details' => [
+                    // Privacy: a volunteer's real name is not public — see
+                    // WebsitePublicProfileResource, which applies the same rule.
                     'id' => $profile->user->id,
-                    'first_name' => $profile->user->first_name,
-                    'last_name' => $profile->user->last_name,
                     'profile_pic' => $this->profilePicUrl($profile->user),
                     'gender_display' => $this->websiteChoicePayload($profile->gender),
                     'user_type' => $profile->user->user_type?->value ?? $profile->user->user_type,

@@ -2,11 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Models\BannerImage;
+use App\Models\Event;
+use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
+use App\Models\OpportunityImage;
+use App\Models\OpportunitySponsorImage;
 use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Models\Sponsor;
+use App\Models\User;
 use App\Models\UserRoleLicenseRequirement;
 use App\Models\UserTypeApproval;
+use App\Models\VolunteerOpportunity;
 use App\Models\WhyFursaItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -212,7 +220,7 @@ class AdminFlowTest extends TestCase
             'sponsor_logo' => $logo,
         ])->assertRedirect(route('admin.sponsors.index'));
 
-        $sponsor = \App\Models\Sponsor::query()->where('email', 'stc.sponsor@fursa.test')->firstOrFail();
+        $sponsor = Sponsor::query()->where('email', 'stc.sponsor@fursa.test')->firstOrFail();
 
         $this->assertSame('approved', $sponsor->approval_status->value);
         $this->assertNotEmpty($sponsor->sponsor_logo);
@@ -256,9 +264,6 @@ class AdminFlowTest extends TestCase
             ->assertSessionHasErrors([
                 'created_by',
                 'title_en',
-                'title_ar',
-                'description_en',
-                'description_ar',
                 'event_type_id',
                 'start_date',
                 'end_date',
@@ -291,7 +296,7 @@ class AdminFlowTest extends TestCase
             'images' => [$image],
         ])->assertRedirect(route('admin.events.index'));
 
-        $event = \App\Models\Event::query()->where('title_en', 'YV CONNECT')->firstOrFail();
+        $event = Event::query()->where('title_en', 'YV CONNECT')->firstOrFail();
         $this->assertSame('approved', $event->approval_status->value);
         $this->assertSame($org->id, $event->created_by);
         $this->assertTrue($event->images()->exists());
@@ -371,7 +376,7 @@ class AdminFlowTest extends TestCase
             'images' => [$image],
         ])->assertRedirect(route('admin.volunteer-opportunities.index'));
 
-        $opportunity = \App\Models\VolunteerOpportunity::query()->where('title_en', 'Beach Cleanup')->firstOrFail();
+        $opportunity = VolunteerOpportunity::query()->where('title_en', 'Beach Cleanup')->firstOrFail();
         $this->assertSame('approved', $opportunity->approval_status->value);
         $this->assertSame($orgUser->id, $opportunity->created_by);
         $this->assertTrue($opportunity->images()->exists());
@@ -402,7 +407,7 @@ class AdminFlowTest extends TestCase
 
         $imageId = $opportunity->images()->firstOrFail()->id;
         $this->delete('/dashboard/volunteer-opportunities/'.$opportunity->id.'/images/'.$imageId)->assertRedirect();
-        $this->assertTrue((bool) \App\Models\OpportunityImage::query()->findOrFail($imageId)->is_deleted);
+        $this->assertTrue((bool) OpportunityImage::query()->findOrFail($imageId)->is_deleted);
 
         $this->delete('/dashboard/volunteer-opportunities/'.$opportunity->id)->assertRedirect();
         $this->assertTrue((bool) $opportunity->fresh()->is_deleted);
@@ -416,7 +421,7 @@ class AdminFlowTest extends TestCase
         [$sponsorOrgUser] = $this->createOrganizationActor('sponsor-eligible@fursa.test');
         [$teamUser] = $this->createVolunteerTeamActor('sponsor-team@fursa.test');
 
-        $opportunity = \App\Models\VolunteerOpportunity::query()->create([
+        $opportunity = VolunteerOpportunity::query()->create([
             'title_en' => 'Beach Cleanup',
             'title_ar' => 'تنظيف الشاطئ',
             'description_en' => 'Desc',
@@ -452,7 +457,7 @@ class AdminFlowTest extends TestCase
             'organization_id' => $sponsorOrgUser->organizationProfile->id,
         ])->assertRedirect();
 
-        $sponsor = \App\Models\OpportunitySponsorImage::query()
+        $sponsor = OpportunitySponsorImage::query()
             ->where('volunteer_opportunity_id', $opportunity->id)
             ->where('organization_id', $sponsorOrgUser->organizationProfile->id)
             ->firstOrFail();
@@ -508,7 +513,7 @@ class AdminFlowTest extends TestCase
             'images' => [$image],
         ])->assertRedirect(route('admin.learn-serve-opportunities.index'));
 
-        $opportunity = \App\Models\LearnServeOpportunity::query()->where('title_en', 'First Aid Workshop')->firstOrFail();
+        $opportunity = LearnServeOpportunity::query()->where('title_en', 'First Aid Workshop')->firstOrFail();
         $this->assertSame('approved', $opportunity->approval_status->value);
         $this->assertSame($orgUser->id, $opportunity->created_by);
         $this->assertTrue($opportunity->images()->exists());
@@ -537,7 +542,7 @@ class AdminFlowTest extends TestCase
 
         $imageId = $opportunity->images()->firstOrFail()->id;
         $this->delete('/dashboard/learn-serve-opportunities/'.$opportunity->id.'/images/'.$imageId)->assertRedirect();
-        $this->assertTrue((bool) \App\Models\OpportunityImage::query()->findOrFail($imageId)->is_deleted);
+        $this->assertTrue((bool) OpportunityImage::query()->findOrFail($imageId)->is_deleted);
 
         $this->delete('/dashboard/learn-serve-opportunities/'.$opportunity->id)->assertRedirect();
         $this->assertTrue((bool) $opportunity->fresh()->is_deleted);
@@ -551,7 +556,7 @@ class AdminFlowTest extends TestCase
         [$sponsorOrgUser] = $this->createOrganizationActor('ls-sponsor-eligible@fursa.test');
         [$teamUser] = $this->createVolunteerTeamActor('ls-sponsor-team@fursa.test');
 
-        $opportunity = \App\Models\LearnServeOpportunity::query()->create([
+        $opportunity = LearnServeOpportunity::query()->create([
             'title_en' => 'First Aid Workshop',
             'title_ar' => 'ورشة إسعافات أولية',
             'description_en' => 'Desc',
@@ -583,7 +588,7 @@ class AdminFlowTest extends TestCase
             'organization_id' => $sponsorOrgUser->organizationProfile->id,
         ])->assertRedirect();
 
-        $sponsor = \App\Models\OpportunitySponsorImage::query()
+        $sponsor = OpportunitySponsorImage::query()
             ->where('learn_serve_opportunity_id', $opportunity->id)
             ->where('organization_id', $sponsorOrgUser->organizationProfile->id)
             ->firstOrFail();
@@ -615,7 +620,7 @@ class AdminFlowTest extends TestCase
             'is_active' => '1',
         ])->assertRedirect(route('admin.users.index'));
 
-        $user = \App\Models\User::query()->where('email', 'volunteer-team@fursa.test')->firstOrFail();
+        $user = User::query()->where('email', 'volunteer-team@fursa.test')->firstOrFail();
         $this->assertSame('organization', $user->user_type->value);
         $this->assertTrue($user->is_active);
         $this->assertNotNull($user->organizationProfile);
@@ -660,7 +665,7 @@ class AdminFlowTest extends TestCase
             'is_active' => '1',
         ])->assertRedirect(route('admin.users.index'));
 
-        $user = \App\Models\User::query()->where('email', 'license-entity@fursa.test')->firstOrFail();
+        $user = User::query()->where('email', 'license-entity@fursa.test')->firstOrFail();
         $this->assertSame('LIC-12345', $user->organizationProfile->license_number);
         $this->assertTrue($user->organizationProfile->documents()->where('is_deleted', false)->exists());
 
@@ -693,7 +698,7 @@ class AdminFlowTest extends TestCase
             'image' => $image,
         ])->assertRedirect(route('admin.banners.index'));
 
-        $banner = \App\Models\BannerImage::query()->where('name', 'Campaign Banner')->firstOrFail();
+        $banner = BannerImage::query()->where('name', 'Campaign Banner')->firstOrFail();
         $this->assertSame('2026-08-01', $banner->start_date->format('Y-m-d'));
         $this->assertSame('2026-08-31', $banner->end_date->format('Y-m-d'));
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Organization;
 
 use App\Enums\ApprovalStatus;
+use App\Enums\Nationality;
 use App\Http\Controllers\Api\Concerns\HandlesProfileInterests;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Organization\OrganizationDocumentResource;
@@ -53,7 +54,7 @@ class OrganizationProfileController extends Controller
 
         if ($request->filled('nationality')) {
             $request->merge([
-                'nationality' => \App\Enums\Nationality::normalize($request->input('nationality')),
+                'nationality' => Nationality::normalize($request->input('nationality')),
             ]);
         }
 
@@ -72,7 +73,7 @@ class OrganizationProfileController extends Controller
             'license_number' => ['nullable', 'string', 'max:100'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
-            'nationality' => ['nullable', 'string', Rule::in(\App\Enums\Nationality::values())],
+            'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
             'instagram_link' => ['nullable', 'url'],
             'whatsapp_link' => ['nullable', 'url'],
             'linkedin_link' => ['nullable', 'url'],
@@ -238,7 +239,7 @@ class OrganizationProfileController extends Controller
         $volunteerTeamPage = max(1, (int) $request->query('volunteer_team_page', $genericPage));
         $limit = min(100, max(1, (int) $request->query('limit', 10)));
 
-        $volunteerQuery = $this->applyProfileSearch($this->volunteerProfilesBaseQuery(), $request);
+        $volunteerQuery = $this->applyProfileSearch($this->volunteerProfilesBaseQuery(), $request, matchRealName: false);
         $orgQuery = $this->applyProfileSearch($this->organizationProfilesBaseQuery(), $request);
         $teamQuery = $this->applyProfileSearch($this->organizationProfilesBaseQuery(volunteerTeamsOnly: true), $request);
 
@@ -301,7 +302,7 @@ class OrganizationProfileController extends Controller
     /** "عرض الكل" for the متطوع (volunteer) section — a single, fully paginated list. */
     public function volunteerProfilesList(Request $request): JsonResponse
     {
-        $query = $this->applyProfileSearch($this->volunteerProfilesBaseQuery(), $request);
+        $query = $this->applyProfileSearch($this->volunteerProfilesBaseQuery(), $request, matchRealName: false);
         $paginator = $this->paginateProfileQuery($query, $request);
 
         return ApiResponse::paginated(
@@ -401,26 +402,39 @@ class OrganizationProfileController extends Controller
         return $query;
     }
 
-    protected function applyProfileSearch($query, Request $request, string $relation = 'user')
+    /**
+     * @param  bool  $matchRealName  A volunteer's real name is not public (BE-52) —
+     *                               pass false for volunteer queries so `search` and
+     *                               `name` can't be used to confirm it via nickname.
+     */
+    protected function applyProfileSearch($query, Request $request, string $relation = 'user', bool $matchRealName = true)
     {
         $search = $request->query('search');
         $name = $request->query('name');
         $nickname = $request->query('nickname');
 
         if ($search) {
-            $query->where(function ($q) use ($search, $relation) {
-                $q->where('nickname', 'like', "%{$search}%")
-                    ->orWhereHas($relation, function ($uq) use ($search) {
+            $query->where(function ($q) use ($search, $relation, $matchRealName) {
+                $q->where('nickname', 'like', "%{$search}%");
+                if ($matchRealName) {
+                    $q->orWhereHas($relation, function ($uq) use ($search) {
                         $uq->where('first_name', 'like', "%{$search}%")
                             ->orWhere('last_name', 'like', "%{$search}%");
                     });
+                }
             });
         }
         if ($name) {
-            $query->whereHas($relation, function ($uq) use ($name) {
-                $uq->where('first_name', 'like', "%{$name}%")
-                    ->orWhere('last_name', 'like', "%{$name}%");
-            });
+            if ($matchRealName) {
+                $query->whereHas($relation, function ($uq) use ($name) {
+                    $uq->where('first_name', 'like', "%{$name}%")
+                        ->orWhere('last_name', 'like', "%{$name}%");
+                });
+            } else {
+                // Keep the public `name` filter useful for volunteer cards,
+                // but apply it to their public identity only (BE-52).
+                $query->where('nickname', 'like', "%{$name}%");
+            }
         }
         if ($nickname) {
             $query->where('nickname', 'like', "%{$nickname}%");

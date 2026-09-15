@@ -15,6 +15,7 @@ use App\Models\OpportunitySponsorImage;
 use App\Models\OrganizationProfile;
 use App\Services\Opportunity\OpportunityAudienceNotifier;
 use App\Support\AdminExport;
+use App\Support\Opportunity\OpportunityValidationRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -390,26 +391,13 @@ class LearnServeOpportunityController extends Controller
 
         $data = $request->validate([
             'created_by' => ['required', 'integer', Rule::exists('users', 'id')],
-            'title_en' => ['required', 'string', 'max:255'],
-            'title_ar' => ['required', 'string', 'max:255'],
-            'description_en' => ['required', 'string'],
-            'description_ar' => ['required', 'string'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'start_time' => ['nullable', 'date_format:H:i'],
-            'end_time' => ['nullable', 'date_format:H:i'],
-            'due_date' => ['nullable', 'date'],
-            'location_en' => ['nullable', 'string', 'max:255'],
-            'location_ar' => ['nullable', 'string', 'max:255'],
+            ...OpportunityValidationRules::core(),
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'from_age' => ['nullable', 'integer', 'min:0', 'max:120'],
-            'to_age' => ['nullable', 'integer', 'min:0', 'max:120', 'gte:from_age'],
             'gender_id' => $choiceRule('opportunity_gender'),
             'learning_type_id' => $choiceRule('learning_type'),
             'format_id' => $choiceRule('learn_serve_format'),
             'certificate_type_id' => $choiceRule('learn_serve_certificate_type'),
-            'participants_needed' => ['required', 'integer', 'min:1'],
             'link' => ['nullable', 'url', 'max:500'],
             'location_url' => ['nullable', 'url', 'max:500'],
             'map_desc' => ['nullable', 'string', 'max:500'],

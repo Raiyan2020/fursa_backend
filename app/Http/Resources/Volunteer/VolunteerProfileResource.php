@@ -76,6 +76,8 @@ class VolunteerProfileResource extends JsonResource
             'dob' => optional($user?->dob)?->format('Y-m-d'),
             'email' => $user?->email,
             'civil_id' => $user?->civil_id,
+            'passport_number' => $user?->passport_number,
+            'residency_status' => $user?->residency_status?->value ?? $user?->residency_status,
             'phone_number' => $user?->phone_number,
             'country_code' => $user?->country_code,
             'emergency_contact_name' => $user?->emergency_contact_name,

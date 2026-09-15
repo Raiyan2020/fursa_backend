@@ -38,17 +38,18 @@ class ChoiceTypeSeeder extends Seeder
                 ['forsa certificate', 'شهادة فرصة'],
                 ["organizer's certificate", 'شهادة الجهة'],
             ],
-            // Client-approved classification. Legacy options (Private, Public,
-            // Community, Company, Government) are retired by the
-            // restructure_organization_types migration, which also repoints any
-            // organization still using them.
+            // Client-approved classification, round two (BE-51): four renames plus
+            // Society splitting into Association / Community. Legacy options from
+            // both restructures are retired by their migrations, which also
+            // repoint any organization still using them.
             'org_type' => [
-                ['Institution', 'وزارة / هيئة حكومية'],
-                ['Education', 'جامعة / مدرسة / معهد'],
-                ['Society', 'جمعية تعاونية / مجتمع'],
-                ['NGO', 'جمعية خيرية / غير ربحية'],
+                ['Governmental', 'حكومي'],
+                ['Commercial', 'تجاري'],
+                ['Educational', 'تعليمي'],
+                ['NonProfit', 'غير ربحي'],
+                ['Association', 'جمعية'],
+                ['Community', 'مجتمع'],
                 ['Volunteer Team', 'فريق تطوعي'],
-                ['Commercial', 'شركة تجارية / براند'],
             ],
             'sponsor_type' => [
                 ['Financial sponsor', 'رعاية مالية'],
@@ -229,6 +230,13 @@ class ChoiceTypeSeeder extends Seeder
                 ['Internship', 'تدريب عملي'],
                 ['Consultation', 'استشارة'],
             ],
+            // BE-53: options for the certificates-tab filter on /volunteer-profile,
+            // served like every other dropdown rather than hardcoded in the app.
+            'certificate_filter_type' => [
+                ['Volunteer', 'تطوع'],
+                ['Course', 'دورة'],
+                ['Internship', 'تدريب'],
+            ],
             'event_participation_type' => [
                 ['Paid Event', 'فعالية مدفوعة'],
                 ['Free Event', 'فعالية مجانية'],
@@ -269,7 +277,7 @@ class ChoiceTypeSeeder extends Seeder
                 );
             }
 
-            if ($typeName === 'learning_type') {
+            if (in_array($typeName, ['learning_type', 'org_type'], true)) {
                 $approvedValues = array_column($values, 0);
                 MasterChoice::query()
                     ->where('choice_type_id', $type->id)

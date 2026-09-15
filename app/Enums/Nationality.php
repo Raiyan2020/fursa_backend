@@ -14,6 +14,15 @@ enum Nationality: string
     }
 
     /**
+     * `ALL` exists only as an opportunity filter value ("open to all
+     * nationalities") — it is not a nationality a person can be stored as.
+     */
+    public static function personValues(): array
+    {
+        return array_values(array_diff(self::values(), [self::ALL->value]));
+    }
+
+    /**
      * Accepts official values plus common aliases (e.g. KW → kuwaitis).
      */
     public static function tryFromInput(mixed $value): ?self

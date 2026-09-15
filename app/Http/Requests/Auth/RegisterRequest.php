@@ -6,7 +6,7 @@ use App\Enums\Nationality;
 use App\Enums\ResidencyStatus;
 use App\Enums\UserType;
 use App\Http\Requests\BaseRequest;
-use App\Models\User;
+use App\Support\Auth\IdentityDocumentValidator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -44,7 +44,7 @@ class RegisterRequest extends BaseRequest
             'documents.*' => ['file'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
-            'nationality' => ['nullable', 'string', Rule::in(Nationality::values())],
+            'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
             'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
             'birth_year' => ['nullable', 'integer'],
             'dob' => ['nullable', 'date'],
@@ -156,81 +156,7 @@ class RegisterRequest extends BaseRequest
      */
     protected function validateIdentityDocument(Validator $validator): void
     {
-        $nationality = Nationality::tryFromInput($this->input('nationality'));
-        $isNonKuwaiti = $nationality !== null && $nationality !== Nationality::KUWAITIS;
-
-        if (! $isNonKuwaiti) {
-            $this->requireUniqueCivilId($validator);
-
-            return;
-        }
-
-        $residencyStatus = ResidencyStatus::tryFrom((string) $this->input('residency_status', ''));
-
-        if ($residencyStatus === null) {
-            $validator->errors()->add(
-                'residency_status',
-                __('validation.required', ['attribute' => $this->attributeLabel('residency_status')])
-            );
-
-            return;
-        }
-
-        if ($residencyStatus === ResidencyStatus::NON_RESIDENT) {
-            $this->requireUniquePassportNumber($validator);
-
-            return;
-        }
-
-        $this->requireUniqueCivilId($validator);
-    }
-
-    protected function requireUniqueCivilId(Validator $validator): void
-    {
-        $civilId = trim((string) $this->input('civil_id', ''));
-
-        if ($civilId === '') {
-            $validator->errors()->add(
-                'civil_id',
-                __('validation.required', ['attribute' => $this->attributeLabel('civil_id')])
-            );
-
-            return;
-        }
-
-        if (User::query()
-            ->where('civil_id', $civilId)
-            ->where('email', '!=', strtolower(trim((string) $this->input('email', ''))))
-            ->exists()) {
-            $validator->errors()->add(
-                'civil_id',
-                __('validation.unique', ['attribute' => $this->attributeLabel('civil_id')])
-            );
-        }
-    }
-
-    protected function requireUniquePassportNumber(Validator $validator): void
-    {
-        $passportNumber = trim((string) $this->input('passport_number', ''));
-
-        if ($passportNumber === '') {
-            $validator->errors()->add(
-                'passport_number',
-                __('validation.required', ['attribute' => $this->attributeLabel('passport_number')])
-            );
-
-            return;
-        }
-
-        if (User::query()
-            ->where('passport_number', $passportNumber)
-            ->where('email', '!=', strtolower(trim((string) $this->input('email', ''))))
-            ->exists()) {
-            $validator->errors()->add(
-                'passport_number',
-                __('validation.unique', ['attribute' => $this->attributeLabel('passport_number')])
-            );
-        }
+        IdentityDocumentValidator::validate($this, $validator);
     }
 
     protected function rejectDuplicateEmergencyContact(Validator $validator): void

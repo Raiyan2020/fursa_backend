@@ -1,70 +1,41 @@
-# Fursa backend — mobile/frontend completion report
+# Fursa backend final completion report
 
 مساء الفل يا ميدو
 
-**All backend updates requested by the mobile/frontend team in `FURSA_BACKEND_ISSUES.md` are done and tested successfully.**
+All remaining items in `FURSA_BACKEND_ISSUES (1).md` are implemented and verified on the running Laravel test application.
 
-## Completed updates
+## Issue status
 
-- **BE-36 — Done.** Organization approval is checked on all organization-owned write operations. Existing tokens stop working after approval is withdrawn, and admin status changes revoke tokens.
-- **BE-37 — Done.** Rich-text descriptions, FAQ answers, and CMS page content are sanitized before storage. A backfill command is included for old rows.
-- **BE-41 — Done for the mobile contract.** Event attendance fields and tags were removed, attendance is no longer writable/filterable/exported, and event scan permissions are rejected. Mobile no longer receives or depends on an event-attendance cycle.
-- **BE-42 — Done.** Mobile can clear every existing image by sending multipart `existing_image_ids=none`. Republish can copy the licence without copying gallery images.
-- **BE-43 — Done.** Admin and API interest tags now use the same master-choice ids and keep both compatibility pivots synchronized.
-- **BE-44 — Done for mobile/admin compatibility.** URL and interest validation are aligned so records written in the dashboard can be edited through the API without unrelated validation failures.
-- **BE-45 — Done.** Private opportunities are hidden from lists, joinable through their direct link, return a usable frontend share URL, remain visible to their owner, and stay private after completion.
-- **BE-46 — Done.** Certificate endpoints require authentication and allow only the certificate owner or issuing organization. Other users cannot enumerate certificates.
-- **BE-47 — Done.** Only Course and Internship grant certificates. Class/Workshop and Consultation do not require check-in, invalid certificate types are rejected/cleared, and the seeder now provides the four approved learning types.
-- **BE-48 — Done.** All three detail resources return `is_saved_to_calendar` and `calendar_id`; delete clears the saved state; repeat saves reuse the same row; event calendar state is supported; duplicate calendar cards are removed.
-- **BE-49 — Done.** Calendar entries return specific bilingual types, omit deleted sources, deduplicate overlapping saved/registered/organized entries, and apply search/date filtering in the database.
+- **BE-44 — Done.** Admin and API opportunity writers now compose the same core rules. The API accepts `opportunity_nationality`, `is_calendar`, and `after_images`; the volunteer-opportunity dashboard displays and replaces per-day `time_slots`; the dashboard accepts the same optional localized event content as the API. The shared schedule writer prevents the API and dashboard implementations from drifting.
+- **BE-50 — Done.** Registration, volunteer-profile update, account update, and new volunteer social signup all enforce the same three-way identity rule. A non-Kuwaiti non-resident can sign up socially and edit their profile with `passport_number`; `nationality=all` is rejected for people.
+- **BE-51 — Done.** The public organization choices are exactly Governmental, Commercial, Educational, NonProfit, Association, and Community in the requested order. Existing Society rows become Association in place. The internal `society` licence-role key is retained and mapped to Association; Community retains the `community` role. Volunteer Team remains stored for the shortcut but is hidden from the public choice endpoint.
+- **BE-52 — Done.** Public volunteer directory payloads no longer contain `first_name` or `last_name`. Both `search` and `name` match only the volunteer's public nickname, so a real name cannot be used to identify a nickname.
+- **BE-53 — Done.** `/api/user-certificates/` filters the authenticated user's certificates by Volunteer, Course, or Internship, case-insensitively, and returns 422 for unknown values. The deployable `certificate_filter_type` master-choice vocabulary is included in both a migration and the seeder.
+- **BE-54 — Done.** Both profile-activity list endpoints accept `profile_activity_tag=participant|provider` case-insensitively and reject unknown values with 422. Participant means attended; Provider means created by the profile owner. `development_opportunities_count` is the combined participant-plus-provider figure. `opportunities_organized` remains the separate provider count, while `total_opportunities` now also includes attended development activities.
+- **BE-55 — Done.** Public and owner organization profiles read the all-time rollups from `organization_statistics`. Public profiles return `sponsored`; owner profiles retain `sponsored_count`. Events remain excluded from sponsorship by the existing opportunities-only schema and sync calculation.
 
-## Successful verification
+## Product decisions
 
-The focused backend/mobile integration suite passed:
+- **BE-50:** non-Kuwaiti non-residents are allowed to sign up with Google or LinkedIn when they provide `nationality=other`, `residency_status=non_resident`, and a unique `passport_number`.
+- **BE-51:** existing Society organizations and sponsors remain on the same choice id, renamed to Association. The internal `society` licence-role key is kept for compatibility. Community is restored as a separate new selection.
+- **BE-52:** real-name search is disabled for volunteers. The legacy `name` query parameter searches nickname only for volunteer lists.
+- **BE-54:** the profile exposes one combined `development_opportunities_count`. Lowercase `participant` and `provider` are canonical response values; filter input is case-insensitive, so the frontend's current `Participant` and `Provider` values remain valid. Provider credit requires an approved, non-deleted development opportunity and does not wait for completion.
 
-```text
-29 tests passed
-698 assertions passed
-0 failures
-```
+## Verification evidence
 
-The verification includes real endpoint tests for:
+- **BE-44:** API multipart creation persisted the two formerly admin-only columns and an after-completion image; a dashboard edit request displayed an API-created schedule and replaced its active day; an event created without optional localized fields was then saved successfully through the dashboard.
+- **BE-50:** live requests verified non-resident profile editing, account rejection when the required passport is cleared, successful Google-style social signup with a passport, and rejection of `nationality=all`.
+- **BE-51:** live `/api/choices/org_type/` output was asserted against the exact six-value ordered list; migration and seeder behavior are covered by refreshed-database tests.
+- **BE-52:** an anonymous volunteer-list request was inspected for absence of the seeded real name, and a real-name `name` search returned zero records.
+- **BE-53:** live certificate-list requests independently returned one Volunteer, Course, and Internship certificate; Class returned 422; the choice endpoint returned the exact three options.
+- **BE-54:** live profile-list requests returned only the attended row for Participant and only the created row for Provider, accepted both casings, and rejected an invalid tag. Sync wrote one attended and one organized development activity, and the public combined counter returned two.
+- **BE-55:** live public and authenticated owner-profile requests summed two yearly rollups and returned identical non-zero hours, volunteer count, development count, and sponsorship values under their existing keys. The existing sync test also verifies that paid development sponsorship is excluded.
 
-- stored-XSS sanitization through the create endpoint;
-- rejected organization tokens on protected writes;
-- private opportunity registration, visibility, share URL, and completion behavior;
-- clear-all image and republish licence behavior;
-- learning-type and certificate rules;
-- certificate authentication and ownership;
-- calendar save, repeat-save, unsave, `calendar_id`, event state, deletion, type, deduplication, and filters;
-- event scan-permission rejection;
-- admin/API interest synchronization.
+The dedicated final-round suite passes 11 tests. The complete project suite passes **302 tests and 4,083 assertions with zero failures**. All changed PHP files pass syntax validation, Laravel Pint, and `git diff --check`.
 
-All changed PHP files pass syntax validation, and Laravel Pint passes with no formatting errors.
+## Changes outside the issue list
 
-## Postman collection
-
-Both Postman files were updated and are identical:
-
-- `Fursa_API.postman_collection.json`
-- `docs/postman/Fursa_API.postman_collection.json`
-
-All API endpoints appear in the collection. Requests that need no payload have no body. Payload requests are configured as form-data, including file fields where required. Incorrect account and calendar methods/paths were corrected.
-
-## Decisions recorded
-
-- **BE-42:** use `existing_image_ids=none` to clear all existing images.
-- **BE-45:** private opportunities remain private after completion.
-- **BE-48:** `is_calendar` remains a deprecated compatibility field and does not block calendar saving.
-- Event registration/time-slot compatibility endpoints remain available, but event attendance is removed from the mobile/API contract.
-
-## Deployment-only checks
-
-These do not block the completed mobile/backend code, but must be checked on production during deployment because production access is not available from this workspace:
-
-- confirm the production `EXPOSE_OTP_IN_RESPONSE` value (production code hard-disables it regardless);
-- check/archive any old `event_attendances` rows before running the drop migration;
-- inspect production learning-type rows, run `ChoiceTypeSeeder`, and review any old certificates issued for non-certificate learning types;
-- run `php artisan fursa:backfill-sanitize-rich-text` and `php artisan fursa:backfill-generated-link`.
-
-No existing API field was renamed. New response fields required by mobile are `calendar_id`, event `is_saved_to_calendar`, and calendar `type_en` / `type_ar`.
+- Added two deployment migrations: the second organization-type restructure and the certificate-filter choice vocabulary.
+- Added shared opportunity core validation and a shared volunteer schedule writer.
+- Deleted the unused legacy `Auth\PublicProfileResource` and `Auth\OrganizationPublicProfileResource`; the live route already uses `WebsitePublicProfileResource`.
+- No existing response field was renamed and no new required frontend parameter was introduced.

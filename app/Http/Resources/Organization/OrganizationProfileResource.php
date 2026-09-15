@@ -49,10 +49,10 @@ class OrganizationProfileResource extends JsonResource
             'nationality' => $user?->nationality?->value ?? $user?->nationality,
             'interest_display' => $this->masterChoiceCollection($user?->masterInterests),
             'is_volunteer_team' => ($this->organizerType?->value_en === 'Volunteer Team'),
-            'organization_hours' => 0,
-            'learn_opportunity_organized' => 0,
-            'vol_opportunity_organized' => 0,
-            'sponsored_count' => 0,
+            'organization_hours' => $this->organization_hours,
+            'learn_opportunity_organized' => $this->learn_opportunity_organized,
+            'vol_opportunity_organized' => $this->vol_opportunity_organized,
+            'sponsored_count' => $this->sponsored_count,
         ];
     }
 }

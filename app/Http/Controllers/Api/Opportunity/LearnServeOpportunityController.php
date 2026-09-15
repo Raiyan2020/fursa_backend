@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Opportunity;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
+use App\Enums\Nationality;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
@@ -20,6 +21,7 @@ use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
 use App\Support\HtmlSanitizer;
 use App\Support\MediaKeepSet;
+use App\Support\Opportunity\OpportunityValidationRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -81,7 +83,7 @@ class LearnServeOpportunityController extends Controller
         $source = RepublishMedia::source($request, LearnServeOpportunity::class);
 
         return DB::transaction(function () use ($request, $data, $source) {
-            unset($data['license_image']);
+            unset($data['license_image'], $data['after_images']);
 
             $data = array_merge($data, $this->mapLocationAttributes($data));
 
@@ -99,6 +101,7 @@ class LearnServeOpportunityController extends Controller
             RepublishMedia::apply($request, $opportunity, $source);
 
             $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
+            $this->storeImageArrayFromRequest($request, $opportunity, 'learn_serve_opportunity_id', 'after_images', true);
 
             $opportunity->load(['creator', 'interests', 'images']);
 
@@ -124,7 +127,7 @@ class LearnServeOpportunityController extends Controller
 
         $data = $this->validatePayload($request, partial: true);
         $request->validate(['opportunity_id' => ['prohibited']]);
-        unset($data['license_image']);
+        unset($data['license_image'], $data['after_images']);
         $before = $this->opportunitySnapshot($opportunity);
         $data = array_merge($data, $this->mapLocationAttributes($data));
         $opportunity->update($data);
@@ -137,6 +140,7 @@ class LearnServeOpportunityController extends Controller
         RepublishMedia::apply($request, $opportunity);
 
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'learn_serve_opportunity_id');
+        $this->storeImageArrayFromRequest($request, $opportunity, 'learn_serve_opportunity_id', 'after_images', true);
 
         $opportunity->load(['creator', 'interests', 'images']);
 
@@ -361,23 +365,13 @@ class LearnServeOpportunityController extends Controller
 
         $rules = [
             ...RepublishMedia::rules(),
-            'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
-            'title_ar' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
-            'description_en' => [$partial ? 'sometimes' : 'required', 'string'],
-            'description_ar' => [$partial ? 'sometimes' : 'required', 'string'],
-            'start_date' => [$partial ? 'sometimes' : 'required', 'date'],
-            'end_date' => [$partial ? 'sometimes' : 'required', 'date'],
-            'due_date' => ['nullable', 'date'],
-            'participants_needed' => [$partial ? 'sometimes' : 'required', 'integer', 'min:1'],
-            'from_age' => ['nullable', 'integer'],
-            'to_age' => ['nullable', 'integer'],
-            'start_time' => ['nullable', 'string'],
-            'end_time' => ['nullable', 'string'],
+            ...OpportunityValidationRules::core($partial),
             ...$this->mapLocationRules($partial),
             'link' => ['nullable', 'url'],
             'location_url' => ['nullable', 'url'],
             'is_registration_closed' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
+            'is_calendar' => ['nullable', 'boolean'],
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'is_kuwaitis' => ['nullable', 'boolean'],
@@ -386,6 +380,9 @@ class LearnServeOpportunityController extends Controller
             'format_id' => [$partial ? 'sometimes' : 'required', 'integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->where('name', 'learn_serve_format'))->pluck('id')->all())],
             'certificate_type_id' => ['nullable', 'integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->where('name', 'learn_serve_certificate_type'))->pluck('id')->all())],
             'primary_language' => ['nullable', Rule::in(['en', 'ar'])],
+            'opportunity_nationality' => ['nullable', Rule::in(Nationality::values())],
+            'after_images' => ['nullable', 'array'],
+            'after_images.*' => ['image', 'max:10240'],
             'interest_ids' => ['nullable', 'array'],
             // Tag ids come from /api/choices/* (master_choices). The old
             // `exists:interests,id` rule pointed at the legacy table and
@@ -395,7 +392,7 @@ class LearnServeOpportunityController extends Controller
 
         // Fail loudly on a field name this endpoint does not know, instead of
         // dropping it silently (BE-22).
-        $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
+        $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots', 'after_images']);
 
         $data = $request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/learnserve_opportunity_interest/'])]);
         $data = HtmlSanitizer::cleanFields($data, ['description_en', 'description_ar']);

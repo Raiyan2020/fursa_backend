@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Opportunity;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
+use App\Enums\Nationality;
 use App\Enums\OpportunityStatus;
 use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
@@ -27,7 +28,8 @@ use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
 use App\Support\HtmlSanitizer;
 use App\Support\MediaKeepSet;
-use Carbon\Carbon;
+use App\Support\Opportunity\OpportunityValidationRules;
+use App\Support\Opportunity\VolunteerOpportunitySchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -88,7 +90,7 @@ class VolunteerOpportunityController extends Controller
         $source = RepublishMedia::source($request, VolunteerOpportunity::class);
 
         return DB::transaction(function () use ($request, $data, $source) {
-            unset($data['license_image']);
+            unset($data['license_image'], $data['after_images']);
 
             $data = array_merge($data, $this->mapLocationAttributes($data));
 
@@ -106,12 +108,13 @@ class VolunteerOpportunityController extends Controller
             $this->syncOpportunityInterests($opportunity, $request->input('interest_ids', []), 'volunteer_opportunity_interest');
 
             if (! empty($data['time_slots'])) {
-                $this->syncTimeSlots($opportunity, $data['time_slots']);
+                VolunteerOpportunitySchedule::sync($opportunity, $data['time_slots']);
             }
 
             RepublishMedia::apply($request, $opportunity, $source);
 
             $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
+            $this->storeImageArrayFromRequest($request, $opportunity, 'volunteer_opportunity_id', 'after_images', true);
 
             $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots']);
 
@@ -137,7 +140,7 @@ class VolunteerOpportunityController extends Controller
 
         $data = $this->validateVolunteerPayload($request, partial: true);
         $request->validate(['opportunity_id' => ['prohibited']]);
-        unset($data['license_image']);
+        unset($data['license_image'], $data['after_images']);
         $before = $this->opportunitySnapshot($opportunity);
         $data = array_merge($data, $this->mapLocationAttributes($data));
         $opportunity->update($data);
@@ -148,12 +151,13 @@ class VolunteerOpportunityController extends Controller
         }
 
         if ($request->has('time_slots')) {
-            $this->syncTimeSlots($opportunity, $data['time_slots'] ?? []);
+            VolunteerOpportunitySchedule::sync($opportunity, $data['time_slots'] ?? []);
         }
 
         RepublishMedia::apply($request, $opportunity);
 
         $this->storeAnnouncementImagesFromRequest($request, $opportunity, 'volunteer_opportunity_id');
+        $this->storeImageArrayFromRequest($request, $opportunity, 'volunteer_opportunity_id', 'after_images', true);
 
         $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots']);
 
@@ -449,6 +453,11 @@ class VolunteerOpportunityController extends Controller
             return $filterResult;
         }
 
+        $activityTagResult = $this->applyProfileActivityTagFilter($learnQuery, $request, $user);
+        if ($activityTagResult instanceof JsonResponse) {
+            return $activityTagResult;
+        }
+
         $combined = collect()
             ->merge(
                 $volunteerQuery->with(['creator', 'gender.choiceType', 'interests', 'images', 'registrations.attendances'])->get()
@@ -551,6 +560,11 @@ class VolunteerOpportunityController extends Controller
         $this->applyDateRangeFilter($volunteerQuery, $request);
         $this->applyDateRangeFilter($learnQuery, $request);
 
+        $activityTagResult = $this->applyProfileActivityTagFilter($learnQuery, $request, $user);
+        if ($activityTagResult instanceof JsonResponse) {
+            return $activityTagResult;
+        }
+
         $combined = collect()
             ->merge($volunteerQuery->with(['creator', 'interests', 'images', 'registrations.attendances'])->get()
                 ->map(fn ($item) => (new WebsiteVolunteerOpportunityResource($item, $user->id))->resolve()))
@@ -595,18 +609,7 @@ class VolunteerOpportunityController extends Controller
 
         $rules = [
             ...RepublishMedia::rules(),
-            'title_en' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
-            'title_ar' => [$partial ? 'sometimes' : 'required', 'string', 'max:255'],
-            'description_en' => [$partial ? 'sometimes' : 'required', 'string'],
-            'description_ar' => [$partial ? 'sometimes' : 'required', 'string'],
-            'start_date' => [$partial ? 'sometimes' : 'required', 'date'],
-            'end_date' => [$partial ? 'sometimes' : 'required', 'date'],
-            'due_date' => ['nullable', 'date'],
-            'participants_needed' => [$partial ? 'sometimes' : 'required', 'integer', 'min:1'],
-            'from_age' => ['nullable', 'integer', 'min:0'],
-            'to_age' => ['nullable', 'integer'],
-            'start_time' => ['nullable', 'string'],
-            'end_time' => ['nullable', 'string'],
+            ...OpportunityValidationRules::core($partial),
             ...$this->mapLocationRules($partial),
             'link' => ['nullable', 'url'],
             'location_url' => ['nullable', 'url'],
@@ -614,6 +617,7 @@ class VolunteerOpportunityController extends Controller
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
             'is_public' => ['nullable', 'boolean'],
+            'is_calendar' => ['nullable', 'boolean'],
             'is_kuwaitis' => ['nullable', 'boolean'],
             'is_relief' => ['nullable', 'boolean'],
             'is_urgent' => ['nullable', 'boolean'],
@@ -632,6 +636,9 @@ class VolunteerOpportunityController extends Controller
             'volunteer_hours_per_day' => ['nullable', 'numeric'],
             'gender_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'primary_language' => ['nullable', Rule::in(['en', 'ar'])],
+            'opportunity_nationality' => ['nullable', Rule::in(Nationality::values())],
+            'after_images' => ['nullable', 'array'],
+            'after_images.*' => ['image', 'max:10240'],
             'interest_ids' => ['nullable', 'array'],
             // Tag ids come from /api/choices/* (master_choices). The old
             // `exists:interests,id` rule pointed at the legacy table and
@@ -641,7 +648,7 @@ class VolunteerOpportunityController extends Controller
 
         // Fail loudly on a field name this endpoint does not know, instead of
         // dropping it silently (BE-22).
-        $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots']);
+        $this->rejectUnknownWriteKeys($request, $rules, ['interest_ids', 'existing_image_ids', 'time_slots', 'after_images']);
 
         $validated = $request->validate($rules, ['interest_ids.*.in' => __('apis.unknown_interest_ids_scoped', ['endpoint' => '/api/choices/volunteer_opportunity_interest/'])]);
 
@@ -669,50 +676,6 @@ class VolunteerOpportunityController extends Controller
         }
 
         return $data;
-    }
-
-    /**
-     * Replace the opportunity's per-day schedule.
-     *
-     * Days are soft-deleted rather than removed so historical attendance keeps
-     * resolving against the slot it was recorded under.
-     *
-     * @param  list<array{date: string, start_time?: string|null, end_time?: string|null}>  $slots
-     */
-    protected function syncTimeSlots(VolunteerOpportunity $opportunity, array $slots): void
-    {
-        // Track kept rows by id: the date column stores a full timestamp, so
-        // comparing it against 'Y-m-d' strings would match nothing and wipe
-        // every slot we just wrote.
-        $keptIds = [];
-
-        foreach ($slots as $slot) {
-            $date = Carbon::parse($slot['date'])->toDateString();
-
-            $existing = $opportunity->timeSlots()->whereDate('date', $date)->first();
-
-            $attributes = [
-                'start_time' => $slot['start_time'] ?? $opportunity->start_time,
-                'end_time' => $slot['end_time'] ?? $opportunity->end_time,
-                'is_deleted' => false,
-                'deleted_at' => null,
-            ];
-
-            if ($existing) {
-                $existing->update($attributes);
-                $keptIds[] = $existing->id;
-
-                continue;
-            }
-
-            $created = $opportunity->timeSlots()->create($attributes + ['date' => $date]);
-            $keptIds[] = $created->id;
-        }
-
-        $opportunity->timeSlots()
-            ->notDeleted()
-            ->when($keptIds !== [], fn ($q) => $q->whereNotIn('id', $keptIds))
-            ->update(['is_deleted' => true, 'deleted_at' => now()]);
     }
 
     protected function syncInterests(VolunteerOpportunity $opportunity, array $interestIds): void
@@ -871,6 +834,47 @@ class VolunteerOpportunityController extends Controller
         $this->applyAgeAudienceFilter($eventQuery, $request);
 
         return null;
+    }
+
+    /**
+     * BE-54: splits a profile's development-activity listing by the role the
+     * profile owner played. Only ever sent with the Development type chip, so
+     * it scopes learnQuery only — volunteer opportunities are untouched.
+     * `Participant` means attended (not merely registered), matching the
+     * `profile_activity_tag: participant` value BuildsWebsiteFields already
+     * computes per row; `Provider` means the profile owner created it.
+     * Values are matched case-insensitively — the stored/computed value is
+     * lowercase, the frontend sends it capitalised.
+     */
+    protected function applyProfileActivityTagFilter($learnQuery, Request $request, User $user): ?JsonResponse
+    {
+        $tag = $request->query('profile_activity_tag');
+        if ($tag === null || $tag === '') {
+            return null;
+        }
+
+        $normalized = strtolower(trim((string) $tag));
+
+        if ($normalized === 'participant') {
+            $learnQuery->whereHas('registrations', function ($q) use ($user) {
+                $q->where('is_deleted', false)->where('user_id', $user->id)->where('is_attended', true);
+            });
+
+            return null;
+        }
+
+        if ($normalized === 'provider') {
+            $learnQuery->where('created_by', $user->id);
+
+            return null;
+        }
+
+        return ApiResponse::error(
+            'Invalid profile_activity_tag value: '.$tag.'. Valid options are: Participant, Provider.',
+            'قيمة profile_activity_tag غير صالحة: '.$tag.'. الخيارات الصالحة هي: Participant، Provider.',
+            422,
+            ['profile_activity_tag' => [__('apis.invalid_profile_activity_tag')]]
+        );
     }
 
     protected function organizationProfileIdFor(User $user): ?int

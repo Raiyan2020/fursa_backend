@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\MasterChoice;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,11 +21,13 @@ class OrganizationTypeRestructureTest extends TestCase
         $this->seed();
     }
 
-    public function test_all_six_client_approved_types_are_available(): void
+    public function test_all_seven_client_approved_types_are_available(): void
     {
         $available = $this->orgTypes()->pluck('value_en')->all();
 
-        foreach (['Institution', 'Education', 'Society', 'NGO', 'Volunteer Team', 'Commercial'] as $expected) {
+        // BE-51 (round two): Institution/Education/Society/NGO were renamed and
+        // Society split into Association + Community.
+        foreach (['Governmental', 'Educational', 'Association', 'Community', 'NonProfit', 'Volunteer Team', 'Commercial'] as $expected) {
             $this->assertContains($expected, $available, "Missing org type: {$expected}");
         }
     }
@@ -33,18 +36,18 @@ class OrganizationTypeRestructureTest extends TestCase
     {
         $available = $this->orgTypes()->pluck('value_en')->all();
 
-        foreach (['Private', 'Public', 'Community', 'Company', 'Government'] as $retired) {
+        foreach (['Private', 'Public', 'Company', 'Government', 'Institution', 'Education', 'Society', 'NGO'] as $retired) {
             $this->assertNotContains($retired, $available, "Retired org type still offered: {$retired}");
         }
     }
 
     public function test_new_types_carry_arabic_labels(): void
     {
-        $society = $this->orgTypes()->firstWhere('value_en', 'Society');
+        $association = $this->orgTypes()->firstWhere('value_en', 'Association');
 
-        $this->assertNotNull($society);
-        $this->assertNotEmpty($society->value_ar);
-        $this->assertStringContainsString('جمعية', $society->value_ar);
+        $this->assertNotNull($association);
+        $this->assertNotEmpty($association->value_ar);
+        $this->assertStringContainsString('جمعية', $association->value_ar);
     }
 
     public function test_org_type_choices_endpoint_returns_the_new_list(): void
@@ -54,18 +57,38 @@ class OrganizationTypeRestructureTest extends TestCase
 
         $values = array_column($response->json('data') ?? [], 'value_en');
 
-        $this->assertContains('Institution', $values);
-        $this->assertContains('Commercial', $values);
-        $this->assertNotContains('Government', $values);
+        $this->assertSame([
+            'Governmental',
+            'Commercial',
+            'Educational',
+            'NonProfit',
+            'Association',
+            'Community',
+        ], $values);
+    }
+
+    public function test_round_two_migration_renames_society_in_place_and_restores_community(): void
+    {
+        $migration = require database_path('migrations/2026_09_15_000001_restructure_organization_types_round_two.php');
+        $migration->down();
+
+        $society = $this->orgTypes(includeDeleted: true)->firstWhere('value_en', 'Society');
+        $this->assertNotNull($society);
+        $societyId = $society->id;
+
+        $migration->up();
+
+        $this->assertSame('Association', MasterChoice::query()->findOrFail($societyId)->value_en);
+        $this->assertNotNull($this->orgTypes()->firstWhere('value_en', 'Community'));
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, MasterChoice>
+     * @return Collection<int, MasterChoice>
      */
-    protected function orgTypes()
+    protected function orgTypes(bool $includeDeleted = false)
     {
         return MasterChoice::query()
-            ->notDeleted()
+            ->when(! $includeDeleted, fn ($query) => $query->notDeleted())
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'org_type'))
             ->get();
     }

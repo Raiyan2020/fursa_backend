@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Support\AdminExport;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
@@ -13,6 +12,8 @@ use App\Models\Event;
 use App\Models\EventImage;
 use App\Models\MasterChoice;
 use App\Models\OrganizationProfile;
+use App\Support\AdminExport;
+use App\Support\Opportunity\OpportunityValidationRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -297,30 +298,17 @@ class EventController extends Controller
 
         return $request->validate([
             'created_by' => ['required', 'integer', Rule::exists('organization_profiles', 'id')],
-            'title_en' => ['required', 'string', 'max:255'],
-            'title_ar' => ['required', 'string', 'max:255'],
-            'description_en' => ['required', 'string'],
-            'description_ar' => ['required', 'string'],
+            ...OpportunityValidationRules::core(participantsRequired: false, secondaryContentRequired: false),
             'event_type_id' => array_merge(['required'], array_slice($choiceRule('event_type'), 1)),
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'start_time' => ['nullable', 'date_format:H:i'],
-            'end_time' => ['nullable', 'date_format:H:i'],
-            'due_date' => ['nullable', 'date'],
-            'location_en' => ['nullable', 'string', 'max:255'],
-            'location_ar' => ['nullable', 'string', 'max:255'],
             'location_url' => ['nullable', 'url', 'max:500'],
             'map_desc' => ['nullable', 'string', 'max:500'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'from_age' => ['nullable', 'integer', 'min:0', 'max:120'],
-            'to_age' => ['nullable', 'integer', 'min:0', 'max:120', 'gte:from_age'],
             'gender_id' => $choiceRule('opportunity_gender'),
             'attendance_type_id' => $choiceRule('event_attendance_type'),
             'participation_type_id' => $choiceRule('event_participation_type'),
-            'participants_needed' => ['nullable', 'integer', 'min:0'],
             'registration_required' => ['nullable', 'boolean'],
             'paid_registration' => ['nullable', 'boolean'],
             'registration_fee' => ['nullable', 'numeric', 'min:0'],

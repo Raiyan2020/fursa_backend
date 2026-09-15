@@ -193,6 +193,8 @@ class PublicAndCommunityFlowTest extends TestCase
         $event = $this->api($organizationToken)->postJson('/api/events/', [
             'title_en' => 'Real Organized Event',
             'title_ar' => 'فعالية حقيقية',
+            'description_en' => 'Organized event description',
+            'description_ar' => 'وصف الفعالية',
             'event_type_id' => $eventType->id,
             'start_date' => $dates['start_date'],
             'end_date' => $dates['start_date'],
@@ -288,6 +290,8 @@ class PublicAndCommunityFlowTest extends TestCase
         $event = $this->api($organizationToken)->postJson('/api/events/', [
             'title_en' => 'Relationship Tags Event',
             'title_ar' => 'فعالية',
+            'description_en' => 'Relationship tags description',
+            'description_ar' => 'وصف الفعالية',
             'event_type_id' => $eventType->id,
             'start_date' => now()->addDays(3)->toDateString(),
             'end_date' => now()->addDays(3)->toDateString(),
