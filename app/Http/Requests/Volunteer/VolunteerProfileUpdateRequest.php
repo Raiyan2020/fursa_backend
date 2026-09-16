@@ -14,6 +14,12 @@ class VolunteerProfileUpdateRequest extends BaseRequest
 {
     use HandlesProfileInterests;
 
+    /**
+     * Captured in prepareForValidation(), before the identity-field fallback
+     * merges run, so it reflects what the client actually sent (BE-56).
+     */
+    protected bool $identityCheckApplicable = false;
+
     public function authorize(): bool
     {
         return true;
@@ -61,6 +67,10 @@ class VolunteerProfileUpdateRequest extends BaseRequest
 
     public function withValidator(Validator $validator): void
     {
+        if (! $this->identityCheckApplicable) {
+            return;
+        }
+
         $validator->after(function (Validator $validator) {
             IdentityDocumentValidator::validate($this, $validator, $this->user()->id);
         });
@@ -76,6 +86,10 @@ class VolunteerProfileUpdateRequest extends BaseRequest
     protected function prepareForValidation(): void
     {
         $user = $this->user();
+
+        // Must read before the fallback merges below populate these keys,
+        // otherwise every request looks like it "touched" identity (BE-56).
+        $this->identityCheckApplicable = IdentityDocumentValidator::isApplicable($this, $user);
 
         if ($this->filled('nationality')) {
             $this->merge(['nationality' => Nationality::normalize($this->input('nationality'))]);

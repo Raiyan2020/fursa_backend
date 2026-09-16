@@ -362,6 +362,11 @@ class AuthController extends Controller
     public function updateAccount(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        // BE-56: must read before the fallback merges below populate these keys,
+        // otherwise every request looks like it "touched" identity.
+        $identityCheckApplicable = $user->isVolunteer() && IdentityDocumentValidator::isApplicable($request, $user);
+
         if ($request->filled('nationality')) {
             $request->merge([
                 'nationality' => Nationality::normalize($request->input('nationality')),
@@ -425,7 +430,7 @@ class AuthController extends Controller
             $data['nationality'] = Nationality::normalize($data['nationality']);
         }
 
-        if ($user->isVolunteer()) {
+        if ($identityCheckApplicable) {
             $identityValidator = ValidatorFacade::make($request->all(), []);
             $identityValidator->after(function ($validator) use ($request, $user) {
                 IdentityDocumentValidator::validate($request, $validator, $user->id);

@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\ExpiringToken;
 use App\Models\MasterChoice;
 use App\Models\OtpVerification;
 use App\Models\User;
+use App\Models\VolunteerProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\AssertsDjangoApiEnvelope;
 use Tests\TestCase;
@@ -209,6 +212,113 @@ class AuthApiTest extends TestCase
         ]);
 
         $this->assertSuccessEnvelope($response, 201, 'OTP has been sent to the email address.');
+    }
+
+    public function test_account_update_does_not_demand_identity_document_for_legacy_social_signup(): void
+    {
+        // BE-56: a pre-BE-50 social signup can have both nationality and
+        // civil_id null. Editing an unrelated field on /account/ must not
+        // 422 on an identity document nobody was asked for.
+        $this->seed();
+
+        $user = User::factory()->create([
+            'password' => Hash::make('Password1'),
+            'user_type' => 'volunteer',
+            'nationality' => null,
+            'civil_id' => null,
+            'passport_number' => null,
+            'is_social_login' => true,
+        ]);
+
+        $token = ExpiringToken::issueFor($user, 1)->key;
+
+        $response = $this->withHeader('Authorization', 'Token '.$token)
+            ->postJson('/api/account/', [
+                'phone_number' => '55001122',
+            ]);
+
+        $this->assertSuccessEnvelope($response, 200);
+        $this->assertSame('55001122', $user->fresh()->phone_number);
+    }
+
+    public function test_account_update_still_enforces_identity_document_when_request_touches_it(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create([
+            'password' => Hash::make('Password1'),
+            'user_type' => 'volunteer',
+            'nationality' => null,
+            'civil_id' => null,
+            'passport_number' => null,
+            'is_social_login' => true,
+        ]);
+
+        $token = ExpiringToken::issueFor($user, 1)->key;
+
+        $response = $this->withHeader('Authorization', 'Token '.$token)
+            ->postJson('/api/account/', [
+                'nationality' => 'other',
+                'residency_status' => 'resident',
+            ]);
+
+        $this->assertErrorEnvelope($response, 422);
+        $this->assertNotEmpty($response->json('response_status.validation_errors.civil_id'));
+    }
+
+    public function test_profile_update_does_not_demand_identity_document_for_legacy_social_signup(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create([
+            'password' => Hash::make('Password1'),
+            'nationality' => null,
+            'residency_status' => null,
+            'civil_id' => null,
+            'passport_number' => null,
+            'is_social_login' => true,
+        ]);
+        VolunteerProfile::query()->create([
+            'user_id' => $user->id,
+            'nickname' => 'legacy_social_user',
+        ]);
+        $token = ExpiringToken::issueFor($user, 1)->key;
+
+        $response = $this->withHeader('Authorization', 'Token '.$token)
+            ->patchJson('/api/volunteer-profile/', [
+                'is_public' => true,
+            ]);
+
+        $this->assertSuccessEnvelope($response, 200, 'Volunteer profile updated successfully.');
+        $this->assertTrue($user->volunteerProfile->fresh()->is_public);
+    }
+
+    public function test_profile_update_still_enforces_identity_document_when_request_touches_it(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create([
+            'password' => Hash::make('Password1'),
+            'nationality' => null,
+            'residency_status' => null,
+            'civil_id' => null,
+            'passport_number' => null,
+            'is_social_login' => true,
+        ]);
+        VolunteerProfile::query()->create([
+            'user_id' => $user->id,
+            'nickname' => 'legacy_social_user',
+        ]);
+        $token = ExpiringToken::issueFor($user, 1)->key;
+
+        $response = $this->withHeader('Authorization', 'Token '.$token)
+            ->patchJson('/api/volunteer-profile/', [
+                'nationality' => 'other',
+                'residency_status' => 'resident',
+            ]);
+
+        $this->assertErrorEnvelope($response, 422);
+        $this->assertNotEmpty($response->json('response_status.validation_errors.civil_id'));
     }
 
     public function test_forgot_password_rejects_unregistered_email(): void

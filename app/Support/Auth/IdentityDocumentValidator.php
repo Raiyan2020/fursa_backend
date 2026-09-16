@@ -18,6 +18,26 @@ use Illuminate\Http\Request;
 class IdentityDocumentValidator
 {
     /**
+     * BE-56: a save that touches none of the identity fields, on an account that
+     * never answered them either (legacy pre-BE-50 social signups have null
+     * nationality/civil_id/passport_number), has nothing to validate — the
+     * fallback in the caller can't fill an empty stored value, so running the
+     * check anyway 422s a request that never asked about identity at all.
+     */
+    public static function isApplicable(Request $request, User $user): bool
+    {
+        foreach (['nationality', 'residency_status', 'civil_id', 'passport_number'] as $field) {
+            if ($request->has($field)) {
+                return true;
+            }
+        }
+
+        return $user->nationality !== null
+            || (string) $user->civil_id !== ''
+            || (string) $user->passport_number !== '';
+    }
+
+    /**
      * @param  int|null  $ignoreUserId  Pass the current user's id on an update so
      *                                  their own row doesn't collide with itself;
      *                                  omit it for a brand-new registration, where
