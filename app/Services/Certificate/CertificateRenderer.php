@@ -52,7 +52,7 @@ class CertificateRenderer
         $user = $registration->user;
         $opportunity = $registration->opportunity;
 
-        $name = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+        $name = trim((string) ($registration->certificate_name ?: trim(($user->first_name ?? '').' '.($user->last_name ?? ''))));
 
         // Arabic scripts need the RTL layout and an Arabic-capable font stack;
         // detecting from the name keeps a mixed audience rendering correctly.

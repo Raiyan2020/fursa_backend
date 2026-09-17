@@ -11,6 +11,22 @@ use Illuminate\Support\Facades\Mail;
 /** Lightweight port of Django send_dynamic_email. */
 class DynamicEmailService
 {
+    /**
+     * These templates are opt-out reminders. Transactional mail such as OTP,
+     * registration status, and certificate delivery must remain unaffected.
+     *
+     * @var list<string>
+     */
+    private const REMINDER_TEMPLATES = [
+        'volunteer_three_day_reminder',
+        'learnserve_three_day_reminder',
+        'event_three_day_reminder',
+        'volunteer_day_of_notification',
+        'learnserve_day_of_notification',
+        'event_day_of_notification',
+        'check_in_window_reminder',
+    ];
+
     public static function send(string $templateName, User $user, array $context = []): bool
     {
         Log::info('DynamicEmailService::send start', [
@@ -25,6 +41,16 @@ class DynamicEmailService
 
         if (! $user->email) {
             Log::warning('DynamicEmailService aborted: user has no email', [
+                'template' => $templateName,
+                'user_id' => $user->id,
+            ]);
+
+            return false;
+        }
+
+        if (in_array($templateName, self::REMINDER_TEMPLATES, true)
+            && ! (bool) ($user->receive_reminder_emails ?? true)) {
+            Log::info('DynamicEmailService reminder skipped by user preference', [
                 'template' => $templateName,
                 'user_id' => $user->id,
             ]);

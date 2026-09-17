@@ -229,6 +229,46 @@ class LearnServeRegistrationController extends Controller
         );
     }
 
+    /**
+     * Store the name that should appear on this participant's certificate.
+     * The organizer may correct spelling without changing the user's profile.
+     * A changed name invalidates a previously rendered certificate so the next
+     * issue/show operation uses the corrected value.
+     */
+    public function updateCertificateName(Request $request, int $opportunity_id, int $registration_id): JsonResponse
+    {
+        $data = $request->validate([
+            'certificate_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $opportunity = LearnServeOpportunity::query()->notDeleted()->find($opportunity_id);
+        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+            return ApiResponse::error('Permission denied.', 'تم رفض الإذن.', 403);
+        }
+
+        $registration = LearnServeOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('opportunity_id', $opportunity_id)
+            ->find($registration_id);
+        if (! $registration) {
+            return ApiResponse::error('Registration not found.', 'التسجيل غير موجود.', 404);
+        }
+
+        $name = isset($data['certificate_name']) ? trim((string) $data['certificate_name']) : null;
+        $name = $name === '' ? null : $name;
+        $registration->update([
+            'certificate_name' => $name,
+            'is_certified' => false,
+            'certificate_image' => null,
+        ]);
+
+        return ApiResponse::success(
+            new LearnServeOpportunityRegistrationResource($registration->fresh(['user', 'opportunity', 'assignment.timeSlot'])),
+            'Certificate name updated successfully.',
+            'تم تحديث اسم الشهادة بنجاح.'
+        );
+    }
+
     public function messageRegistrants(Request $request, int $opportunity_id): JsonResponse
     {
         $data = $request->validate([

@@ -391,9 +391,18 @@ class VolunteerAttendanceController extends Controller
             );
         }
 
+        $maxHoursForDay = $this->computeAttendanceHours($opportunity, $attendanceDate);
         $hours = array_key_exists('total_hours', $data) && $data['total_hours'] !== null
             ? round((float) $data['total_hours'], 2)
-            : $this->computeAttendanceHours($opportunity, $attendanceDate);
+            : $maxHoursForDay;
+
+        if ($maxHoursForDay > 0 && $hours > $maxHoursForDay) {
+            return ApiResponse::error(
+                "Hours cannot exceed the opportunity's scheduled hours for this day ({$maxHoursForDay}h).",
+                "لا يمكن أن تتجاوز الساعات المدخلة الساعات المجدولة لهذا اليوم ({$maxHoursForDay} ساعة).",
+                422
+            );
+        }
 
         $attendance = AttendanceService::record(
             $registration,
@@ -438,7 +447,18 @@ class VolunteerAttendanceController extends Controller
             );
         }
 
-        $attendance = AttendanceService::updateHours($attendance, round((float) $data['total_hours'], 2));
+        $hours = round((float) $data['total_hours'], 2);
+        $maxHoursForDay = $this->computeAttendanceHours($opportunity, $attendance->attended_date->toDateString());
+
+        if ($maxHoursForDay > 0 && $hours > $maxHoursForDay) {
+            return ApiResponse::error(
+                "Hours cannot exceed the opportunity's scheduled hours for this day ({$maxHoursForDay}h).",
+                "لا يمكن أن تتجاوز الساعات المدخلة الساعات المجدولة لهذا اليوم ({$maxHoursForDay} ساعة).",
+                422
+            );
+        }
+
+        $attendance = AttendanceService::updateHours($attendance, $hours);
 
         return ApiResponse::success(
             new VolunteerAttendanceResource($attendance->load(['registration.user', 'registration.opportunity'])),

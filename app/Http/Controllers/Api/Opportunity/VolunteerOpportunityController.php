@@ -256,6 +256,14 @@ class VolunteerOpportunityController extends Controller
             return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
         }
 
+        if ($opportunity->registrationClosesAt()?->isPast()) {
+            return ApiResponse::error(
+                'Registration cannot be reopened after the deadline.',
+                'لا يمكن إعادة فتح التسجيل بعد انتهاء الموعد النهائي.',
+                422
+            );
+        }
+
         $before = $this->opportunitySnapshot($opportunity);
         $opportunity->update(['is_registration_closed' => false]);
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));

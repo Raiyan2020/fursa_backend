@@ -73,6 +73,12 @@ class OrganizationProfileController extends Controller
             'license_number' => ['nullable', 'string', 'max:100'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
+            // PDF review: needed so an individual/association publisher can
+            // receive their share of a paid opportunity's fee after the
+            // platform's cut — the transfer itself stays a manual bank action.
+            'bank_name' => ['nullable', 'string', 'max:100'],
+            'bank_account_holder_name' => ['nullable', 'string', 'max:150'],
+            'bank_account_number' => ['nullable', 'string', 'max:50'],
             'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
             'instagram_link' => ['nullable', 'url'],
             'whatsapp_link' => ['nullable', 'url'],
@@ -92,6 +98,9 @@ class OrganizationProfileController extends Controller
             'license_number' => $data['license_number'] ?? $profile->license_number,
             'latitude' => $data['latitude'] ?? $profile->latitude,
             'longitude' => $data['longitude'] ?? $profile->longitude,
+            'bank_name' => $data['bank_name'] ?? $profile->bank_name,
+            'bank_account_holder_name' => $data['bank_account_holder_name'] ?? $profile->bank_account_holder_name,
+            'bank_account_number' => $data['bank_account_number'] ?? $profile->bank_account_number,
         ]);
         $profile->save();
 

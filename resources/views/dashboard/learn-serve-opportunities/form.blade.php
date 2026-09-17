@@ -284,6 +284,12 @@
         </div>
     </div>
 
+    <div class="col-md-4 mb-1">
+        <label>{{ __('price (kwd)') }}</label>
+        <input type="number" step="0.01" min="0" name="price" class="form-control{{ $invalid('price') }}" value="{{ $opportunityValue('price') }}">
+        @error('price') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+    </div>
+
     <div class="col-md-6 mb-1">
         <label>{{ __('license image') }}</label>
         <input type="file" name="license_image" class="form-control{{ $invalid('license_image') }}" accept="image/*">

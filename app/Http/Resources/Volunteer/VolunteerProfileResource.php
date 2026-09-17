@@ -78,6 +78,7 @@ class VolunteerProfileResource extends JsonResource
             'civil_id' => $user?->civil_id,
             'passport_number' => $user?->passport_number,
             'residency_status' => $user?->residency_status?->value ?? $user?->residency_status,
+            'receive_reminder_emails' => (bool) ($user?->receive_reminder_emails ?? true),
             'phone_number' => $user?->phone_number,
             'country_code' => $user?->country_code,
             'emergency_contact_name' => $user?->emergency_contact_name,

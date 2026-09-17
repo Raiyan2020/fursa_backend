@@ -633,6 +633,8 @@ class ClientFeedbackRoundTwoTest extends TestCase
         $this->assertSame(120, $response->json('data.beneficiaries_breakdown.volunteer_opportunities'));
         $this->assertSame(1, $response->json('data.beneficiaries_breakdown.course_learners'));
         $this->assertSame(121, $response->json('data.beneficiaries_count'));
+        $this->assertSame(1, $response->json('data.development_beneficiaries_count'));
+        $this->assertTrue($response->json('data.counter_visibility.development_beneficiaries'));
     }
 
     // ---------------------------------------------------------------

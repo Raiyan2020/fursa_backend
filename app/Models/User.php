@@ -52,6 +52,7 @@ class User extends Authenticatable
         'twitter_link',
         'user_type',
         'preferred_language',
+        'receive_reminder_emails',
         'password_length',
         'nationality',
         'residency_status',
@@ -92,6 +93,7 @@ class User extends Authenticatable
         'residency_status' => ResidencyStatus::class,
         'social_media_provider' => SocialMediaProvider::class,
         'preferred_language' => Language::class,
+        'receive_reminder_emails' => 'boolean',
         'password' => 'hashed',
     ];
 

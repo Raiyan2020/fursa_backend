@@ -34,6 +34,7 @@ class AuthService
         $user->country_code = $data['country_code'] ?? null;
         $user->user_type = $userType;
         $user->preferred_language = $data['preferred_language'] ?? 'en';
+        $user->receive_reminder_emails = $data['receive_reminder_emails'] ?? true;
         $user->nationality = $data['nationality'] ?? null;
         $user->residency_status = $data['residency_status'] ?? null;
         $user->birth_year = $data['birth_year'] ?? null;

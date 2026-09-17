@@ -14,7 +14,7 @@ class LearnServeOpportunityRegistration extends Model
 
     protected $fillable = [
         'opportunity_id', 'user_id', 'registration_date', 'status',
-        'certificate_image', 'is_certified', 'is_attended', 'is_deleted', 'deleted_at',
+        'certificate_image', 'certificate_name', 'is_certified', 'is_attended', 'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [

@@ -435,6 +435,7 @@ class LearnServeOpportunityController extends Controller
             'location_url' => ['nullable', 'url'],
             'is_registration_closed' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
+            'price' => ['nullable', 'numeric', 'min:0'],
             'is_calendar' => ['nullable', 'boolean'],
             'location_en' => ['nullable', 'string'],
             'location_ar' => ['nullable', 'string'],
@@ -485,6 +486,31 @@ class LearnServeOpportunityController extends Controller
             if ($existing && $existing->certificate_type_id) {
                 $data['certificate_type_id'] = null;
             }
+        }
+
+        $isPaid = array_key_exists('is_paid', $data) ? (bool) $data['is_paid'] : (bool) $existing?->is_paid;
+        $price = array_key_exists('price', $data) ? $data['price'] : $existing?->price;
+
+        if ($isPaid) {
+            if ($price === null) {
+                throw ValidationException::withMessages([
+                    'price' => ['A price is required for a paid opportunity.'],
+                ]);
+            }
+
+            // PDF review: an individual (Volunteer Team) or Association
+            // publisher must have bank details on file before publishing a
+            // paid opportunity, so their post-fee share can be transferred to
+            // them manually. A full organization is exempt — the client's
+            // note was specific to those two publisher types.
+            $org = $request->user()->organizationProfile;
+            if ($org && $org->isIndividualOrAssociationPublisher() && ! $org->hasBankDetails()) {
+                throw ValidationException::withMessages([
+                    'bank_account' => ['Please add your bank account details before publishing a paid opportunity.'],
+                ]);
+            }
+        } elseif (! $partial || array_key_exists('is_paid', $data)) {
+            $data['price'] = null;
         }
 
         return $data;

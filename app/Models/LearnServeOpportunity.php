@@ -29,7 +29,7 @@ class LearnServeOpportunity extends Model
         'rejected_reason', 'location_en', 'location_ar', 'map_desc', 'opportunity_nationality',
         'deletion_status', 'deletion_rejected_reason', 'is_kuwaitis', 'created_by',
         'learning_type_id', 'gender_id', 'format_id', 'certificate_type_id',
-        'license_image', 'location_url', 'is_registration_closed', 'is_paid', 'is_deleted', 'deleted_at',
+        'license_image', 'location_url', 'is_registration_closed', 'is_paid', 'price', 'is_deleted', 'deleted_at',
         'attendance_code', 'attendance_code_expires_at',
     ];
 
@@ -63,6 +63,22 @@ class LearnServeOpportunity extends Model
      * environment still seeds those instead.
      */
     public const NO_CHECK_IN_TYPES = ['workshop', 'consultation', 'class', 'class/workshop'];
+
+    /**
+     * PDF review: the amount an individual/association publisher would
+     * receive after the platform's cut — informational only. Nothing in this
+     * app moves money; the actual transfer happens manually outside it.
+     */
+    public function payoutAfterFee(): ?float
+    {
+        if ($this->price === null) {
+            return null;
+        }
+
+        $feePercentage = (float) (Config::query()->value('platform_fee_percentage') ?? 7);
+
+        return round((float) $this->price * (1 - $feePercentage / 100), 2);
+    }
 
     public function requiresCheckIn(): bool
     {

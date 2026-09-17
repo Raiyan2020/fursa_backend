@@ -32,6 +32,7 @@ class WebsiteLoginUserResource extends JsonResource
             'is_new_user' => (bool) ($user->_is_new_user ?? false),
             'is_verified' => $this->isVerified($user),
             'is_banned' => (bool) $user->is_banned,
+            'receive_reminder_emails' => (bool) $user->receive_reminder_emails,
         ];
 
         if ($organization = $user->organizationProfile) {

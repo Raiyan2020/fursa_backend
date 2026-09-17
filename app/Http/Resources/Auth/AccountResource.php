@@ -36,6 +36,7 @@ class AccountResource extends JsonResource
             'residency_status' => $this->residency_status?->value ?? $this->residency_status,
             'gender_display' => $this->masterChoicePayload($this->volunteerProfile?->gender),
             'preferred_language' => $this->preferred_language?->value ?? $this->preferred_language,
+            'receive_reminder_emails' => (bool) $this->receive_reminder_emails,
             'civil_id' => $this->civil_id,
             'passport_number' => $this->passport_number,
             'emergency_contact_name' => $this->emergency_contact_name,

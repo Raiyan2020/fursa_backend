@@ -410,6 +410,7 @@ class LearnServeOpportunityController extends Controller
             'is_calendar' => ['nullable', 'boolean'],
             'is_kuwaitis' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],
+            'price' => ['nullable', 'numeric', 'min:0'],
             'interest_ids' => ['nullable', 'array'],
             'interest_ids.*' => array_merge(['integer'], array_slice($choiceRule('learnserve_opportunity_interest'), 1)),
             'images' => ['nullable', 'array'],

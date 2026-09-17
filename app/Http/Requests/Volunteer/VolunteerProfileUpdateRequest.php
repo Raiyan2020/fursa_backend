@@ -53,6 +53,7 @@ class VolunteerProfileUpdateRequest extends BaseRequest
             'linkedin_link' => ['nullable', 'url'],
             'facebook_link' => ['nullable', 'url'],
             'twitter_link' => ['nullable', 'url'],
+            'receive_reminder_emails' => ['nullable', 'boolean'],
             'phone_number' => ['nullable', 'string', 'max:15'],
             'country_code' => ['nullable', 'string', 'max:5'],
             'emergency_contact_name' => ['nullable', 'string', 'max:100'],

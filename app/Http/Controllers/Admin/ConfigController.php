@@ -28,6 +28,7 @@ class ConfigController extends Controller
             'time_unit' => ['nullable', Rule::in(['days', 'weeks', 'months', 'years'])],
             'manual_attendance_threshold' => ['nullable', 'integer'],
             'economic_impact_rate_kwd' => ['nullable', 'numeric', 'min:0'],
+            'platform_fee_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'preparation_validity_hours' => ['nullable', 'integer', 'min:0', 'max:8760'],
             'preparation_reminder_hours_before' => ['nullable', 'integer', 'min:0', 'max:720'],
         ]);
@@ -43,6 +44,7 @@ class ConfigController extends Controller
             'time_unit',
             'manual_attendance_threshold',
             'economic_impact_rate_kwd',
+            'platform_fee_percentage',
             'preparation_validity_hours',
             'preparation_reminder_hours_before',
         ]));

@@ -9329,6 +9329,49 @@
                     "response": []
                 },
                 {
+                    "name": "Update Learn & Serve Certificate Name",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}learn-serve-opportunities/{{opportunity_id}}/registrations/{{registration_id}}/certificate-name/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "learn-serve-opportunities",
+                                "{{opportunity_id}}",
+                                "registrations",
+                                "{{registration_id}}",
+                                "certificate-name"
+                            ]
+                        },
+                        "description": "Set or clear the participant name printed on the Learn & Serve certificate.",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "certificate_name",
+                                    "type": "text",
+                                    "description": "Optional corrected certificate name.",
+                                    "value": "{{certificate_name}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Message Learn & Serve Registrants",
                     "request": {
                         "auth": {

@@ -49,6 +49,7 @@ class RegisterRequest extends BaseRequest
             'birth_year' => ['nullable', 'integer'],
             'dob' => ['nullable', 'date'],
             'preferred_language' => ['nullable', 'in:en,ar'],
+            'receive_reminder_emails' => ['nullable', 'boolean'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'civil_id' => ['nullable', 'string', 'max:12'],
             'passport_number' => ['nullable', 'string', 'max:20'],

@@ -77,6 +77,11 @@
                                     <small class="text-muted">{{ __('Economic impact = total volunteer hours x this rate') }}</small>
                                 </div>
                                 <div class="col-md-6 mb-1">
+                                    <label>{{ __('platform fee percentage') }}</label>
+                                    <input type="number" step="0.01" min="0" max="100" name="platform_fee_percentage" class="form-control" value="{{ old('platform_fee_percentage', $config->platform_fee_percentage) }}">
+                                    <small class="text-muted">{{ __('Deducted from a paid learn & serve opportunity before its individual/association publisher is paid manually') }}</small>
+                                </div>
+                                <div class="col-md-6 mb-1">
                                     <label>{{ __('check-in window hours') }}</label>
                                     <input type="number" min="0" name="preparation_validity_hours" class="form-control" value="{{ old('preparation_validity_hours', $config->preparation_validity_hours) }}">
                                     <small class="text-muted">{{ __('Hours after the end date during which attendance can still be recorded (72 = 3 days, 168 = 1 week)') }}</small>

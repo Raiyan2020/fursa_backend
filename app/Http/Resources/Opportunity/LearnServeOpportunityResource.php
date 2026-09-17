@@ -83,6 +83,8 @@ class LearnServeOpportunityResource extends JsonResource
             'is_registration_closed' => (bool) $this->is_registration_closed,
             'is_registration_open' => $this->isRegistrationOpen(),
             'is_paid' => (bool) $this->is_paid,
+            'price' => $this->price !== null ? (float) $this->price : null,
+            'payout_after_fee' => $this->resource->payoutAfterFee(),
             // BE-61 Part B: type-derived now that Internship is excluded from
             // the single expiring-code check-in (workshops/consultations get
             // it despite currently running with no check-in step at all).

@@ -111,6 +111,10 @@ class VolunteerStatisticsController extends Controller
             'economic_impact_kwd' => $economicImpact,
             'economic_impact_rate_kwd' => $rate,
             'beneficiaries_count' => $totalBeneficiaries,
+            // Its own top-level counter (PDF review request): beneficiaries from
+            // development/learn-&-serve opportunities specifically, not lumped
+            // into the combined total above.
+            'development_beneficiaries_count' => $courseLearners,
             'beneficiaries_breakdown' => [
                 'volunteer_opportunities' => $volunteerBeneficiaries,
                 'course_learners' => $courseLearners,
@@ -127,6 +131,7 @@ class VolunteerStatisticsController extends Controller
                 'sponsorship' => $sponsorsCount > 0,
                 'economic_impact' => $economicImpact > 0,
                 'beneficiaries' => $totalBeneficiaries > 0,
+                'development_beneficiaries' => $courseLearners > 0,
                 'outside_kuwait' => $reliefTrips > 0,
             ],
             'certificates_count' => $certificatesIssued,

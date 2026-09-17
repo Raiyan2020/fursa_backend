@@ -21,6 +21,7 @@ class Config extends Model
         'time_unit',
         'manual_attendance_threshold',
         'economic_impact_rate_kwd',
+        'platform_fee_percentage',
         'preparation_validity_days',
         'preparation_validity_hours',
         'preparation_reminder_hours_before',

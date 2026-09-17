@@ -52,6 +52,7 @@ class CustomUserResource extends JsonResource
             'country_code' => $countryCode,
             'phone_number' => $phone,
             'nationality' => $this->nationality?->value ?? $this->nationality,
+            'receive_reminder_emails' => (bool) $this->receive_reminder_emails,
             'dob' => optional($this->dob)?->format('Y-m-d'),
             'birth_year' => $this->birth_year,
             'instagram_link' => $this->instagram_link,

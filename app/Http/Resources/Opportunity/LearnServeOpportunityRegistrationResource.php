@@ -38,6 +38,7 @@ class LearnServeOpportunityRegistrationResource extends JsonResource
             'status' => $this->status?->value,
             'is_attended' => $this->is_attended,
             'is_certified' => $this->is_certified,
+            'certificate_name' => $this->certificate_name,
             'certificate_image' => $this->certificate_image
                 ? getimg($this->certificate_image)
                 : null,

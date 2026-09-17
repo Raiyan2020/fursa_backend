@@ -104,6 +104,9 @@ class VolunteerProfileController extends Controller
             'linkedin_link' => $data['linkedin_link'] ?? $user->linkedin_link,
             'facebook_link' => $data['facebook_link'] ?? $user->facebook_link,
             'twitter_link' => $data['twitter_link'] ?? $user->twitter_link,
+            'receive_reminder_emails' => array_key_exists('receive_reminder_emails', $data)
+                ? $data['receive_reminder_emails']
+                : $user->receive_reminder_emails,
         ]);
         $user->save();
 

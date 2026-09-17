@@ -86,6 +86,7 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'is_registration_closed' => (bool) $opportunity->is_registration_closed,
             'is_registration_open' => $opportunity->isRegistrationOpen(),
             'is_paid' => (bool) $opportunity->is_paid,
+            'price' => $opportunity->price !== null ? (float) $opportunity->price : null,
             'participants_needed' => ar_num($opportunity->participants_needed),
             'registered_volunteers_count' => ar_num($registrations->count()),
             'opportunity_images' => $this->websiteImageList(opportunity_card_images($images)),

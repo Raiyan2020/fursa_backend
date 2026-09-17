@@ -50,6 +50,7 @@ class UserResource extends JsonResource
             'manual_id' => $this->manual_id,
             'is_banned' => (bool) $this->is_banned,
             'preferred_language' => $this->preferred_language?->value ?? $this->preferred_language,
+            'receive_reminder_emails' => (bool) $this->receive_reminder_emails,
             'civil_id' => $this->civil_id,
             'emergency_contact_name' => $this->emergency_contact_name,
             'emergency_contact_phone' => $this->emergency_contact_phone,

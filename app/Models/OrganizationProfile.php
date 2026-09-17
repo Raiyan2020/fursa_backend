@@ -24,6 +24,9 @@ class OrganizationProfile extends Model
         'rejection_reason',
         'latitude',
         'longitude',
+        'bank_name',
+        'bank_account_holder_name',
+        'bank_account_number',
         'is_deleted',
         'deleted_at',
     ];
@@ -64,6 +67,26 @@ class OrganizationProfile extends Model
     public function isApproved(): bool
     {
         return $this->organization_status === ApprovalStatus::APPROVED;
+    }
+
+    /**
+     * PDF review: an individual (Volunteer Team) or Association publisher —
+     * not a full organization — must supply bank details before publishing a
+     * paid opportunity, so their share can be transferred to them manually
+     * after the platform's cut.
+     */
+    public function isIndividualOrAssociationPublisher(): bool
+    {
+        $type = strtolower((string) $this->organizerType?->value_en);
+
+        return in_array($type, ['association', 'volunteer team'], true);
+    }
+
+    public function hasBankDetails(): bool
+    {
+        return (string) $this->bank_name !== ''
+            && (string) $this->bank_account_holder_name !== ''
+            && (string) $this->bank_account_number !== '';
     }
 
     /** Yearly rollup rows (month = NULL) written by SyncService::syncOrganization(). */

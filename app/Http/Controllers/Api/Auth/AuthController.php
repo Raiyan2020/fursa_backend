@@ -417,6 +417,7 @@ class AuthController extends Controller
             'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
             'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
             'preferred_language' => ['nullable', 'in:en,ar'],
+            'receive_reminder_emails' => ['nullable', 'boolean'],
             'civil_id' => ['nullable', 'string', 'max:12', Rule::unique('users', 'civil_id')->ignore($user->id)],
             'passport_number' => ['nullable', 'string', 'max:20', Rule::unique('users', 'passport_number')->ignore($user->id)],
             'emergency_contact_name' => ['nullable', 'string', 'max:100'],

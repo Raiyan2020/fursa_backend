@@ -171,6 +171,7 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('learn-serve-opportunity-registrations/', [LearnServeRegistrationController::class, 'register']);
     Route::get('learn-serve-opportunities/{opportunity_id}/registrations/', [LearnServeRegistrationController::class, 'list']);
+    Route::match(['put', 'patch'], 'learn-serve-opportunities/{opportunity_id}/registrations/{registration_id}/certificate-name/', [LearnServeRegistrationController::class, 'updateCertificateName'])->middleware('api.approved-org');
     Route::patch('learn-serve-opportunities/{opportunity_id}/registrations/status/', [LearnServeRegistrationController::class, 'bulkStatus'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{opportunity_id}/registrations/message/', [LearnServeRegistrationController::class, 'messageRegistrants'])->middleware('api.approved-org');
     Route::patch('learn-serve-opportunities/{opportunity_id}/update-attendance/', [LearnServeRegistrationController::class, 'updateAttendance'])->middleware('api.approved-org');

@@ -56,6 +56,7 @@ class BaseController extends Controller
                 ->when($choice_type === 'org_type', fn ($query) => $query->orderByRaw(
                     "CASE value_en WHEN 'Governmental' THEN 1 WHEN 'Commercial' THEN 2 WHEN 'Educational' THEN 3 WHEN 'NonProfit' THEN 4 WHEN 'Association' THEN 5 WHEN 'Community' THEN 6 ELSE 99 END"
                 ))
+                ->when($choice_type !== 'org_type', fn ($query) => $query->orderBy('id'))
                 ->get()
                 ->map(fn (MasterChoice $c) => [
                     'id' => $c->id,
