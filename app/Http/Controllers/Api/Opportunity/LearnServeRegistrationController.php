@@ -268,6 +268,67 @@ class LearnServeRegistrationController extends Controller
         return ApiResponse::success(['sent_count' => $sent], 'Message sent successfully.', 'تم إرسال الرسالة بنجاح.');
     }
 
+    /**
+     * BE-61 Part B — the participant scans the single, time-boxed code.
+     *
+     * A scan only ever flips `is_attended` to true; there is no per-day
+     * accuracy here by design — the code exists once, on the last day.
+     */
+    public function selfScan(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string'],
+        ]);
+
+        $code = trim($data['code'], " \t\n\r\0\x0B\"'");
+
+        $opportunity = LearnServeOpportunity::query()
+            ->notDeleted()
+            ->where('attendance_code', $code)
+            ->first();
+
+        if (! $opportunity) {
+            return ApiResponse::error('Scanned QR code is not valid.', 'رمز QR الممسوح غير صالح.', 400);
+        }
+
+        if (! $opportunity->attendance_code_expires_at || now()->gt($opportunity->attendance_code_expires_at)) {
+            return ApiResponse::error('This QR code has expired.', 'انتهت صلاحية رمز QR هذا.', 400);
+        }
+
+        $registration = LearnServeOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('opportunity_id', $opportunity->id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (! $registration) {
+            return ApiResponse::error(
+                'You are not registered for this opportunity.',
+                'أنت غير مسجل لهذه الفرصة.',
+                400
+            );
+        }
+
+        if ($registration->is_attended) {
+            return ApiResponse::error(
+                'Attendance has already been recorded.',
+                'تم تسجيل الحضور بالفعل.',
+                409
+            );
+        }
+
+        $registration->update(['is_attended' => true]);
+
+        SyncService::syncUser($registration->user_id);
+        SyncService::syncUser($opportunity->created_by);
+
+        return ApiResponse::success(
+            new LearnServeOpportunityRegistrationResource($registration->fresh()),
+            'Attendance recorded successfully.',
+            'تم تسجيل الحضور بنجاح.'
+        );
+    }
+
     public function updateAttendance(Request $request, int $opportunity_id): JsonResponse
     {
         $data = $request->validate([

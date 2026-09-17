@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Notifications\AdminResetPasswordNotification;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -41,6 +42,19 @@ class Admin extends Authenticatable implements CanResetPasswordContract
     public function scopeWithoutSuperAdmin($query)
     {
         return $query->where('id', '!=', 1);
+    }
+
+    public function adminNotifications(): HasMany
+    {
+        return $this->hasMany(AdminNotification::class);
+    }
+
+    /**
+     * BE-59's dashboard badge — a notification nobody sees fixes nothing.
+     */
+    public function unreadNotificationsCount(): int
+    {
+        return $this->adminNotifications()->notDeleted()->where('is_read', false)->count();
     }
 
     /**

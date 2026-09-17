@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\ChoiceType;
 use App\Models\MasterChoice;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class ChoiceTypeSeeder extends Seeder
 {
@@ -23,7 +24,11 @@ class ChoiceTypeSeeder extends Seeder
             'learning_type' => [
                 ['Course', 'دورة'],
                 ['Class/Workshop', 'درس/ورشة'],
-                ['Consultation', 'استشارة'],
+                // BE-62: "Consultation" reads as a legal/professional session
+                // to Kuwaiti users; the client asked for the Arabic label only
+                // — value_en stays "Consultation" so nothing that matches on it
+                // (e.g. isInternship()'s fallback) needs to change.
+                ['Consultation', 'مساحة'],
                 ['Internship', 'تدريب عملي'],
             ],
             'learn_serve_format' => [
@@ -228,7 +233,7 @@ class ChoiceTypeSeeder extends Seeder
                 ['Course', 'دورة'],
                 ['Class', 'درس'],
                 ['Internship', 'تدريب عملي'],
-                ['Consultation', 'استشارة'],
+                ['Consultation', 'مساحة'],
             ],
             // BE-53: options for the certificates-tab filter on /volunteer-profile,
             // served like every other dropdown rather than hardcoded in the app.
@@ -264,7 +269,7 @@ class ChoiceTypeSeeder extends Seeder
         foreach ($map as $typeName => $values) {
             $type = ChoiceType::query()->firstOrCreate(['name' => $typeName]);
             foreach ($values as [$en, $ar]) {
-                MasterChoice::query()->updateOrCreate(
+                $choice = MasterChoice::query()->updateOrCreate(
                     [
                         'choice_type_id' => $type->id,
                         'value_en' => $en,
@@ -275,6 +280,14 @@ class ChoiceTypeSeeder extends Seeder
                         'deleted_at' => null,
                     ]
                 );
+
+                // BE-62: assigned once, on first creation, and never touched
+                // again — a later rename of value_en/value_ar must not shift
+                // the stable key any code has already started matching on.
+                if (! $choice->slug) {
+                    $choice->slug = $this->uniqueSlug($choice);
+                    $choice->save();
+                }
             }
 
             if (in_array($typeName, ['learning_type', 'org_type'], true)) {
@@ -290,5 +303,29 @@ class ChoiceTypeSeeder extends Seeder
             ->whereHas('choiceType', fn ($q) => $q->where('name', 'volunteer_opportunity_interest'))
             ->where('value_en', 'Relief')
             ->update(['value_ar' => 'خارج الكويت']);
+    }
+
+    /**
+     * A few choice types (e.g. learn_serve_certificate_type) keep intentional
+     * case-variant duplicate rows, which would collide under a plain
+     * Str::slug(). Append a numeric suffix rather than let one silently
+     * overwrite another's slug.
+     */
+    private function uniqueSlug(MasterChoice $choice): string
+    {
+        $base = Str::slug($choice->value_en) ?: 'choice';
+        $slug = $base;
+        $i = 2;
+        while (
+            MasterChoice::query()
+                ->where('choice_type_id', $choice->choice_type_id)
+                ->where('slug', $slug)
+                ->where('id', '!=', $choice->id)
+                ->exists()
+        ) {
+            $slug = $base.'-'.$i++;
+        }
+
+        return $slug;
     }
 }

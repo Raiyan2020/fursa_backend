@@ -77,11 +77,16 @@ class LearnServeOpportunityResource extends JsonResource
             'map_desc' => $this->map_desc ?: ($this->location_ar ?: $this->location_en),
             'lat' => $this->latitude === null ? null : (float) $this->latitude,
             'lng' => $this->longitude === null ? null : (float) $this->longitude,
-            'location_url' => $this->location_url ?: $this->link,
+            // BE-60: `link` is the WhatsApp contact link, not a location — a
+            // field named location_url must not be able to return a phone number.
+            'location_url' => $this->location_url,
             'is_registration_closed' => (bool) $this->is_registration_closed,
             'is_registration_open' => $this->isRegistrationOpen(),
             'is_paid' => (bool) $this->is_paid,
-            'qr_attendance_enabled' => true,
+            // BE-61 Part B: type-derived now that Internship is excluded from
+            // the single expiring-code check-in (workshops/consultations get
+            // it despite currently running with no check-in step at all).
+            'qr_attendance_enabled' => $this->resource->qrAttendanceEligible(),
             'manual_attendance_enabled' => $this->requiresCheckIn(),
             'requires_check_in' => $this->requiresCheckIn(),
             'preparation_valid_until' => optional($this->preparationValidUntil())?->toDateString(),

@@ -131,6 +131,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('learn-serve-opportunities/', [LearnServeOpportunityController::class, 'store'])->middleware('api.approved-org');
     Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration'])->middleware('api.approved-org');
+    Route::post('learn-serve-opportunities/{id}/attendance-qr/', [LearnServeOpportunityController::class, 'attendanceQr'])->middleware('api.approved-org');
     Route::match(['post', 'patch'], 'learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{id}/sponsors/', [LearnServeOpportunityController::class, 'addSponsor'])->middleware('api.approved-org');
     Route::delete('learn-serve-opportunities/{id}/sponsors/{sponsorId}/', [LearnServeOpportunityController::class, 'removeSponsor'])->middleware('api.approved-org');
@@ -173,7 +174,11 @@ Route::middleware('auth:api')->group(function () {
     Route::patch('learn-serve-opportunities/{opportunity_id}/registrations/status/', [LearnServeRegistrationController::class, 'bulkStatus'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{opportunity_id}/registrations/message/', [LearnServeRegistrationController::class, 'messageRegistrants'])->middleware('api.approved-org');
     Route::patch('learn-serve-opportunities/{opportunity_id}/update-attendance/', [LearnServeRegistrationController::class, 'updateAttendance'])->middleware('api.approved-org');
+    Route::post('learn-serve-attendance/self-scan/', [LearnServeRegistrationController::class, 'selfScan']);
     Route::delete('learnserve/{opportunity_id}/unregister/{user_id}/', [LearnServeRegistrationController::class, 'unregisterUser']);
+
+    Route::get('volunteer-opportunities/{id}/attendance-qr/', [VolunteerOpportunityController::class, 'attendanceQr']);
+    Route::post('volunteer-attendance/self-scan/', [VolunteerAttendanceController::class, 'selfScan']);
 
     Route::post('volunteer-attendance/scan/', [VolunteerAttendanceController::class, 'scan']);
     Route::post('volunteer-attendance/manual/', [VolunteerAttendanceController::class, 'manual']);

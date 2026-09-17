@@ -8904,6 +8904,82 @@
                     "response": []
                 },
                 {
+                    "name": "Get Self Check-in Attendance QR Codes",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}volunteer-opportunities/{{opportunity_id}}/attendance-qr/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "volunteer-opportunities",
+                                "{{opportunity_id}}",
+                                "attendance-qr"
+                            ]
+                        },
+                        "description": "## Get Self Check-in Attendance QR Codes\nBE-61 Part A. Returns the two permanent IN/OUT codes for an owned volunteer opportunity as raw payload strings, generating them on first call. Stable across calls so a printed sheet never stops working.\n\n**Auth required:** Bearer `{{token}}` — caller must be the opportunity creator."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Self Check-in/Check-out Scan",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}volunteer-attendance/self-scan/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "volunteer-attendance",
+                                "self-scan"
+                            ]
+                        },
+                        "description": "BE-61 Part A. The volunteer scans one of the two printed codes themselves. total_hours is computed from the real elapsed time between IN and OUT; a missing OUT credits zero.",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "code",
+                                    "type": "text",
+                                    "description": "The scanned payload string (attendance_code_in or attendance_code_out).",
+                                    "value": ""
+                                },
+                                {
+                                    "key": "direction",
+                                    "type": "text",
+                                    "description": "'in' or 'out'.",
+                                    "value": "in"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
                     "name": "Record Manual Volunteer Attendance",
                     "request": {
                         "auth": {
@@ -9059,6 +9135,76 @@
                             ]
                         },
                         "description": "Close registration for an owned Learn & Serve opportunity. No request body."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Issue Learn & Serve Self Check-in QR",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}learn-serve-opportunities/{{opportunity_id}}/attendance-qr/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "learn-serve-opportunities",
+                                "{{opportunity_id}}",
+                                "attendance-qr"
+                            ]
+                        },
+                        "description": "## Issue Learn & Serve Self Check-in QR\nBE-61 Part B. Issues (or re-issues, invalidating the previous one) a single self check-in code valid for 2 hours. Only on the opportunity's last day, and not for Internship.\n\n**Auth required:** Bearer `{{token}}` — caller must be the opportunity creator."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Learn & Serve Self Check-in Scan",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}learn-serve-attendance/self-scan/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "learn-serve-attendance",
+                                "self-scan"
+                            ]
+                        },
+                        "description": "## Learn & Serve Self Check-in Scan\nBE-61 Part B. The participant scans the single code issued for the last day. Flips is_attended to true; no per-day accuracy by design.",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "code",
+                                    "type": "text",
+                                    "description": "The scanned attendance_code payload string.",
+                                    "value": ""
+                                }
+                            ]
+                        }
                     },
                     "response": []
                 },

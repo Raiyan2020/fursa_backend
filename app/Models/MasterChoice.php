@@ -15,6 +15,7 @@ class MasterChoice extends Model
         'choice_type_id',
         'value_en',
         'value_ar',
+        'slug',
         'is_deleted',
         'deleted_at',
     ];

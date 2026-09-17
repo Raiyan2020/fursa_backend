@@ -15,6 +15,7 @@ class Notification extends Model
         'title_ar',
         'message_en',
         'message_ar',
+        'link',
         'is_deleted',
         'deleted_at',
     ];
@@ -22,5 +23,10 @@ class Notification extends Model
     public function userNotifications(): HasMany
     {
         return $this->hasMany(UserNotification::class);
+    }
+
+    public function adminNotifications(): HasMany
+    {
+        return $this->hasMany(AdminNotification::class);
     }
 }

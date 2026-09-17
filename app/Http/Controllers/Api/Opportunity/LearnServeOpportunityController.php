@@ -16,6 +16,7 @@ use App\Http\Resources\Opportunity\LearnServeOpportunityResource;
 use App\Http\Resources\Website\WebsiteLearnServeOpportunityResource;
 use App\Models\LearnServeOpportunity;
 use App\Models\MasterChoice;
+use App\Services\Notification\NotificationService;
 use App\Services\Opportunity\OpportunityChangeNotifier;
 use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
@@ -105,6 +106,22 @@ class LearnServeOpportunityController extends Controller
 
             $opportunity->load(['creator', 'interests', 'images']);
 
+            $orgName = $opportunity->creator?->organizationProfile?->company_name
+                ?? $opportunity->creator?->first_name
+                ?? 'Unknown';
+
+            // BE-59 — no resubmit path exists for learn-&-serve opportunities
+            // today (update() never resets approval_status), so store() is
+            // the only PENDING transition to notify on for this type.
+            NotificationService::notifyAdminsWithPermission(
+                'learn-serve-opportunities.approve',
+                'New learn & serve opportunity awaiting review',
+                'فرصة تعلم وخدمة جديدة بانتظار المراجعة',
+                "\"{$opportunity->title_en}\" was submitted by {$orgName} and is awaiting approval.",
+                "تم تقديم \"{$opportunity->title_ar}\" من {$orgName} وهي بانتظار الموافقة.",
+                route('admin.learn-serve-opportunities.show', $opportunity->id)
+            );
+
             return ApiResponse::success(
                 new LearnServeOpportunityResource($opportunity),
                 'Opportunity created successfully.',
@@ -171,6 +188,53 @@ class LearnServeOpportunityController extends Controller
             new LearnServeOpportunityResource($opportunity),
             'Registration closed successfully.',
             'تم إغلاق التسجيل بنجاح.'
+        );
+    }
+
+    /**
+     * BE-61 Part B — issue the single self check-in code for the last day.
+     *
+     * Mutating (POST, not GET) because every call re-issues a fresh 2-hour
+     * code and invalidates whatever was live before. Course, Class/Workshop
+     * and Consultation only — Internship stays manual-only.
+     */
+    public function attendanceQr(Request $request, int $id): JsonResponse
+    {
+        $opportunity = LearnServeOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->with('learningType')
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        if ($opportunity->isInternship()) {
+            return ApiResponse::error(
+                'Self check-in is not available for internships.',
+                'التحضير الذاتي غير متاح للتدريب العملي.',
+                400
+            );
+        }
+
+        if (! $opportunity->end_date || now()->toDateString() !== $opportunity->end_date->toDateString()) {
+            return ApiResponse::error(
+                'The self check-in code can only be issued on the opportunity\'s last day.',
+                'يمكن إصدار رمز التحضير الذاتي فقط في آخر يوم من الفرصة.',
+                400
+            );
+        }
+
+        $opportunity->issueAttendanceCode();
+
+        return ApiResponse::success(
+            [
+                'code' => $opportunity->attendance_code,
+                'expires_at' => $opportunity->attendance_code_expires_at->toIso8601String(),
+            ],
+            'Attendance code issued successfully.',
+            'تم إصدار رمز الحضور بنجاح.'
         );
     }
 

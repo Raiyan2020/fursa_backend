@@ -12,13 +12,16 @@ class VolunteerOpportunityAttendance extends Model
 
     protected $fillable = [
         'registration_id', 'attended_date', 'total_hours', 'is_attended',
-        'recorded_via', 'recorded_by', 'is_deleted', 'deleted_at',
+        'recorded_via', 'recorded_by', 'checked_in_at', 'checked_out_at',
+        'is_deleted', 'deleted_at',
     ];
 
     protected $casts = [
         'attended_date' => 'date',
         'is_attended' => 'boolean',
         'total_hours' => 'float',
+        'checked_in_at' => 'datetime',
+        'checked_out_at' => 'datetime',
     ];
 
     public function registration(): BelongsTo

@@ -44,9 +44,13 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
         /** @var VolunteerOpportunity $opportunity */
         $opportunity = $this->resource;
 
-        $opportunity->loadMissing(['creator', 'interests', 'masterInterests', 'images', 'registrations.attendances']);
+        $opportunity->loadMissing(['creator', 'interests', 'masterInterests', 'images', 'registrations.attendances', 'timeSlots']);
         $images = $opportunity->images?->filter(fn ($image) => ! $image->is_deleted) ?? collect();
         $registrations = $opportunity->registrations?->filter(fn ($registration) => ! $registration->is_deleted) ?? collect();
+        // BE-58: read off the already-loaded relation rather than calling
+        // hasCustomSchedule(), which fires its own query regardless of eager
+        // loading — on a 20-row listing that's 20 extra queries.
+        $timeSlots = ($opportunity->timeSlots ?? collect())->filter(fn ($slot) => ! $slot->is_deleted);
 
         $ownerRegistration = $this->profileOwnerId
             ? $registrations->first(fn ($r) => (int) $r->user_id === $this->profileOwnerId)
@@ -85,6 +89,15 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             'end_date' => $this->formatDate($opportunity->end_date),
             'start_time' => $opportunity->start_time,
             'end_time' => $opportunity->end_time,
+            // Non-consecutive days (BE-58): without these, start_date..end_date
+            // reads as an unbroken range even when only a few days inside it
+            // are actually scheduled.
+            'has_custom_schedule' => $timeSlots->isNotEmpty(),
+            'time_slots' => $timeSlots->sortBy('date')->map(fn ($slot) => [
+                'date' => optional($slot->date)->toDateString(),
+                'start_time' => $slot->start_time,
+                'end_time' => $slot->end_time,
+            ])->values(),
             'from_age' => ar_num($opportunity->from_age),
             'to_age' => ar_num($opportunity->to_age),
             'location_en' => $opportunity->location_en,
@@ -93,7 +106,9 @@ class WebsiteVolunteerOpportunityResource extends JsonResource
             'map_desc' => $opportunity->map_desc ?: ($opportunity->location_ar ?: $opportunity->location_en),
             'lat' => $opportunity->latitude === null ? null : (float) $opportunity->latitude,
             'lng' => $opportunity->longitude === null ? null : (float) $opportunity->longitude,
-            'location_url' => $opportunity->location_url ?: $opportunity->link,
+            // BE-60: `link` is the WhatsApp contact link, not a location — a
+            // field named location_url must not be able to return a phone number.
+            'location_url' => $opportunity->location_url,
             'is_registration_closed' => (bool) $opportunity->is_registration_closed,
             'is_registration_open' => $opportunity->isRegistrationOpen(),
             'participants_needed' => ar_num($opportunity->participants_needed),

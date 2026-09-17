@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserType;
 use App\Http\Controllers\Controller;
+use App\Models\AdminNotification;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\UserNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class NotificationController extends Controller
@@ -17,6 +19,32 @@ class NotificationController extends Controller
         $notifications = Notification::query()->notDeleted()->latest()->get();
 
         return view('dashboard.notifications.index', compact('notifications'));
+    }
+
+    /**
+     * BE-59 — the composer above lets an admin broadcast out; this is the
+     * inbox the system itself writes into (new-submission alerts) that did
+     * not exist before.
+     */
+    public function inbox()
+    {
+        $adminNotifications = AdminNotification::query()
+            ->notDeleted()
+            ->where('admin_id', Auth::guard('admin')->id())
+            ->with('notification')
+            ->latest()
+            ->get();
+
+        return view('dashboard.notifications.inbox', compact('adminNotifications'));
+    }
+
+    public function markRead(AdminNotification $adminNotification)
+    {
+        abort_unless($adminNotification->admin_id === Auth::guard('admin')->id(), 403);
+
+        $adminNotification->update(['is_read' => true]);
+
+        return back();
     }
 
     public function create()

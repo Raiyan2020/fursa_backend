@@ -101,6 +101,7 @@ trait ResolvesApiPayloads
             'choice_type' => $choice->choiceType?->name,
             'value_en' => $choice->value_en,
             'value_ar' => $choice->value_ar,
+            'slug' => $choice->slug,
         ];
     }
 

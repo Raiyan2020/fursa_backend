@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class LearnServeOpportunity extends Model
 {
@@ -29,6 +30,7 @@ class LearnServeOpportunity extends Model
         'deletion_status', 'deletion_rejected_reason', 'is_kuwaitis', 'created_by',
         'learning_type_id', 'gender_id', 'format_id', 'certificate_type_id',
         'license_image', 'location_url', 'is_registration_closed', 'is_paid', 'is_deleted', 'deleted_at',
+        'attendance_code', 'attendance_code_expires_at',
     ];
 
     protected $casts = [
@@ -45,6 +47,7 @@ class LearnServeOpportunity extends Model
         'is_kuwaitis' => 'boolean',
         'is_registration_closed' => 'boolean',
         'is_paid' => 'boolean',
+        'attendance_code_expires_at' => 'datetime',
     ];
 
     /**
@@ -82,6 +85,55 @@ class LearnServeOpportunity extends Model
         }
 
         return true;
+    }
+
+    /**
+     * BE-62: match on the stable slug rather than the editable label — the
+     * exact bug class this ticket exists to close (BE-47 part 2's
+     * Class/Workshop merge, and the isConsultationType() typo before that).
+     * Falls back to the old label match only if a row hasn't been backfilled
+     * with a slug yet.
+     */
+    public function isInternship(): bool
+    {
+        $type = $this->learningType;
+
+        if (! $type) {
+            return false;
+        }
+
+        if ($type->slug) {
+            return $type->slug === 'internship';
+        }
+
+        return strtolower(trim((string) $type->value_en)) === 'internship';
+    }
+
+    /**
+     * BE-61 Part B: the single-code self check-in applies to Course,
+     * Class/Workshop and Consultation — every type except Internship, which
+     * stays manual-only.
+     */
+    public function qrAttendanceEligible(): bool
+    {
+        return ! $this->isInternship();
+    }
+
+    /**
+     * Issue (or re-issue) the 2-hour code, invalidating whatever code was
+     * live before. The client's assumption, pending confirmation, is that
+     * the organizer can press the button again for a fresh window — so this
+     * always overwrites rather than refusing while a code is still valid.
+     */
+    public function issueAttendanceCode(): void
+    {
+        do {
+            $code = Str::random(40);
+        } while (self::query()->where('attendance_code', $code)->exists());
+
+        $this->attendance_code = $code;
+        $this->attendance_code_expires_at = now()->addHours(2);
+        $this->save();
     }
 
     public function creator(): BelongsTo

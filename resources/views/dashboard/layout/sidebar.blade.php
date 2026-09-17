@@ -179,9 +179,12 @@
 
             {{-- Django: notification --}}
             <li class="nav-item {{ request()->is('dashboard/notifications*') ? 'active' : '' }}">
-                <a href="{{ route('admin.notifications.index') }}">
+                <a href="{{ route('admin.notifications.inbox') }}">
                     <i class="feather icon-bell"></i>
                     <span class="menu-title">{{ __('admin.sidebar.notifications') }}</span>
+                    @if (($adminUnreadNotificationsCount ?? 0) > 0)
+                        <span class="badge badge-danger badge-pill float-right">{{ $adminUnreadNotificationsCount }}</span>
+                    @endif
                 </a>
             </li>
 

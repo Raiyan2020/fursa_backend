@@ -32,6 +32,17 @@ class IdentityDocumentValidator
             }
         }
 
+        // BE-57: a non-Kuwaiti row with a stored nationality but no
+        // residency_status has not actually finished answering the identity
+        // question — validate() cannot pass without one, and the fallback
+        // merge in the caller can't fill it from an empty stored value
+        // either. Treating it as "already answered" (the BE-56 guard's
+        // original check) 422s a request that never touched identity at all,
+        // on every row created before residency_status existed.
+        if ($user->nationality === Nationality::OTHER && $user->residency_status === null) {
+            return false;
+        }
+
         return $user->nationality !== null
             || (string) $user->civil_id !== ''
             || (string) $user->passport_number !== '';

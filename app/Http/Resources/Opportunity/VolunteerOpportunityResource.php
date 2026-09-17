@@ -86,7 +86,9 @@ class VolunteerOpportunityResource extends JsonResource
             'manual_tracking' => true,
             'qr_attendance_enabled' => true,
             'manual_attendance_enabled' => true,
-            'location_url' => $this->location_url ?: $this->link,
+            // BE-60: `link` is the WhatsApp contact link, not a location — a
+            // field named location_url must not be able to return a phone number.
+            'location_url' => $this->location_url,
             'is_registration_closed' => (bool) $this->is_registration_closed,
             'is_registration_open' => $this->isRegistrationOpen(),
             'preparation_valid_until' => optional($this->preparationValidUntil())?->toDateString(),
@@ -132,6 +134,9 @@ class VolunteerOpportunityResource extends JsonResource
             'has_ended' => $this->resource->hasEnded(),
             // organizer / sponsor / registered / attended for the current viewer.
             'relationship_tags' => $this->relationshipTags($this->resource, $request),
+            // BE-61 Part A: which of the two printed codes the registered
+            // viewer's button should offer next. Null when not registered.
+            'self_attendance' => $this->selfAttendanceState($this->resource, $request),
         ];
     }
 }

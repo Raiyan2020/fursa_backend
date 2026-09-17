@@ -23,6 +23,7 @@ use App\Models\MasterChoice;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Services\Certificate\VolunteerCertificateService;
+use App\Services\Notification\NotificationService;
 use App\Services\Opportunity\OpportunityChangeNotifier;
 use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
@@ -118,6 +119,8 @@ class VolunteerOpportunityController extends Controller
 
             $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots']);
 
+            $this->notifyAdminsOfPendingOpportunity($opportunity);
+
             return ApiResponse::success(
                 new VolunteerOpportunityResource($opportunity),
                 'Opportunity created successfully.',
@@ -125,6 +128,27 @@ class VolunteerOpportunityController extends Controller
                 201
             );
         });
+    }
+
+    /**
+     * BE-59 — nobody in the dashboard was told a submission (or resubmission)
+     * was waiting on them. Only admins who can actually approve volunteer
+     * opportunities are notified.
+     */
+    protected function notifyAdminsOfPendingOpportunity(VolunteerOpportunity $opportunity): void
+    {
+        $orgName = $opportunity->creator?->organizationProfile?->company_name
+            ?? $opportunity->creator?->first_name
+            ?? 'Unknown';
+
+        NotificationService::notifyAdminsWithPermission(
+            'volunteer-opportunities.approve',
+            'New volunteer opportunity awaiting review',
+            'فرصة تطوعية جديدة بانتظار المراجعة',
+            "\"{$opportunity->title_en}\" was submitted by {$orgName} and is awaiting approval.",
+            "تم تقديم \"{$opportunity->title_ar}\" من {$orgName} وهي بانتظار الموافقة.",
+            route('admin.volunteer-opportunities.show', $opportunity->id)
+        );
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -165,6 +189,36 @@ class VolunteerOpportunityController extends Controller
             new VolunteerOpportunityResource($opportunity),
             'Opportunity updated successfully.',
             'تم تحديث الفرصة بنجاح.'
+        );
+    }
+
+    /**
+     * BE-61 Part A — the two printed IN/OUT codes for self check-in.
+     *
+     * Owner-only, generated on demand and stable across calls so a printed
+     * sheet never stops working. Returned as raw payload strings the
+     * frontend renders into a QR image itself.
+     */
+    public function attendanceQr(Request $request, int $id): JsonResponse
+    {
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        $opportunity->ensureAttendanceCodes();
+
+        return ApiResponse::success(
+            [
+                'check_in' => ['direction' => 'in', 'code' => $opportunity->attendance_code_in],
+                'check_out' => ['direction' => 'out', 'code' => $opportunity->attendance_code_out],
+            ],
+            'Attendance codes retrieved successfully.',
+            'تم استرجاع رموز الحضور بنجاح.'
         );
     }
 
@@ -241,6 +295,8 @@ class VolunteerOpportunityController extends Controller
         $opportunity->rejected_reason = null;
         $opportunity->save();
         $opportunity->load(['creator', 'gender.choiceType', 'interests', 'images']);
+
+        $this->notifyAdminsOfPendingOpportunity($opportunity);
 
         return ApiResponse::success(
             new VolunteerOpportunityResource($opportunity),
@@ -353,7 +409,7 @@ class VolunteerOpportunityController extends Controller
             ->notDeleted()
             ->where('is_public', true)
             ->where('approval_status', ApprovalStatus::APPROVED)
-            ->with(['creator', 'gender.choiceType', 'interests', 'images'])
+            ->with(['creator', 'gender.choiceType', 'interests', 'images', 'timeSlots'])
             ->withCount(['registrations' => fn ($q) => $q->notDeleted()]);
 
         $filtered = $this->applyVolunteerPublicFilters($query, $request);
@@ -460,7 +516,7 @@ class VolunteerOpportunityController extends Controller
 
         $combined = collect()
             ->merge(
-                $volunteerQuery->with(['creator', 'gender.choiceType', 'interests', 'images', 'registrations.attendances'])->get()
+                $volunteerQuery->with(['creator', 'gender.choiceType', 'interests', 'images', 'registrations.attendances', 'timeSlots'])->get()
                     ->map(fn ($item) => (new WebsiteVolunteerOpportunityResource($item, $user->id))->resolve())
             )
             ->merge(
@@ -566,7 +622,7 @@ class VolunteerOpportunityController extends Controller
         }
 
         $combined = collect()
-            ->merge($volunteerQuery->with(['creator', 'interests', 'images', 'registrations.attendances'])->get()
+            ->merge($volunteerQuery->with(['creator', 'interests', 'images', 'registrations.attendances', 'timeSlots'])->get()
                 ->map(fn ($item) => (new WebsiteVolunteerOpportunityResource($item, $user->id))->resolve()))
             ->merge($learnQuery->with(['creator', 'interests', 'images', 'registrations', 'format.choiceType', 'learningType.choiceType'])->get()
                 ->map(fn ($item) => (new WebsiteLearnServeOpportunityResource($item, $user->id))->resolve()))

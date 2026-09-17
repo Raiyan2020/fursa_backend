@@ -80,7 +80,9 @@ class WebsiteLearnServeOpportunityResource extends JsonResource
             'map_desc' => $opportunity->map_desc ?: ($opportunity->location_ar ?: $opportunity->location_en),
             'lat' => $opportunity->latitude === null ? null : (float) $opportunity->latitude,
             'lng' => $opportunity->longitude === null ? null : (float) $opportunity->longitude,
-            'location_url' => $opportunity->location_url ?: $opportunity->link,
+            // BE-60: `link` is the WhatsApp contact link, not a location — a
+            // field named location_url must not be able to return a phone number.
+            'location_url' => $opportunity->location_url,
             'is_registration_closed' => (bool) $opportunity->is_registration_closed,
             'is_registration_open' => $opportunity->isRegistrationOpen(),
             'is_paid' => (bool) $opportunity->is_paid,

@@ -18,6 +18,7 @@ use App\Models\Event;
 use App\Models\EventImage;
 use App\Models\EventSponsorImage;
 use App\Models\MasterChoice;
+use App\Services\Notification\NotificationService;
 use App\Services\Opportunity\EventParticipation;
 use App\Services\Opportunity\RepublishMedia;
 use App\Support\ApiResponse;
@@ -126,11 +127,32 @@ class EventController extends Controller
 
         $event->load(['images', 'sponsorImages', 'interests']);
 
+        $this->notifyAdminsOfPendingEvent($event);
+
         return ApiResponse::success(
             new EventResource($event),
             'Event created successfully.',
             'تم إنشاء الحدث بنجاح.',
             201
+        );
+    }
+
+    /**
+     * BE-59 — Event::created_by is the organization profile id, not a user
+     * id, so the org name comes straight off it rather than through a
+     * creator->organizationProfile hop like the other two opportunity types.
+     */
+    protected function notifyAdminsOfPendingEvent(Event $event): void
+    {
+        $orgName = $event->creator?->company_name ?? 'Unknown';
+
+        NotificationService::notifyAdminsWithPermission(
+            'events.approve',
+            'New event awaiting review',
+            'حدث جديد بانتظار المراجعة',
+            "\"{$event->title_en}\" was submitted by {$orgName} and is awaiting approval.",
+            "تم تقديم \"{$event->title_ar}\" من {$orgName} وهي بانتظار الموافقة.",
+            route('admin.events.show', $event->id)
         );
     }
 
@@ -449,6 +471,12 @@ class EventController extends Controller
 
             return $event;
         });
+
+        // Not asked for explicitly in BE-59 (only store() was named for
+        // events), but republish() creates a fresh PENDING row the same way
+        // store() does — the same "something is waiting for review" gap, so
+        // notifying here too keeps the two paths consistent.
+        $this->notifyAdminsOfPendingEvent($event);
 
         return ApiResponse::success(new EventResource($event->fresh(['images', 'sponsorImages', 'interests'])),
             'Event republished.', 'تم إعادة نشر الحدث.', 201);

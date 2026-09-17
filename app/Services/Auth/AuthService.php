@@ -13,6 +13,7 @@ use App\Models\TokenVerification;
 use App\Models\User;
 use App\Models\VolunteerProfile;
 use App\Services\Mail\DynamicEmailService;
+use App\Services\Notification\NotificationService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -90,6 +91,19 @@ class AuthService
                     ]);
                 }
             }
+
+            // BE-59 — this is the only place an organization profile enters
+            // PENDING; there is no separate resubmit endpoint for the profile
+            // itself (unlike opportunities), so nothing else needs the hook.
+            $orgName = $org->company_name ?? $user->first_name ?? 'Unknown';
+            NotificationService::notifyAdminsWithPermission(
+                'entities.approve',
+                'New organization awaiting review',
+                'منظمة جديدة بانتظار المراجعة',
+                "\"{$orgName}\" registered and is awaiting approval.",
+                "قامت \"{$orgName}\" بالتسجيل وهي بانتظار الموافقة.",
+                route('admin.entities.show', $org->id)
+            );
         }
 
         $otp = $this->sendAccountActivation($user);

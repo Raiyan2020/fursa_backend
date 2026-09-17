@@ -203,4 +203,9 @@ Route::group(['middleware' => ['auth:admin', 'localization']], function () {
     Route::get('notifications/create', [NotificationController::class, 'create'])->name('notifications.create');
     Route::post('notifications', [NotificationController::class, 'store'])->name('notifications.store');
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+    // BE-59 — the inbox the system writes into (new-submission alerts),
+    // separate from the broadcast composer above.
+    Route::get('notifications-inbox', [NotificationController::class, 'inbox'])->name('notifications.inbox');
+    Route::post('notifications-inbox/{adminNotification}/read', [NotificationController::class, 'markRead'])->name('notifications.mark-read');
 });

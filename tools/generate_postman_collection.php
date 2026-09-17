@@ -2560,6 +2560,17 @@ $additionalRoutes = [
         req('Reopen Volunteer Check-in', 'POST', 'admin/volunteer-opportunities/{{opportunity_id}}/reopen-check-in/', 'Temporarily reopen check-in for an owned volunteer opportunity.', true, [
             ['key' => 'extra_hours', 'value' => '24', 'description' => 'Hours to extend the check-in window.'],
         ]),
+        req(
+            'Get Self Check-in Attendance QR Codes',
+            'GET',
+            'volunteer-opportunities/{{opportunity_id}}/attendance-qr/',
+            "## Get Self Check-in Attendance QR Codes\nBE-61 Part A. Returns the two permanent IN/OUT codes for an owned volunteer opportunity as raw payload strings, generating them on first call. Stable across calls so a printed sheet never stops working.\n\n**Auth required:** Bearer `{{token}}` — caller must be the opportunity creator.",
+            true
+        ),
+        req('Self Check-in/Check-out Scan', 'POST', 'volunteer-attendance/self-scan/', 'BE-61 Part A. The volunteer scans one of the two printed codes themselves. total_hours is computed from the real elapsed time between IN and OUT; a missing OUT credits zero.', true, [
+            ['key' => 'code', 'value' => '', 'description' => 'The scanned payload string (attendance_code_in or attendance_code_out).'],
+            ['key' => 'direction', 'value' => 'in', 'description' => "'in' or 'out'."],
+        ]),
         req('Record Manual Volunteer Attendance', 'POST', 'volunteer-attendance/manual/', 'Record manual attendance for a volunteer registration.', true, [
             ['key' => 'opportunity_id', 'value' => '{{opportunity_id}}', 'description' => 'Owned volunteer opportunity id.'],
             ['key' => 'registration_id', 'value' => '{{registration_id}}', 'description' => 'Volunteer registration id.'],
@@ -2572,6 +2583,10 @@ $additionalRoutes = [
         req('Undo Volunteer Attendance', 'POST', 'volunteer-attendance/{{attendance_id}}/undo/', 'Undo an attendance record. No request body.', true),
 
         req('Close Learn & Serve Registration', 'POST', 'learn-serve-opportunities/{{opportunity_id}}/close-registration/', 'Close registration for an owned Learn & Serve opportunity. No request body.', true),
+        req('Issue Learn & Serve Self Check-in QR', 'POST', 'learn-serve-opportunities/{{opportunity_id}}/attendance-qr/', "## Issue Learn & Serve Self Check-in QR\nBE-61 Part B. Issues (or re-issues, invalidating the previous one) a single self check-in code valid for 2 hours. Only on the opportunity's last day, and not for Internship.\n\n**Auth required:** Bearer `{{token}}` — caller must be the opportunity creator.", true),
+        req('Learn & Serve Self Check-in Scan', 'POST', 'learn-serve-attendance/self-scan/', "## Learn & Serve Self Check-in Scan\nBE-61 Part B. The participant scans the single code issued for the last day. Flips is_attended to true; no per-day accuracy by design.", true, [
+            ['key' => 'code', 'value' => '', 'description' => 'The scanned attendance_code payload string.'],
+        ]),
         req('Add Learn & Serve Sponsor', 'POST', 'learn-serve-opportunities/{{opportunity_id}}/sponsors/', 'Attach a sponsor to an owned Learn & Serve opportunity.', true, [
             ['key' => 'organization_id', 'value' => '{{sponsor_id}}', 'description' => 'Organization profile id to attach as sponsor.'],
         ]),

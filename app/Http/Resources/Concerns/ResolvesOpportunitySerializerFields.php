@@ -8,6 +8,7 @@ use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
+use App\Models\VolunteerOpportunityAttendance;
 use App\Models\VolunteerOpportunityRegistration;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -117,6 +118,50 @@ trait ResolvesOpportunitySerializerFields
             ->where('user_id', $user->id)
             ->where('is_attended', true)
             ->exists();
+    }
+
+    /**
+     * BE-61 Part A — what the viewer's self check-in button should show right
+     * now, so a page refresh doesn't leave the frontend guessing between the
+     * two scans. Null for anyone not registered (including the organizer).
+     *
+     * @return array{checked_in_at: ?string, checked_out_at: ?string, next_action: string}|null
+     */
+    protected function selfAttendanceState(VolunteerOpportunity $opportunity, Request $request): ?array
+    {
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        $registration = VolunteerOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('opportunity_id', $opportunity->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $registration) {
+            return null;
+        }
+
+        $attendance = VolunteerOpportunityAttendance::query()
+            ->notDeleted()
+            ->where('registration_id', $registration->id)
+            ->whereDate('attended_date', now()->toDateString())
+            ->first();
+
+        $checkedInAt = $attendance?->checked_in_at;
+        $checkedOutAt = $attendance?->checked_out_at;
+
+        return [
+            'checked_in_at' => optional($checkedInAt)->toIso8601String(),
+            'checked_out_at' => optional($checkedOutAt)->toIso8601String(),
+            'next_action' => match (true) {
+                $checkedInAt && $checkedOutAt => 'done',
+                (bool) $checkedInAt => 'out',
+                default => 'in',
+            },
+        ];
     }
 
     protected function isSavedToVolunteerCalendar(VolunteerOpportunity $opportunity, Request $request): bool

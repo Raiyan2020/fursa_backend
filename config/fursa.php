@@ -33,4 +33,14 @@ return [
         'remember' => 30,
         'social' => 30,
     ],
+    // BE-61 Part C: the old organizer-scans-volunteer flow (scan/,
+    // scan-permissions/*) is being retired in favor of the volunteer's own
+    // self-scan. The frontend is dropping four screens for it and asked that
+    // both sides go in the same release, so this stays "on" until that
+    // release date is set — flip it to false then, rather than deleting the
+    // code before the frontend is ready. See FURSA_BACKEND_ISSUES Part C.
+    'organizer_scan_flow_enabled' => filter_var(
+        env('ORGANIZER_SCAN_FLOW_ENABLED', 'true'),
+        FILTER_VALIDATE_BOOLEAN
+    ),
 ];

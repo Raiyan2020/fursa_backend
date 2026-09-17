@@ -266,6 +266,58 @@ class AuthApiTest extends TestCase
         $this->assertNotEmpty($response->json('response_status.validation_errors.civil_id'));
     }
 
+    public function test_account_update_does_not_demand_residency_status_for_a_legacy_non_kuwaiti_row(): void
+    {
+        // BE-57: any row created before residency_status existed
+        // (2026-08-30) has it NULL. A non-Kuwaiti row in that state has not
+        // finished answering the identity question — same shape as BE-56,
+        // one column over — and must not 422 on an unrelated save.
+        $this->seed();
+
+        $user = User::factory()->create([
+            'password' => Hash::make('Password1'),
+            'user_type' => 'volunteer',
+            'nationality' => 'other',
+            'residency_status' => null,
+            'civil_id' => null,
+            'passport_number' => null,
+        ]);
+
+        $token = ExpiringToken::issueFor($user, 1)->key;
+
+        $response = $this->withHeader('Authorization', 'Token '.$token)
+            ->postJson('/api/account/', [
+                'phone_number' => '55001122',
+            ]);
+
+        $this->assertSuccessEnvelope($response, 200);
+        $this->assertSame('55001122', $user->fresh()->phone_number);
+    }
+
+    public function test_account_update_still_enforces_residency_status_when_request_touches_identity(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create([
+            'password' => Hash::make('Password1'),
+            'user_type' => 'volunteer',
+            'nationality' => 'other',
+            'residency_status' => null,
+            'civil_id' => null,
+            'passport_number' => null,
+        ]);
+
+        $token = ExpiringToken::issueFor($user, 1)->key;
+
+        $response = $this->withHeader('Authorization', 'Token '.$token)
+            ->postJson('/api/account/', [
+                'nationality' => 'other',
+            ]);
+
+        $this->assertErrorEnvelope($response, 422);
+        $this->assertNotEmpty($response->json('response_status.validation_errors.residency_status'));
+    }
+
     public function test_profile_update_does_not_demand_identity_document_for_legacy_social_signup(): void
     {
         $this->seed();
@@ -319,6 +371,32 @@ class AuthApiTest extends TestCase
 
         $this->assertErrorEnvelope($response, 422);
         $this->assertNotEmpty($response->json('response_status.validation_errors.civil_id'));
+    }
+
+    public function test_profile_update_does_not_demand_residency_status_for_a_legacy_non_kuwaiti_row(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create([
+            'password' => Hash::make('Password1'),
+            'nationality' => 'other',
+            'residency_status' => null,
+            'civil_id' => null,
+            'passport_number' => null,
+        ]);
+        VolunteerProfile::query()->create([
+            'user_id' => $user->id,
+            'nickname' => 'legacy_other_nationality_user',
+        ]);
+        $token = ExpiringToken::issueFor($user, 1)->key;
+
+        $response = $this->withHeader('Authorization', 'Token '.$token)
+            ->patchJson('/api/volunteer-profile/', [
+                'is_public' => true,
+            ]);
+
+        $this->assertSuccessEnvelope($response, 200, 'Volunteer profile updated successfully.');
+        $this->assertTrue($user->volunteerProfile->fresh()->is_public);
     }
 
     public function test_forgot_password_rejects_unregistered_email(): void

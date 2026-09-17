@@ -61,6 +61,7 @@ class BaseController extends Controller
                     'id' => $c->id,
                     'value_en' => $c->value_en,
                     'value_ar' => $c->value_ar,
+                    'slug' => $c->slug,
                 ])
                 ->values();
         }

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class VolunteerOpportunity extends Model
 {
@@ -33,6 +34,7 @@ class VolunteerOpportunity extends Model
         'generated_link', 'location_url', 'is_registration_closed', 'is_deleted', 'deleted_at',
         'is_emergency', 'volunteer_category', 'beneficiaries_count',
         'preparation_reopened_until', 'preparation_reminder_sent_at', 'backup_alert_sent_at',
+        'attendance_code_in', 'attendance_code_out',
     ];
 
     protected $casts = [
@@ -230,5 +232,48 @@ class VolunteerOpportunity extends Model
         }
 
         return true;
+    }
+
+    /**
+     * The two printed IN/OUT codes for self check-in (BE-61 Part A).
+     *
+     * Generated once and stable across calls, so a printed sheet never stops
+     * working — the organizer can fetch this endpoint repeatedly and always
+     * get the same pair back.
+     */
+    public function ensureAttendanceCodes(): void
+    {
+        $dirty = false;
+
+        if (! $this->attendance_code_in) {
+            $this->attendance_code_in = self::generateAttendanceCode();
+            $dirty = true;
+        }
+
+        if (! $this->attendance_code_out) {
+            $this->attendance_code_out = self::generateAttendanceCode();
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $this->save();
+        }
+    }
+
+    /**
+     * Random and collision-checked, never derived from anything stable across
+     * records (organizer id, slug, title hash) — a republished opportunity is
+     * a new row and must get a fresh, unguessable code of its own.
+     */
+    protected static function generateAttendanceCode(): string
+    {
+        do {
+            $code = Str::random(40);
+        } while (
+            self::query()->where('attendance_code_in', $code)->exists()
+            || self::query()->where('attendance_code_out', $code)->exists()
+        );
+
+        return $code;
     }
 }

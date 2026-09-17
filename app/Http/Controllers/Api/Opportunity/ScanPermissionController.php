@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Opportunity;
 
+use App\Http\Controllers\Api\Opportunity\Concerns\GatesOrganizerScanFlow;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Auth\CustomUserResource;
 use App\Http\Resources\Volunteer\VolunteerProfileWithUserResource;
@@ -13,10 +14,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 
+/**
+ * BE-61 Part C — the delegated-scanning permission screen, retired.
+ *
+ * See GatesOrganizerScanFlow for why this stays code-complete rather than
+ * deleted until the frontend's matching screens drop in the same release.
+ */
 class ScanPermissionController extends Controller
 {
+    use GatesOrganizerScanFlow;
+
     public function bulkUpdate(Request $request): JsonResponse
     {
+        if ($retired = $this->rejectIfOrganizerScanRetired()) {
+            return $retired;
+        }
+
         if ($request->filled('event_id')) {
             return ApiResponse::error(
                 'Event scan permissions are not supported.',
@@ -126,6 +139,10 @@ class ScanPermissionController extends Controller
 
     public function list(Request $request): JsonResponse
     {
+        if ($retired = $this->rejectIfOrganizerScanRetired()) {
+            return $retired;
+        }
+
         if ($request->filled('event_id')) {
             return ApiResponse::error(
                 'Event scan permissions are not supported.',

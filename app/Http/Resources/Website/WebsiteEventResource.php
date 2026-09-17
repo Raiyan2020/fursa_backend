@@ -91,7 +91,9 @@ class WebsiteEventResource extends JsonResource
             'map_desc' => $event->map_desc ?: ($event->location_ar ?: $event->location_en),
             'lat' => $event->latitude === null ? null : (float) $event->latitude,
             'lng' => $event->longitude === null ? null : (float) $event->longitude,
-            'location_url' => $event->location_url ?: $event->registration_link,
+            // BE-60: registration_link has nothing to do with where the event
+            // takes place — a field named location_url must not fall back to it.
+            'location_url' => $event->location_url,
             'is_registration_closed' => (bool) $event->is_registration_closed,
             'is_registration_open' => $event->isRegistrationOpen(),
             'event_images' => $this->websiteImageListWithIds($images),

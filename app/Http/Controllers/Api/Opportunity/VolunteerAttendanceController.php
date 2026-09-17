@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Opportunity;
 
+use App\Http\Controllers\Api\Opportunity\Concerns\GatesOrganizerScanFlow;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\VolunteerAttendanceResource;
@@ -18,13 +19,28 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class VolunteerAttendanceController extends Controller
 {
+    use GatesOrganizerScanFlow;
     use HandlesOpportunities;
 
+    /**
+     * BE-61 Part C — the organizer-scans-volunteer flow, retired.
+     *
+     * Superseded by self-scan (BE-61 Part A): the volunteer scans the
+     * opportunity's own printed code instead of the organizer scanning the
+     * volunteer's personal QR. Left gated on a config flag rather than
+     * deleted outright, because the frontend's four screens for this flow
+     * have to drop in the same release — see FURSA_BACKEND_ISSUES Part C.
+     */
     public function scan(Request $request): JsonResponse
     {
+        if ($retired = $this->rejectIfOrganizerScanRetired()) {
+            return $retired;
+        }
+
         $data = $request->validate([
             'opportunity_id' => ['nullable', 'integer', 'exists:volunteer_opportunities,id'],
             'event_id' => ['nullable', 'integer'],
@@ -155,6 +171,100 @@ class VolunteerAttendanceController extends Controller
             400,
             null,
             ['results' => $responses]
+        );
+    }
+
+    /**
+     * BE-61 Part A — the volunteer scans one of the two printed codes
+     * themselves, in from arrival and out on leaving.
+     *
+     * The codes are static and printed, so these guards are the only thing
+     * standing between this and fabricated hours: registered, running today,
+     * OUT requires a prior IN, and neither direction records twice a day.
+     */
+    public function selfScan(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string'],
+            'direction' => ['required', Rule::in(['in', 'out'])],
+        ]);
+
+        $code = trim($data['code'], " \t\n\r\0\x0B\"'");
+        $direction = $data['direction'];
+        $column = $direction === 'in' ? 'attendance_code_in' : 'attendance_code_out';
+
+        $opportunity = VolunteerOpportunity::query()
+            ->notDeleted()
+            ->where($column, $code)
+            ->first();
+
+        if (! $opportunity) {
+            return ApiResponse::error('Scanned QR code is not valid.', 'رمز QR الممسوح غير صالح.', 400);
+        }
+
+        $registration = VolunteerOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('opportunity_id', $opportunity->id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (! $registration) {
+            return ApiResponse::error(
+                'You are not registered for this opportunity.',
+                'أنت غير مسجل لهذه الفرصة.',
+                400
+            );
+        }
+
+        $attendanceDate = now()->toDateString();
+
+        if (! $opportunity->isWithinPreparationWindow($attendanceDate)) {
+            return ApiResponse::error(
+                'Check-in is not available for this opportunity today.',
+                'التحضير غير متاح لهذه الفرصة اليوم.',
+                400
+            );
+        }
+
+        $attendance = VolunteerOpportunityAttendance::query()
+            ->where('registration_id', $registration->id)
+            ->whereDate('attended_date', $attendanceDate)
+            ->first();
+
+        if ($direction === 'in') {
+            if ($attendance && $attendance->checked_in_at) {
+                return ApiResponse::error(
+                    'You have already checked in today.',
+                    'لقد سجّلت الحضور بالفعل اليوم.',
+                    409
+                );
+            }
+
+            $attendance = AttendanceService::selfCheckIn($registration, $opportunity, $attendanceDate);
+        } else {
+            if (! $attendance || ! $attendance->checked_in_at) {
+                return ApiResponse::error(
+                    'You must check in before checking out.',
+                    'يجب تسجيل الحضور قبل الانصراف.',
+                    400
+                );
+            }
+
+            if ($attendance->checked_out_at) {
+                return ApiResponse::error(
+                    'You have already checked out today.',
+                    'لقد سجّلت الانصراف بالفعل اليوم.',
+                    409
+                );
+            }
+
+            $attendance = AttendanceService::selfCheckOut($attendance);
+        }
+
+        return ApiResponse::success(
+            new VolunteerAttendanceResource($attendance->load(['registration.user', 'registration.opportunity'])),
+            'Attendance recorded successfully.',
+            'تم تسجيل الحضور بنجاح.'
         );
     }
 
@@ -452,10 +562,20 @@ class VolunteerAttendanceController extends Controller
         return $profile ? $query->where('user_id', $profile->user_id)->first() : null;
     }
 
+    /**
+     * BE-61 Part C — delegated scanning is retiring with the rest of the
+     * organizer-scans-volunteer flow, so once the flag flips off only the
+     * creator can manage attendance. Manual attendance and hours correction
+     * stay creator-only from that point; they never relied on a delegate.
+     */
     protected function canManageAttendance(VolunteerOpportunity $opportunity, int $userId): bool
     {
         if ($opportunity->created_by === $userId) {
             return true;
+        }
+
+        if (! config('fursa.organizer_scan_flow_enabled')) {
+            return false;
         }
 
         return ScanPermission::query()

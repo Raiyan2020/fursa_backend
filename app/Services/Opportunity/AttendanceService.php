@@ -23,6 +23,8 @@ class AttendanceService
 
     public const VIA_MANUAL = 'manual';
 
+    public const VIA_QR_SELF = 'qr_self';
+
     /**
      * Record a check-in. $hours defaults to the opportunity's computed length.
      */
@@ -70,6 +72,71 @@ class AttendanceService
         SyncService::syncUser($opportunity->created_by);
 
         return $attendance;
+    }
+
+    /**
+     * BE-61 Part A — the volunteer scans the printed IN code themselves.
+     *
+     * Marks the day attended but leaves total_hours at 0: the point of the
+     * feature is that the hours come from the OUT scan, not the schedule.
+     */
+    public static function selfCheckIn(
+        VolunteerOpportunityRegistration $registration,
+        VolunteerOpportunity $opportunity,
+        string $attendanceDate
+    ): VolunteerOpportunityAttendance {
+        $attendance = DB::transaction(function () use ($registration, $attendanceDate) {
+            $attendance = VolunteerOpportunityAttendance::query()
+                ->where('registration_id', $registration->id)
+                ->whereDate('attended_date', $attendanceDate)
+                ->first();
+
+            $attributes = [
+                'is_attended' => true,
+                'recorded_via' => self::VIA_QR_SELF,
+                'recorded_by' => $registration->user_id,
+                'checked_in_at' => now(),
+                'is_deleted' => false,
+                'deleted_at' => null,
+            ];
+
+            if ($attendance) {
+                $attendance->update($attributes);
+            } else {
+                $attendance = VolunteerOpportunityAttendance::create($attributes + [
+                    'registration_id' => $registration->id,
+                    'attended_date' => $attendanceDate,
+                    'total_hours' => 0,
+                ]);
+            }
+
+            return $attendance;
+        });
+
+        SyncService::syncUser($registration->user_id);
+        SyncService::syncUser($opportunity->created_by);
+
+        return $attendance;
+    }
+
+    /**
+     * BE-61 Part A — the volunteer scans the printed OUT code.
+     *
+     * Hours are the real elapsed time since the IN scan, not the scheduled
+     * duration. Reuses updateHours() so the profile total, the monthly
+     * statistic row and a stale certificate all stay in sync the same way a
+     * manual correction keeps them.
+     */
+    public static function selfCheckOut(VolunteerOpportunityAttendance $attendance): VolunteerOpportunityAttendance
+    {
+        $checkedOutAt = now();
+        $hours = round($attendance->checked_in_at->floatDiffInHours($checkedOutAt), 2);
+
+        $attendance->checked_out_at = $checkedOutAt;
+        $attendance->recorded_via = self::VIA_QR_SELF;
+        $attendance->save();
+
+        return self::updateHours($attendance, $hours);
     }
 
     /**
