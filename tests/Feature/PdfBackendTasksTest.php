@@ -8,6 +8,7 @@ use App\Models\EmailTemplate;
 use App\Models\Event;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
+use App\Models\MasterChoice;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Services\Certificate\CertificateRenderer;
@@ -35,6 +36,12 @@ class PdfBackendTasksTest extends TestCase
         return $this->withToken($token);
     }
 
+    private function choice(string $type, ?string $value = null): int
+    {
+        return MasterChoice::whereHas('choiceType', fn ($q) => $q->where('name', $type))
+            ->when($value, fn ($q) => $q->where('value_en', $value))->firstOrFail()->id;
+    }
+
     public function test_expired_volunteer_registration_cannot_be_reopened(): void
     {
         [$owner, $token] = $this->createOrganizationActor();
@@ -55,7 +62,7 @@ class PdfBackendTasksTest extends TestCase
         $this->assertTrue((bool) $opportunity->fresh()->is_registration_closed);
     }
 
-    public function test_expired_event_cannot_be_reopened_or_republished(): void
+    public function test_expired_event_registration_cannot_be_reopened(): void
     {
         [$owner, $token] = $this->createOrganizationActor();
         $event = Event::create([
@@ -71,10 +78,32 @@ class PdfBackendTasksTest extends TestCase
         $this->api($token)
             ->postJson("/api/events/{$event->id}/close-registration/", ['is_registration_closed' => false])
             ->assertStatus(422);
+    }
+
+    public function test_ended_event_can_still_be_republished(): void
+    {
+        [$owner, $token] = $this->createOrganizationActor();
+        $event = Event::create([
+            'created_by' => $owner->organizationProfile->id,
+            'title_en' => 'Expired event', 'title_ar' => 'فعالية منتهية',
+            'description_en' => 'Description', 'description_ar' => 'وصف',
+            'start_date' => now()->subDays(4), 'end_date' => now()->subDays(2),
+            'participants_needed' => 5, 'is_registration_closed' => true,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'event_status' => OpportunityStatus::COMPLETED,
+        ]);
+
+        $payload = [
+            'title_en' => 'Reposted event', 'title_ar' => 'فعالية معاد نشرها',
+            'description_en' => 'Description', 'description_ar' => 'وصف',
+            'start_date' => now()->addDays(6)->toDateString(), 'end_date' => now()->addDays(7)->toDateString(),
+            'participants_needed' => 5,
+            'event_type_id' => $this->choice('event_type'),
+        ];
 
         $this->api($token)
-            ->postJson("/api/event/republish/{$event->id}")
-            ->assertStatus(422);
+            ->postJson("/api/event/republish/{$event->id}", $payload)
+            ->assertCreated();
     }
 
     public function test_organizer_can_set_a_custom_learn_serve_certificate_name(): void

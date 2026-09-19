@@ -459,14 +459,6 @@ class EventController extends Controller
         $source = Event::query()->notDeleted()->findOrFail($id);
         abort_unless($source->created_by === $request->user()->organizationProfile?->id, 403);
 
-        if ($source->registrationClosesAt()?->isPast()) {
-            return ApiResponse::error(
-                'This event can no longer be republished after the deadline.',
-                'لا يمكن إعادة نشر الفعالية بعد انتهاء الموعد النهائي.',
-                422
-            );
-        }
-
         $data = $this->validateEventPayload($request);
         MediaKeepSet::validate($request, $source);
         $event = DB::transaction(function () use ($request, $source, $data) {

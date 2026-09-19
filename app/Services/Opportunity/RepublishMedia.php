@@ -35,19 +35,6 @@ class RepublishMedia
         $source = $class::query()->notDeleted()->where('created_by', $request->user()->id)
             ->findOrFail($request->input('opportunity_id'));
 
-        // A republish is a new opportunity copied from the old one. Once the
-        // source's registration deadline has passed, copying it would let an
-        // organizer resurrect an expired opportunity by accident.
-        if (method_exists($source, 'registrationClosesAt')) {
-            $deadline = $source->registrationClosesAt();
-            if ($deadline && now()->gt($deadline)) {
-                throw ValidationException::withMessages([
-                    'opportunity_id' => [
-                        'This opportunity can no longer be republished after its deadline.',
-                    ],
-                ]);
-            }
-        }
         MediaKeepSet::validate($request, $source);
 
         return $source;

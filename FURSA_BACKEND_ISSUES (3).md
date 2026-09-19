@@ -2,18 +2,26 @@
 
 Findings from the end-to-end integration audit of `fursa-next` against `fursa_backend`.
 
-**Re-verified 2026-09-16 against branch `updates` (`576918c`).** BE-56 is **confirmed fixed by
-reading the branch** and closed below, and the licence question is answered. Nothing from the
-earlier rounds has regressed.
+**Re-verified 2026-09-17 against branch `updates` (`e31f0fa` → `9310cde` → `0252545`),** after the
+backend's completion report. **BE-57 … BE-62 are all genuinely done** — every claim in that report
+was checked against the code rather than taken on trust, and each one held up. Details are in the
+banner under each issue's heading.
 
-**Open: BE-57 … BE-62.**
+**One regression came in with that work: [BE-64](#be-64--the-new-post-deadline-guard-kills-repost-on-all-three-types-which-is-the-one-thing-repost-is-for).**
+A post-deadline guard meant for *reopen registration* was also applied to *republish*, which is a
+different operation — it creates a new opportunity from a finished one. Repost is now refused on
+volunteering, learn & serve and events alike, in exactly the situation it exists for. It is the only
+HIGH item in this file.
+
+**Open: BE-63, BE-64, BE-65, BE-66, BE-67.** BE-57 … BE-62 are closed — each one verified by reading the code, not by taking the completion report's word for it.
 
 **BE-61** is a **client-requested feature** and by far the largest: QR codes the participant scans
 themselves, which the current data model cannot express at all — the existing QR belongs to the
 volunteer and is scanned by the organizer, the exact opposite. **The client answered our open
 questions on 2026-09-17 and the scope grew**: volunteering gets two permanent printed IN/OUT codes,
 learn-&-serve gets a single code issued on the last day and valid two hours, and the whole
-organizer-scans-volunteer flow is retired. The frontend is blocked on it entirely.
+organizer-scans-volunteer flow is retired. **This is now built and verified** — the frontend is
+unblocked and can start integrating against the new routes and the `self_attendance` field.
 
 **BE-62** comes out of the same round: the client renamed «الاستشارة» to «المساحة». That sounds
 cosmetic, but the value is matched as a string literal in five places across both codebases, so the
@@ -28,21 +36,29 @@ does not cover.
 
 ### Where to start
 
-**BE-61 Part A.** It is the largest single piece of work in this file, the client is waiting on it,
-and **nothing in it is blocked** — every decision it needs has been made. The outstanding client
-answers all sit in Part B, so waiting for them would idle the biggest task for no reason. Each issue
-below opens with its own readiness note.
+**BE-64.** It is a live regression on a feature organizers use, it arrived with the last release, and
+the fix is to narrow a guard rather than build anything. Nothing else in this file is blocked on it.
+
+**Then BE-63**, whose first half (the missing learn-&-serve `reopen-registration` route) is a
+twenty-line twin of code that already exists. Read its status banner first: the PDF round already
+added a guard on one of the four methods, with a cutoff that disagrees with ours, so question 1 in
+that issue needs answering before the other three are written.
 
 IDs continue the existing sequence in `fursa-next/docs/BACKEND_ISSUES.md`, which ends at BE-34.
 
 | ID | Severity | Status | Title |
 |---|---|---|---|
-| [BE-61](#be-61--self-check-in-qr-two-printable-codes-for-volunteering-one-expiring-code-for-learn-and-serve-and-retiring-the-organizer-scans-volunteer-flow) | **HIGH** | **Open — client-requested feature, scope confirmed 2026-09-17, frontend blocked** | Self check-in QR: two printable codes for volunteering, one expiring code for learn and serve, and retiring the organizer-scans-volunteer flow |
-| [BE-62](#be-62--rename-the-consultation-learning-type-to-مساحة-and-please-give-master_choices-a-stable-key-while-you-are-in-there) | **MEDIUM** | **Open — client-requested rename, coupled to BE-61** | Rename the `Consultation` learning type to «مساحة», and give `master_choices` a stable key |
-| [BE-59](#be-59--publishing-an-opportunity-notifies-nobody-in-the-dashboard-and-the-notification-system-cannot-target-an-admin-at-all) | **MEDIUM** | **Open — client-reported bug** | Publishing an opportunity notifies nobody in the dashboard, and the notification system cannot target an admin at all |
-| [BE-58](#be-58--websitevolunteeropportunityresource-cannot-express-a-non-consecutive-schedule-so-every-card-overstates-it) | **MEDIUM** | **Open — frontend shipped without it** | `WebsiteVolunteerOpportunityResource` cannot express a non-consecutive schedule, so every card overstates it |
-| [BE-60](#be-60--location_url-falls-back-to-the-whatsapp-link-so-an-empty-location-is-indistinguishable-from-a-contact-number) | **LOW** | **Open — frontend worked around** | `location_url` falls back to the WhatsApp link, so an empty location is indistinguishable from a contact number |
-| [BE-57](#be-57--the-be-56-guard-misses-a-legacy-row-that-has-a-nationality-but-no-residency_status) | **LOW** | **Open — not reported before** | The BE-56 guard misses a legacy row that has a `nationality` but no `residency_status` |
+| [BE-67](#be-67--five-gaps-on-the-volunteers-list-volunteerlist-four-of-them-reported-by-the-client) | **HIGH** | **Open — client-reported; one is a regression vs the live React site** | Five gaps on the volunteers list (`/volunteerlist`), four of them reported by the client |
+| [BE-64](#be-64--the-new-post-deadline-guard-kills-repost-on-all-three-types-which-is-the-one-thing-repost-is-for) | **HIGH** | **Open — regression introduced by `9310cde`** | The new post-deadline guard kills Repost on all three types, which is the one thing Repost is for |
+| [BE-61](#be-61--self-check-in-qr-two-printable-codes-for-volunteering-one-expiring-code-for-learn-and-serve-and-retiring-the-organizer-scans-volunteer-flow) | **HIGH** | **✅ Closed — verified 2026-09-17** (one sub-item still gated on the client) | Self check-in QR: two printable codes for volunteering, one expiring code for learn and serve, and retiring the organizer-scans-volunteer flow |
+| [BE-62](#be-62--rename-the-consultation-learning-type-to-مساحة-and-please-give-master_choices-a-stable-key-while-you-are-in-there) | **MEDIUM** | **✅ Closed — verified 2026-09-17** | Rename the `Consultation` learning type to «مساحة», and give `master_choices` a stable key |
+| [BE-59](#be-59--publishing-an-opportunity-notifies-nobody-in-the-dashboard-and-the-notification-system-cannot-target-an-admin-at-all) | **MEDIUM** | **✅ Closed — verified 2026-09-17** | Publishing an opportunity notifies nobody in the dashboard, and the notification system cannot target an admin at all |
+| [BE-58](#be-58--websitevolunteeropportunityresource-cannot-express-a-non-consecutive-schedule-so-every-card-overstates-it) | **MEDIUM** | **✅ Closed — verified 2026-09-17** | `WebsiteVolunteerOpportunityResource` cannot express a non-consecutive schedule, so every card overstates it |
+| [BE-63](#be-63--learn--serve-can-be-closed-but-never-reopened-and-neither-model-enforces-the-reopen-window) | **MEDIUM** | **Open — not addressed; partly collides with the PDF round** | Learn & serve can be closed but never reopened, and neither model enforces the reopen window |
+| [BE-65](#be-65--a-development-opportunity-has-nowhere-to-put-a-whatsapp-contact-because-link-is-already-its-meeting-url) | **MEDIUM** | **Open — client-requested; volunteering shipped, development blocked** | A development opportunity has nowhere to put a WhatsApp contact, because `link` is already its meeting URL |
+| [BE-66](#be-66--due_date-is-required-again-on-a-volunteer-opportunity-and-the-api-still-accepts-it-empty) | **MEDIUM** | **Open — reverted product decision; frontend already enforces it** | `due_date` is required again on a volunteer opportunity, and the API still accepts it empty |
+| [BE-60](#be-60--location_url-falls-back-to-the-whatsapp-link-so-an-empty-location-is-indistinguishable-from-a-contact-number) | **LOW** | **✅ Closed — verified 2026-09-17** | `location_url` falls back to the WhatsApp link, so an empty location is indistinguishable from a contact number |
+| [BE-57](#be-57--the-be-56-guard-misses-a-legacy-row-that-has-a-nationality-but-no-residency_status) | **LOW** | **✅ Closed — verified 2026-09-17** (102 rows affected) | The BE-56 guard misses a legacy row that has a `nationality` but no `residency_status` |
 
 ---
 
@@ -240,6 +256,9 @@ performed here*), so the backend team's own test run is the only execution evide
 ---
 
 ## BE-61 — Self check-in QR: two printable codes for volunteering, one expiring code for learn and serve, and retiring the organizer-scans-volunteer flow
+
+> **✅ Closed — verified in code 2026-09-17** against `e31f0fa` / `9310cde` / `0252545`.
+> Part A (two printed IN/OUT codes, `self-scan`, real elapsed hours, `self_attendance` on the resource) and Part B (one code, last day only, 2h expiry, internship refused) are implemented and match this issue. All five Part-A scan guards are present in `VolunteerAttendanceController::selfScan()`. Part C is code-complete behind `fursa.organizer_scan_flow_enabled` (default `true`), as agreed. **One sub-item is still open and correctly so:** removing automatic attendance from `LearnServeOpportunity::NO_CHECK_IN_TYPES` is untouched — it was gated on client sign-off that has not arrived. The completion report calls Part B "fully implemented" without mentioning it; that is a reporting gap, not a code gap.
 
 **Severity: HIGH — a client-requested feature, and one the current data model cannot express at all.
 Backend-first: no part of the frontend can be built until the endpoints exist, so nothing has been
@@ -568,6 +587,9 @@ but deliberately held until the retirement release is known.
 
 ## BE-62 — Rename the `Consultation` learning type to «مساحة», and please give `master_choices` a stable key while you are in there
 
+> **✅ Closed — verified in code 2026-09-17** against `e31f0fa` / `9310cde` / `0252545`.
+> `master_choices.slug` added, exposed on `/api/choices/{type}/`; `isInternship()` matches `slug === 'internship'` with a `value_en` fallback; Arabic label renamed, `value_en` untouched.
+
 **Severity: MEDIUM — a one-word product rename that, done the obvious way, silently changes
 behaviour in five places across both codebases. Small to do, easy to get wrong.**
 
@@ -665,6 +687,9 @@ guess, because a wrong guess breaks consultation booking silently rather than lo
 
 ## BE-59 — Publishing an opportunity notifies nobody in the dashboard, and the notification system cannot target an admin at all
 
+> **✅ Closed — verified in code 2026-09-17** against `e31f0fa` / `9310cde` / `0252545`.
+> `admin_notifications` + `notifyAdminsWithPermission()` verified wired at **all six** submission points — volunteer `store()`/`resubmit()`, event `store()`/`republish()`, learn-serve `store()`, and `AuthService::register()`.
+
 **Severity: MEDIUM — reported by the client as a bug, not a feature request. Backend-only; there is
 nothing the frontend can do here.**
 
@@ -761,6 +786,9 @@ is awaiting review", which we do not show today).
 ---
 
 ## BE-58 — `WebsiteVolunteerOpportunityResource` cannot express a non-consecutive schedule, so every card overstates it
+
+> **✅ Closed — verified in code 2026-09-17** against `e31f0fa` / `9310cde` / `0252545`.
+> `has_custom_schedule` and `time_slots` present on `WebsiteVolunteerOpportunityResource`, derived from the eager-loaded relation rather than `hasCustomSchedule()`, so the N+1 this issue warned about is avoided.
 
 **Severity: MEDIUM — the write side is already done and correct; this is the read side of the same
 feature. The frontend has shipped the form, so scattered-day opportunities can be created today and
@@ -861,6 +889,9 @@ fixed from our side** — the data is not in the response.
 
 ## BE-60 — `location_url` falls back to the WhatsApp link, so an empty location is indistinguishable from a contact number
 
+> **✅ Closed — verified in code 2026-09-17** against `e31f0fa` / `9310cde` / `0252545`.
+> No `?:` fallback remains on `location_url` in any of the six resources — the three named here plus `WebsiteLearnServeOpportunityResource` and `WebsiteEventResource`.
+
 **Severity: LOW — worked around in two places on our side, but the workaround is a guess and every
 client has to repeat it.**
 
@@ -921,6 +952,9 @@ beyond dropping the fallback, so this will not break us whenever it lands.
 ---
 
 ## BE-57 — The BE-56 guard misses a legacy row that has a `nationality` but no `residency_status`
+
+> **✅ Closed — verified in code 2026-09-17** against `e31f0fa` / `9310cde` / `0252545`.
+> `IdentityDocumentValidator::isApplicable()` returns false for a stored `nationality = other` with `residency_status = NULL` unless the request carries an identity field. 102 production rows were affected, so this was worth fixing.
 
 **Severity: LOW — not reachable from the website, reachable from any other client. This is not a
 complaint about the BE-56 fix, which is correct for the case it was filed for; it is the same shape
@@ -1003,6 +1037,465 @@ fail on one.**
 ### Frontend status
 
 **No change needed.** The workaround already in place covers the website; it stays regardless.
+
+---
+
+## BE-63 — Learn & serve can be closed but never reopened, and neither model enforces the reopen window
+
+> **⚠️ Not addressed — status re-checked 2026-09-17 against `e31f0fa` / `9310cde` / `0252545`.**
+> This issue was written after the copy the backend worked from (`FURSA_BACKEND_ISSUES (4).md`,
+> BE-57…BE-62), so nothing here was skipped deliberately. Where the PDF round happened to touch the
+> same code, the result only half matches:
+>
+> - **Part 1 — learn & serve `reopen-registration` — still missing.** No route in `routes/api.php`,
+>   no `reopenRegistration()` on `LearnServeOpportunityController`. Our frontend workaround through
+>   the partial-update endpoint is live and working, so nothing is broken for users.
+> - **Part 2 — the window — enforced on one method of the four.**
+>   `VolunteerOpportunityController::reopenRegistration()` now refuses once
+>   `registrationClosesAt()` has passed. **Volunteer close, learn-serve close and learn-serve reopen
+>   still have no guard at all.**
+> - **The cutoff is not the one this issue asked for, and the two now disagree in a way users will
+>   hit.** We gate on `end_date − 1 day`; `registrationClosesAt()` prefers **`due_date`**, falling
+>   back to `end_date`. For the ordinary case where registration closes well before the opportunity
+>   ends — runs 1–30 Sep, `due_date` 5 Sep — our button stays visible until 29 Sep while the API has
+>   refused since 5 Sep. **That is exactly the "visible and then 422" collision question 1 below
+>   warned about.** Please answer question 1 before adding the guard to the other three methods, so
+>   both sides land on the same date.
+
+**Severity: MEDIUM — client-reported. Half of it is a missing route; half is a rule the API does not
+enforce at all.**
+
+**Ready to start:** yes. Nothing here is blocked and nothing depends on BE-61. Part 1 is a
+twenty-line copy of code that already exists.
+
+### What the client asked for
+
+> «إغلاق الفرصة لا يمكن إعادة فتحها — المفروض: يحق للناشر فتح وإغلاق الفرصة لحد يوم قبل تاريخ الانتهاء»
+
+Closing an opportunity is currently one-way. It should not be: the publisher may **open and close**
+the opportunity as often as they like, **up until one day before its end date**.
+
+### Part 1 — `reopen-registration` exists for volunteering only
+
+`routes/api.php`:
+
+```php
+Route::post('volunteer-opportunities/{id}/close-registration/',  [VolunteerOpportunityController::class, 'closeRegistration']);
+Route::post('volunteer-opportunities/{id}/reopen-registration/', [VolunteerOpportunityController::class, 'reopenRegistration']);
+Route::post('learn-serve-opportunities/{id}/close-registration/',[LearnServeOpportunityController::class, 'closeRegistration']);
+// ← no learn-serve reopen-registration
+```
+
+`LearnServeOpportunityController::closeRegistration()` is a line-for-line twin of the volunteer one,
+so the missing half is `$opportunity->update(['is_registration_closed' => false])` in a
+`reopenRegistration()` method plus its route. Please mirror the volunteer version exactly, including
+the `OpportunityChangeNotifier::notify()` call around the snapshot.
+
+**What the frontend does meanwhile.** It reopens a learn & serve opportunity through the ordinary
+update endpoint — `POST /learn-serve-opportunities/{id}/` with `_method=PATCH` and a body of nothing
+but `is_registration_closed=0`. That works today: `validatePayload($request, partial: true)` already
+declares the key as `nullable|boolean`, `mapLocationAttributes()` only writes keys the payload
+actually contains, and `opportunitySnapshot()` includes `is_registration_closed`, so the change
+notification fires identically either way. It is a workaround, not a preference — we would rather
+call a route named after what it does, and a partial update is a much wider blast radius than the
+one column we want to touch. `reopenLearnServeOpportunityRegistration()` in
+`fursa-next/src/features/opportunities/services/learnServe.ts` is one line to repoint once the route
+exists.
+
+### Part 2 — the window is not enforced anywhere
+
+This is the part that needs a decision, not just code.
+
+Neither `closeRegistration()` nor `reopenRegistration()` looks at a date. Both are:
+
+```php
+$opportunity = ...->where('created_by', $request->user()->id)->find($id);
+if (! $opportunity) { return 404; }
+$opportunity->update(['is_registration_closed' => true /* or false */]);
+```
+
+So today the API will happily reopen registration on an opportunity that **ended last month**, and
+`HasRegistrationWindow::isRegistrationOpen()` will then report it open if `due_date`/`end_date`
+parsing allows — because that method only reads `is_registration_closed` and
+`registrationClosesAt()`, and the manual flag short-circuits nothing about the past.
+
+**The frontend now hides both buttons after `end_date` minus one day**
+(`canToggleRegistration()` in `fursa-next/src/features/shared/opportunityButtonState.ts`). That is
+presentation only and stops nobody using the endpoint directly. Please add the same guard server
+side, on **all four** methods (volunteer close, volunteer reopen, learn-serve close, learn-serve
+reopen), returning a 422 rather than a silent no-op:
+
+```php
+// The publisher's window closes a day before the opportunity ends.
+if ($opportunity->end_date && now()->startOfDay()->gt(
+        Carbon::parse($opportunity->end_date)->subDay()->endOfDay())) {
+    return ApiResponse::error(
+        'Registration can no longer be changed for this opportunity.',
+        'لم يعد بالإمكان تعديل التسجيل لهذه الفرصة.', 422);
+}
+```
+
+Since all four methods need it, `HasRegistrationWindow` is the natural home — e.g.
+`registrationToggleClosesAt(): ?Carbon` next to the existing `registrationClosesAt()`, so the
+resource can expose it too.
+
+### From you (backend) — three questions
+
+1. **`end_date` or `due_date`?** We read the client's «تاريخ الانتهاء» as `end_date`, and deliberately
+   not `due_date`: `due_date` is the registration deadline the publisher is *overriding* with this
+   very control, so gating on it would remove the button exactly when it is wanted. Confirm you
+   agree before you write the guard — if you gate on `due_date` and we gate on `end_date`, the
+   button will be visible and 422.
+2. **Is the last allowed day inclusive?** We implemented "the whole of the day before `end_date`" —
+   an opportunity ending on the 30th is toggleable all through the 29th, and not on the 30th. The
+   Arabic is ambiguous between that and "up to the 30th".
+3. **What about a record with no `end_date`?** Legacy rows have one; our fallback order is
+   `end_date` → `due_date` → always allowed. Say if you would rather refuse.
+
+### Not in scope
+
+**Events.** `EventController::closeRegistration()` already takes `is_registration_closed=false` to
+reopen, so events have no missing half — and the frontend surfaces no close-registration control for
+events at all since they became announcement-only (BE-41). Leave them alone unless the client asks.
+
+---
+
+## BE-64 — The new post-deadline guard kills Repost on all three types, which is the one thing Repost is for
+
+**Severity: HIGH — a regression introduced by `9310cde`, not a pre-existing gap. It breaks a live
+creator feature on volunteering, learn & serve and events at once.**
+
+**Ready to start:** yes, immediately. Nothing else depends on it, and the fix is to narrow a guard
+that was added in the wrong place.
+
+### What changed
+
+`9310cde` added a post-deadline refusal in three places, described in the completion report as:
+
+> **Republish/reopen blocked after the deadline.** `Event::republish()`/`closeRegistration()`,
+> `VolunteerOpportunity::reopenRegistration()`, and the shared `RepublishMedia::source()` … now all
+> refuse once `registrationClosesAt()` has passed — matching the PDF's "closed opportunity can't be
+> reopened" note.
+
+Two different operations got collapsed into one rule:
+
+| | What it means | Should a passed deadline block it? |
+|---|---|---|
+| **Reopen registration** | re-open the *existing* opportunity to new registrations | Yes — that is the PDF's note, and BE-63 |
+| **Republish / Repost** | create a **brand-new** opportunity copied from an old one; the source is untouched | **No.** It is *only ever* used on a finished one |
+
+The PDF line is about the first. The guard was applied to both.
+
+### Why this stops Repost entirely
+
+Repost is the creator's action on an opportunity that has **already ended** — that is precisely when
+the button appears. `isCreatorRepostState()` derives it from the backend's own `action_state`, and
+the label flips from "Edit" to "Repost" exactly once the opportunity is over. So the guard fires on
+100 % of real reposts:
+
+- **Events** — `EventController::republish()` returns 422 before it validates anything:
+
+  ```php
+  if ($source->registrationClosesAt()?->isPast()) {
+      return ApiResponse::error('This event can no longer be republished after the deadline.', …, 422);
+  }
+  ```
+
+- **Volunteering and learn & serve** — worse, because the refusal is buried in the shared media
+  helper. `RepublishMedia::source()` throws `ValidationException`, and `store()` calls it *before*
+  the transaction, so the whole create fails:
+
+  ```php
+  if (method_exists($source, 'registrationClosesAt')) {
+      $deadline = $source->registrationClosesAt();
+      if ($deadline && now()->gt($deadline)) {
+          throw ValidationException::withMessages([
+              'opportunity_id' => ['This opportunity can no longer be republished after its deadline.'],
+          ]);
+      }
+  }
+  ```
+
+  The error surfaces on the field `opportunity_id`, which no form on our side renders, so the user
+  gets a generic failure toast with no usable message.
+
+`tests/Feature/PdfBackendTasksTest.php::test_expired_event_cannot_be_reopened_or_republished` asserts
+this behaviour, so it is deliberate rather than accidental — which is why we are raising it as a
+requirements question rather than a bug in passing.
+
+### One extra reason the volunteer/learn-serve half fires on every repost now
+
+We changed the frontend on 2026-09-17 so that a repost **always** sends `opportunity_id`, not only
+when it keeps images: it is what lets `RepublishMedia::apply()` copy the **licence document** to the
+new opportunity, and our licence validation treats a repost as already satisfied. Before that change
+a repost that dropped all images would have slipped past the new guard by never entering
+`source()`. It no longer can. (That frontend change is itself a client request — a repost must not
+reuse the previous run's gallery — and is already shipped.)
+
+### What we are asking for
+
+**Remove the deadline check from the republish paths; keep it on reopen-registration.** Concretely:
+
+1. Delete the block from `RepublishMedia::source()`. That helper exists to copy media, and a
+   permission rule does not belong in it — it is shared by both opportunity types' `store()` *and*
+   their `update()`.
+2. Delete the block from `EventController::republish()`.
+3. Keep the guard in `VolunteerOpportunityController::reopenRegistration()` and in
+   `EventController::closeRegistration()`'s reopen direction — those are the operation the PDF meant.
+4. Update `test_expired_event_cannot_be_reopened_or_republished` to assert the reopen half only, and
+   add a test that an **ended** opportunity of each of the three types **can** still be republished —
+   that is the real-world case and nothing covers it today.
+
+If you believe a repost genuinely should be blocked at some point, tell us the rule you have in mind
+before implementing it — but note it cannot be "after the registration deadline", because every
+repost by definition happens then.
+
+---
+
+## BE-65 — A development opportunity has nowhere to put a WhatsApp contact, because `link` is already its meeting URL
+
+**Severity: MEDIUM — client-requested feature, half-shippable. Volunteering is done and live;
+development is blocked on one column.**
+
+**Ready to start:** yes. One nullable column, one validation rule, one resource field.
+
+### What the client asked for
+
+A **direct WhatsApp contact on the opportunity itself**, so a volunteer reading a listing can
+message whoever is running *that* opportunity — on both volunteering and development.
+
+### Volunteering already had the field; development does not
+
+| | `volunteer_opportunities.link` | `learn_serve_opportunities.link` |
+|---|---|---|
+| Form label | «رابط واتساب» (`COMMON.WHATSAPP_LINK`), required | «الرابط الإلكتروني» — the **online meeting URL** |
+| Validated as | a real WhatsApp URL (`YupWhatsAppLink`: https, `wa.me` / `whatsapp.com` hosts) | a plain URL |
+| Written when | always | only when the format is **online** |
+| Shown to | everyone | **registered participants and the organizer only** |
+
+So the two models spell the same column completely differently. We shipped the contact button on
+`VolunteerEvent.tsx` and stopped at development, because reusing `link` there would do two bad
+things at once: label a Zoom link "contact on WhatsApp", and **publish a link the screen
+deliberately gates behind registration** to every anonymous visitor.
+
+Worth noting for your own records: `LearnServeOpportunityResource.php:80` carries a comment reading
+«BE-60: `link` is the WhatsApp contact link, not a location». That is true of the volunteer model
+and **not** of this one — the comment travelled with the BE-60 fix. The column is the meeting URL
+here.
+
+### What we need
+
+A separate nullable contact column on `learn_serve_opportunities`, mirroring what volunteering
+already has in spirit but under an unambiguous name — `whatsapp_link` rather than a second `link`:
+
+1. `whatsapp_link` (nullable string) on `learn_serve_opportunities`.
+2. Accepted on create and update — `['nullable', 'url']` is enough; we validate the WhatsApp domains
+   client-side and would rather you not duplicate that list.
+3. Exposed on `LearnServeOpportunityResource` **and** `WebsiteLearnServeOpportunityResource`, and
+   **ungated** — unlike `link`, this one is meant for people who have *not* registered yet. That is
+   the entire point of it.
+4. Please do **not** fold it into `link` or make `link` polymorphic. One column, one meaning: the
+   confusion above is exactly what a second overload would deepen.
+
+Once it lands we add the field to `LearnServeForm.tsx` and drop the button into
+`LearnServeDetails.tsx` — the markup is already written and commented out in place, so it is a
+few minutes' work on our side.
+
+### A question back to you
+
+**Should volunteering's `link` be renamed too?** It means WhatsApp and is named `link`, which is how
+this confusion started and what BE-60's stray comment reflects. We are not asking for a breaking
+rename now — but if you ever add `whatsapp_link` to the volunteer model as an alias, tell us and we
+will migrate the frontend to it. Leaving it as-is is a perfectly good answer.
+
+---
+
+## BE-66 — `due_date` is required again on a volunteer opportunity, and the API still accepts it empty
+
+**Severity: MEDIUM — a reverted product decision. The frontend already enforces it; right now the
+API is the only thing that would let a client through without one.**
+
+**Ready to start:** yes. One rule, but read *Where not to put it* first — the obvious place breaks
+three other screens.
+
+### The decision
+
+The registration deadline on a **volunteer opportunity** was made optional a few weeks ago, with an
+empty value falling back to `end_date` through
+`HasRegistrationWindow::registrationClosesAt()`. **The client has reverted that.** Every volunteer
+opportunity states its own deadline again.
+
+Shipped on our side already: `dueDate` carries `YupRequiredString`, the field lost its clear button,
+and the submit no longer sends an empty `due_date` (it used to, deliberately, so an edit could null
+the column — that path is gone). So the website cannot produce one without a deadline. Please make
+the API agree, so the mobile app and any other client cannot either.
+
+### Where not to put it
+
+`due_date` is declared once, in `OpportunityValidationRules::core()`:
+
+```php
+'due_date' => ['nullable', 'date'],
+```
+
+**Do not simply flip that to `$required`.** `core()` has six callers:
+
+| Caller | Should `due_date` become required? |
+|---|---|
+| `Api/Opportunity/VolunteerOpportunityController` | **Yes** — this is the request |
+| `Admin/VolunteerOpportunityController` | **Yes** — see below |
+| `Api/Opportunity/LearnServeOpportunityController` | **Not yet** — open question |
+| `Admin/LearnServeOpportunityController` | **Not yet** — same |
+| `Api/Event/EventController` | **No** |
+| `Admin/EventController` | **No** |
+
+Events in particular are announcement-only now and would start rejecting perfectly good submissions.
+An extra parameter on `core()` alongside the existing `participantsRequired` /
+`secondaryContentRequired` is the natural shape — e.g. `dueDateRequired: false` by default, passed
+`true` from the two volunteer controllers.
+
+### Please keep the column nullable
+
+Validation-level required only. **No `NOT NULL` migration.** Rows created while the field was
+optional legitimately have `due_date IS NULL`, and the fallback to `end_date` is what keeps their
+registration windows correct — `VolunteerOpportunityController` itself relies on it in the listing
+sort (`AND (due_date IS NULL OR DATE(due_date) >= ?)`, three times around line 454). Backfilling
+those rows would change published deadlines. Leave them alone; the rule only has to bind new and
+edited records.
+
+`$partial ? 'sometimes' : 'required'` handles the edit case correctly on its own: a PATCH that does
+not mention `due_date` still passes, and one that sends it empty is rejected.
+
+### The admin dashboard has to match
+
+`Admin/VolunteerOpportunityController::store()` calls `core()` with no `$partial`, so whatever you
+do to the rule applies there too — but the Blade form needs the field marked required as well, or an
+admin fills the form, submits, and gets a validation error on a field that looked optional.
+
+### One question back
+
+**Should development (learn & serve) match?** We deliberately left `LearnServeForm.tsx` optional,
+because the client's revert named the volunteer form only. If they meant both, say so and we will
+flip ours in the same release as your rule — the two sides must not disagree, or the form will
+accept an empty deadline and the API will 422 it.
+
+---
+
+## BE-67 — Five gaps on the volunteers list (`/volunteerlist`), four of them reported by the client
+
+**Severity: HIGH — one of these (the guardian data) is a live regression against the React site the
+client is still running, and two of them make the attendance screen unusable after a page refresh.**
+
+**Ready to start:** yes, all five. They are independent of each other and of every other open issue.
+
+Grouped into one ticket because they all land on the same screen and three of them touch the same
+resource. Split them if that suits your workflow better.
+
+### 67.1 — `VolunteerOpportunityRegistrationResource` flattened `user`, and took the guardian data with it
+
+**The client's words:** «بيانات ولي الأمر لا تظهر بالجدول، وملف الإكسيل المُصدّر يطلع فارغ من
+البيانات (بينما يعمل صح بالموقع الفعلي)» — "the live site" being the React app still serving users
+until the Next rewrite lands.
+
+Both frontends read the guardian fields the same way, nested under a `user` object:
+
+```ts
+rowData?.user?.emergency_contact_name          // fursa-next  VolunteerRegistrationsTable.tsx
+rowData?.user?.emergency_contact_relationship_display
+```
+
+```ts
+rowData?.user?.emergency_contact_name          // fursa_react  RegisterList.tsx:82
+```
+
+The resource sends **`'user' => $this->user_id`** — a bare integer. So `rowData.user.…` is
+`undefined` everywhere, the four guardian columns never render (the table hides them when no row has
+the data), and the export is empty for the same reason. Nothing is wrong on either frontend; they
+were written against a payload that used to nest the user.
+
+**What we need:** the guardian fields reachable from a registration row — either
+`user` as an object carrying `emergency_contact_name` / `_phone` / `_civil_id` /
+`emergency_contact_relationship_display`, or those four flattened onto the row like `user_email` and
+`phone_number` already are. Either shape works; **tell us which and we will follow it.** Please keep
+`user_id` reachable too, under whatever name, since the unregister call uses it.
+
+### 67.2 — The registrations payload still has no attendance id or per-date hours
+
+Raised in round one, never closed, and it is what the client is now reporting as «لا يمكن التراجع
+بعد التعديل».
+
+`GET /volunteer-opportunity-registrations/` returns `date_wise_attended` — an array of dates and
+nothing else. Editing hours (`PATCH /volunteer-attendance/{id}/hours/`) and undoing a check-in both
+need that attendance record's **id**, which the payload never carries. Our workaround is to remember
+the ids returned by check-ins **made in the current browser session**, which is why both actions
+work right up until the organizer refreshes the page and then silently vanish.
+
+**What we need:** for each attended date, its `attendance_id` and its `total_hours`. Shape suggestion,
+replacing or sitting beside `date_wise_attended`:
+
+```json
+"attendances": [
+  { "id": 4412, "attended_date": "2026-09-18", "total_hours": 5.5,
+    "checked_in_at": "...", "checked_out_at": "..." }
+]
+```
+
+The two timestamps are optional-but-welcome now that BE-61 records them.
+
+### 67.3 — A manually added volunteer gets no email
+
+**Client:** «عند إضافة متطوع يدوياً: لا يصله إيميل».
+
+When an organizer adds a volunteer by hand from this screen, nothing is sent to that person. They
+are registered for an opportunity they were never told about. Please send the same notification a
+self-registration sends.
+
+### 67.4 — A manually added volunteer cannot be found by search
+
+**Client:** «لا يمكن البحث عنه بالاسم/الرقم المدني/الجواز».
+
+Two places need this and the client listed both:
+
+1. The registrations search on this screen.
+2. The people-picker used to grant a permission — «عند البحث عن شخص لاعطائه اذن التحضير يجب البحث
+   عنه بالاسم (الاسم او الرقم المدني او الجواز)».
+
+The row does carry `civil_id` and `passport_number`, so the fields exist — the **search** does not
+match on them. Please have the `search` parameter match **name OR civil_id OR passport_number** on
+both endpoints. Worth checking whether a manually created user is indexed at all, since the client
+reports they cannot be found even by name.
+
+### 67.5 — A role can be assigned beyond the number the opportunity asked for
+
+**Client:** «اختبار إضافة دور فوق العدد المطلوب — النظام يقبله بدون تحقق (باق)», marked as still
+outstanding from a previous round.
+
+Assigning volunteers to a role accepts more than that role's `participants_needed` with no
+validation. Please reject the assignment that would exceed it, with a field error we can show.
+
+---
+
+### New feature on the same screen — «إذن تحضير»
+
+Not a bug, and **not** the existing `/scan-permission`. The client defined it for us:
+
+> إذن يعطى لمتطوع لاضافه متطوعين في الفرصه وتحديد عدد ساعات التطوع وليس التحضير باستخدام الـ QR
+
+A permission an organizer grants **to a volunteer**, letting that volunteer (a) add volunteers to
+the opportunity and (b) set their volunteer hours. **Explicitly not QR scanning** — which matters,
+because the QR-delegation flow this sounds like is the one BE-61 Part C retires.
+
+The mockup puts a fourth button for it beside «إرسال الشهادات» / «إضافة دور» / «إضافة متطوع». We have
+shipped the other three and **left this one out rather than ship a dead button**, so the frontend is
+waiting on:
+
+1. Grant / revoke / list endpoints for the permission, scoped to an opportunity.
+2. The people-picker search from 67.4 (same requirement, which is why the client filed them together).
+3. Authorization on the existing add-volunteer and set-hours endpoints so a holder of this permission
+   passes, where today only the organizer does.
+
+Please confirm the shape before building — in particular whether one permission covers both abilities
+or they are separate flags.
 
 ---
 
