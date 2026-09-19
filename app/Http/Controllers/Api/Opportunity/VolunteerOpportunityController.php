@@ -233,6 +233,14 @@ class VolunteerOpportunityController extends Controller
             return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
         }
 
+        if ($opportunity->isRegistrationToggleClosed()) {
+            return ApiResponse::error(
+                'Registration can no longer be changed for this opportunity.',
+                'لم يعد بالإمكان تعديل التسجيل لهذه الفرصة.',
+                422
+            );
+        }
+
         $before = $this->opportunitySnapshot($opportunity);
         $opportunity->update(['is_registration_closed' => true]);
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
@@ -256,10 +264,10 @@ class VolunteerOpportunityController extends Controller
             return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
         }
 
-        if ($opportunity->registrationClosesAt()?->isPast()) {
+        if ($opportunity->isRegistrationToggleClosed()) {
             return ApiResponse::error(
-                'Registration cannot be reopened after the deadline.',
-                'لا يمكن إعادة فتح التسجيل بعد انتهاء الموعد النهائي.',
+                'Registration can no longer be changed for this opportunity.',
+                'لم يعد بالإمكان تعديل التسجيل لهذه الفرصة.',
                 422
             );
         }

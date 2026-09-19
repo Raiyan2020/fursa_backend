@@ -179,6 +179,14 @@ class LearnServeOpportunityController extends Controller
             return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
         }
 
+        if ($opportunity->isRegistrationToggleClosed()) {
+            return ApiResponse::error(
+                'Registration can no longer be changed for this opportunity.',
+                'لم يعد بالإمكان تعديل التسجيل لهذه الفرصة.',
+                422
+            );
+        }
+
         $before = $this->opportunitySnapshot($opportunity);
         $opportunity->update(['is_registration_closed' => true]);
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
@@ -188,6 +196,37 @@ class LearnServeOpportunityController extends Controller
             new LearnServeOpportunityResource($opportunity),
             'Registration closed successfully.',
             'تم إغلاق التسجيل بنجاح.'
+        );
+    }
+
+    public function reopenRegistration(Request $request, int $id): JsonResponse
+    {
+        $opportunity = LearnServeOpportunity::query()
+            ->notDeleted()
+            ->where('created_by', $request->user()->id)
+            ->find($id);
+
+        if (! $opportunity) {
+            return ApiResponse::error('Opportunity not found.', 'لم يتم العثور على الفرصة.', 404);
+        }
+
+        if ($opportunity->isRegistrationToggleClosed()) {
+            return ApiResponse::error(
+                'Registration can no longer be changed for this opportunity.',
+                'لم يعد بالإمكان تعديل التسجيل لهذه الفرصة.',
+                422
+            );
+        }
+
+        $before = $this->opportunitySnapshot($opportunity);
+        $opportunity->update(['is_registration_closed' => false]);
+        OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
+        $opportunity->load(['creator', 'interests', 'images']);
+
+        return ApiResponse::success(
+            new LearnServeOpportunityResource($opportunity),
+            'Registration reopened successfully.',
+            'تم إعادة فتح التسجيل بنجاح.'
         );
     }
 

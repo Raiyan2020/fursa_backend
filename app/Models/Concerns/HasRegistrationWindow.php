@@ -34,6 +34,28 @@ trait HasRegistrationWindow
         return null;
     }
 
+    /**
+     * The publisher's own open/close control, distinct from
+     * `registrationClosesAt()` (the participant-facing registration
+     * deadline). The client's rule is "up until one day before the
+     * opportunity ends" (BE-63), independent of `due_date`.
+     */
+    public function registrationToggleClosesAt(): ?Carbon
+    {
+        if (! $this->end_date) {
+            return null;
+        }
+
+        return Carbon::parse($this->end_date)->subDay()->endOfDay();
+    }
+
+    public function isRegistrationToggleClosed(): bool
+    {
+        $closesAt = $this->registrationToggleClosesAt();
+
+        return $closesAt !== null && now()->gt($closesAt);
+    }
+
     public function preparationValidUntil(): ?Carbon
     {
         if (! $this->end_date) {

@@ -62,6 +62,78 @@ class PdfBackendTasksTest extends TestCase
         $this->assertTrue((bool) $opportunity->fresh()->is_registration_closed);
     }
 
+    public function test_volunteer_registration_toggle_closes_a_day_before_end_date(): void
+    {
+        [$owner, $token] = $this->createOrganizationActor();
+        $opportunity = VolunteerOpportunity::create([
+            'created_by' => $owner->id,
+            'title_en' => 'Still running', 'title_ar' => 'شغالة',
+            'description_en' => 'Description', 'description_ar' => 'وصف',
+            'start_date' => now()->subDay(), 'end_date' => now()->addDay(),
+            'participants_needed' => 5,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::INPROGRESS,
+        ]);
+
+        $this->api($token)
+            ->postJson("/api/volunteer-opportunities/{$opportunity->id}/close-registration/")
+            ->assertOk();
+
+        $opportunity->update(['end_date' => now()->subDay()]);
+
+        $this->api($token)
+            ->postJson("/api/volunteer-opportunities/{$opportunity->id}/reopen-registration/")
+            ->assertStatus(422);
+    }
+
+    public function test_learn_serve_registration_can_be_closed_and_reopened_within_the_window(): void
+    {
+        [$owner, $token] = $this->createOrganizationActor();
+        $opportunity = LearnServeOpportunity::create([
+            'created_by' => $owner->id,
+            'title_en' => 'Course', 'title_ar' => 'دورة',
+            'description_en' => 'Description', 'description_ar' => 'وصف',
+            'start_date' => now()->subDay(), 'end_date' => now()->addDay(),
+            'participants_needed' => 5,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::INPROGRESS,
+        ]);
+
+        $this->api($token)
+            ->postJson("/api/learn-serve-opportunities/{$opportunity->id}/close-registration/")
+            ->assertOk();
+        $this->assertTrue((bool) $opportunity->fresh()->is_registration_closed);
+
+        $this->api($token)
+            ->postJson("/api/learn-serve-opportunities/{$opportunity->id}/reopen-registration/")
+            ->assertOk();
+        $this->assertFalse((bool) $opportunity->fresh()->is_registration_closed);
+    }
+
+    public function test_learn_serve_registration_toggle_is_refused_after_the_window(): void
+    {
+        [$owner, $token] = $this->createOrganizationActor();
+        $opportunity = LearnServeOpportunity::create([
+            'created_by' => $owner->id,
+            'title_en' => 'Ended course', 'title_ar' => 'دورة منتهية',
+            'description_en' => 'Description', 'description_ar' => 'وصف',
+            'start_date' => now()->subDays(4), 'end_date' => now()->subDays(2),
+            'participants_needed' => 5,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::COMPLETED,
+        ]);
+
+        $this->api($token)
+            ->postJson("/api/learn-serve-opportunities/{$opportunity->id}/close-registration/")
+            ->assertStatus(422);
+
+        $opportunity->update(['is_registration_closed' => true]);
+
+        $this->api($token)
+            ->postJson("/api/learn-serve-opportunities/{$opportunity->id}/reopen-registration/")
+            ->assertStatus(422);
+    }
+
     public function test_expired_event_registration_cannot_be_reopened(): void
     {
         [$owner, $token] = $this->createOrganizationActor();

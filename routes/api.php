@@ -131,6 +131,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('learn-serve-opportunities/', [LearnServeOpportunityController::class, 'store'])->middleware('api.approved-org');
     Route::match(['put', 'patch'], 'learn-serve-opportunities/{id}/', [LearnServeOpportunityController::class, 'update'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{id}/close-registration/', [LearnServeOpportunityController::class, 'closeRegistration'])->middleware('api.approved-org');
+    Route::post('learn-serve-opportunities/{id}/reopen-registration/', [LearnServeOpportunityController::class, 'reopenRegistration'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{id}/attendance-qr/', [LearnServeOpportunityController::class, 'attendanceQr'])->middleware('api.approved-org');
     Route::match(['post', 'patch'], 'learn-serve-opportunities/{id}/update_images/', [LearnServeOpportunityController::class, 'updateImages'])->middleware('api.approved-org');
     Route::post('learn-serve-opportunities/{id}/sponsors/', [LearnServeOpportunityController::class, 'addSponsor'])->middleware('api.approved-org');
