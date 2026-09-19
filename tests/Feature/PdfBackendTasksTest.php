@@ -247,4 +247,34 @@ class PdfBackendTasksTest extends TestCase
 
         $this->assertTrue(DynamicEmailService::send('account_activation_email', $user->fresh(), ['otp' => '1234']));
     }
+
+    public function test_learn_serve_opportunity_can_carry_an_ungated_whatsapp_link(): void
+    {
+        [, $token] = $this->createOrganizationActor();
+        $payload = [
+            'title_en' => 'Workshop', 'title_ar' => 'ورشة',
+            'description_en' => 'Description', 'description_ar' => 'وصف',
+            'start_date' => now()->addDays(3)->toDateString(), 'end_date' => now()->addDays(4)->toDateString(),
+            'participants_needed' => 5,
+            'learning_type_id' => $this->choice('learning_type', 'Class/Workshop'),
+            'format_id' => $this->choice('learn_serve_format'),
+            'link' => 'https://zoom.us/j/123456',
+            'whatsapp_link' => 'https://wa.me/96500000000',
+        ];
+
+        $id = $this->api($token)->postJson('/api/learn-serve-opportunities/', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.whatsapp_link', 'https://wa.me/96500000000')
+            ->assertJsonPath('data.link', 'https://zoom.us/j/123456')
+            ->json('data.id');
+
+        $opportunity = LearnServeOpportunity::findOrFail($id);
+        $this->assertSame('https://wa.me/96500000000', $opportunity->whatsapp_link);
+        $opportunity->update(['approval_status' => ApprovalStatus::APPROVED]);
+
+        // Ungated: a stranger who is not registered still sees it on the public listing.
+        [, $strangerToken] = $this->createVolunteerActor();
+        $this->api($strangerToken)->getJson('/api/list-all-opportunities/')
+            ->assertJsonFragment(['whatsapp_link' => 'https://wa.me/96500000000']);
+    }
 }

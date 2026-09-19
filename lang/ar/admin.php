@@ -153,6 +153,7 @@ return [
     'after_images' => 'صور ما بعد الاكتمال',
     'volunteer_hours_per_day' => 'ساعات التطوع يوميًا',
     'link' => 'الرابط',
+    'whatsapp_link' => 'رابط واتساب',
     'opportunity_nationality' => 'جنسية الفرصة',
     'opportunity_status' => 'حالة الفرصة',
     'event_status' => 'حالة الفعالية',

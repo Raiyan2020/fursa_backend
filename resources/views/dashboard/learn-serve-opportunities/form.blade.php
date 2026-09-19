@@ -209,6 +209,11 @@
         <input type="text" name="link" class="form-control{{ $invalid('link') }}" value="{{ $opportunityValue('link') }}" placeholder="https://">
         @error('link') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
+    <div class="col-md-6 mb-1">
+        <label>{{ __('whatsapp link') }}</label>
+        <input type="text" name="whatsapp_link" class="form-control{{ $invalid('whatsapp_link') }}" value="{{ $opportunityValue('whatsapp_link') }}" placeholder="https://wa.me/...">
+        @error('whatsapp_link') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+    </div>
         <div class="col-md-12 mb-1">
         <label>{{ __('map description') }}</label>
         <input type="text" name="map_desc" class="form-control" value="{{ $opportunityValue('map_desc') }}" placeholder="{{ __('e.g. Jumhuriya St., Mansoura') }}">

@@ -25,7 +25,7 @@ class LearnServeOpportunity extends Model
         'approval_status', 'opportunity_status', 'title_en', 'title_ar',
         'description_en', 'description_ar', 'due_date', 'start_date', 'end_date',
         'participants_needed', 'from_age', 'to_age', 'start_time', 'end_time',
-        'latitude', 'longitude', 'link', 'is_calendar', 'primary_language',
+        'latitude', 'longitude', 'link', 'whatsapp_link', 'is_calendar', 'primary_language',
         'rejected_reason', 'location_en', 'location_ar', 'map_desc', 'opportunity_nationality',
         'deletion_status', 'deletion_rejected_reason', 'is_kuwaitis', 'created_by',
         'learning_type_id', 'gender_id', 'format_id', 'certificate_type_id',

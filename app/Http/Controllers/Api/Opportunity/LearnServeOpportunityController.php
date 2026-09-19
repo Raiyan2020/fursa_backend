@@ -471,6 +471,7 @@ class LearnServeOpportunityController extends Controller
             ...OpportunityValidationRules::core($partial),
             ...$this->mapLocationRules($partial),
             'link' => ['nullable', 'url'],
+            'whatsapp_link' => ['nullable', 'url'],
             'location_url' => ['nullable', 'url'],
             'is_registration_closed' => ['nullable', 'boolean'],
             'is_paid' => ['nullable', 'boolean'],

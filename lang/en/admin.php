@@ -153,6 +153,7 @@ return [
         'after_images' => 'After-completed images',
         'volunteer_hours_per_day' => 'Volunteer hours per day',
         'link' => 'Link',
+        'whatsapp_link' => 'WhatsApp link',
         'opportunity_nationality' => 'Opportunity nationality',
         'opportunity_status' => 'Opportunity status',
         'event_status' => 'Event status',

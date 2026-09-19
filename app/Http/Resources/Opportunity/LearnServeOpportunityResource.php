@@ -52,6 +52,9 @@ class LearnServeOpportunityResource extends JsonResource
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'link' => $this->link,
+            // BE-65 — a separate, ungated contact number, unlike `link` (the
+            // online meeting URL, gated to registered participants).
+            'whatsapp_link' => $this->whatsapp_link,
             'is_calendar' => (bool) $this->is_calendar,
             'primary_language' => $this->primary_language?->value ?? $this->primary_language,
             'created_by' => $this->createdByPayload($this->creator, $request),
@@ -77,8 +80,9 @@ class LearnServeOpportunityResource extends JsonResource
             'map_desc' => $this->map_desc ?: ($this->location_ar ?: $this->location_en),
             'lat' => $this->latitude === null ? null : (float) $this->latitude,
             'lng' => $this->longitude === null ? null : (float) $this->longitude,
-            // BE-60: `link` is the WhatsApp contact link, not a location — a
-            // field named location_url must not be able to return a phone number.
+            // BE-60: no fallback to `link` — a field named location_url must
+            // not be able to return a phone number, and here `link` is the
+            // meeting URL anyway, not a WhatsApp contact (see BE-65).
             'location_url' => $this->location_url,
             'is_registration_closed' => (bool) $this->is_registration_closed,
             'is_registration_open' => $this->isRegistrationOpen(),
