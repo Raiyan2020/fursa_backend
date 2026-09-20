@@ -202,6 +202,116 @@ assumed to exist.
 
 ---
 
+# PDF review tasks
+
+A separate review document (`مراجعه مع صور (2) (1).pdf`) was compared against
+`FURSA_BACKEND_ISSUES (3).md` to check for backend-relevant notes the ticket file
+didn't cover. Most of the PDF is frontend/UI mockup feedback (field ordering, icon
+sizing, button styling) and is out of scope here. Four backend items were found and
+are covered below; two more turned out to already be built (noted so nobody
+re-implements them), and two are flagged as open questions rather than built, since
+building them on a guess is worse than asking.
+
+## 6. New volunteer opportunity category: "Administrative" (إداري)
+
+`VolunteerCategory` gained a fifth case: `administrative` / «إداري», alongside the
+existing `environmental`, `charity`, `organizational`, `educational`. It behaves
+like any other category — no special counting logic (unlike `charity`, which counts
+beneficiaries).
+
+```json
+"volunteer_category": "administrative",
+"volunteer_category_display": { "en": "Administrative", "ar": "إداري" }
+```
+
+**Mobile action:** if the category picker on the volunteer-opportunity form is a
+hardcoded list rather than driven by an API enum, add this fifth option.
+
+**Note on ambiguity:** the PDF only said *"إضافة نوع فرصة جديد: إداري"* ("add a new
+opportunity type: Administrative") with no further detail on where it belongs. This
+was interpreted as a new `volunteer_category` value, since that field is exactly
+"the opportunity's type" for volunteering and already has a fixed, small enum of
+options shown as a dropdown on the create form. If "إداري" was actually meant for
+something else (a learn-&-serve `learning_type`, or an event category), say so and
+it'll move.
+
+## 7. Learn-&-serve participants Excel export had a blank Name column
+
+Root cause: the shared `RegistrationExport::download()` helper (used by the
+learn-&-serve participants export **and** the scan-permission-picker export) read
+`$user->full_name`, which was never a real field or accessor on `User` — it silently
+evaluated to `null` on every row, in every export that uses this helper. Fixed by
+adding a real `full_name` accessor to the `User` model. No response shape change —
+the same `downloadUrl` flow, just with the Name column actually populated now.
+
+**Mobile action:** none — this only affects the generated `.xlsx` file’s contents,
+not any JSON field mobile reads.
+
+## 8. Sponsor name/logo now hidden on a paid learn-&-serve opportunity
+
+`GET /api/learn-serve-opportunities/{id}/` — `opportunity_sponsor_images` now
+returns `[]` for a paid opportunity (`price` is not null), even if sponsors are
+attached in the database. It's still returned normally for a free opportunity. The
+reasoning: a sponsor funds a free opportunity; a paid one is already funded by
+participants, so showing a sponsor's name on it doesn't make sense.
+
+**Mobile action:** if a sponsor logo/name is rendered on the learn-&-serve detail
+screen, it will now correctly disappear for paid opportunities without any
+client-side check needed — just don't assume the array is always non-empty.
+
+## Already built — nothing to do, flagging so it isn't redone
+
+- **Payout / bank-details onboarding for paid opportunities.** The PDF asked for
+  publishers to add bank details before publishing a paid opportunity, with a 7%
+  platform fee deducted. **This was already fully implemented** (commit `9310cde`,
+  predates this round): an individual (Volunteer Team) or Association publisher
+  must have `bank_name` / `bank_account_holder_name` / `bank_account_number` on
+  `PUT /api/organization-profile/` before `POST /api/learn-serve-opportunities/`
+  will accept `is_paid: true` — a full Organization is exempt. The response
+  includes `payout_after_fee`, computed from the admin-configurable
+  `platform_fee_percentage` (defaults to 7). Covered by
+  `tests/Feature/PaidOpportunityPayoutTest.php`. No money is actually moved by the
+  app — the transfer itself is manual, outside the system.
+- **Attendance hours capped at the opportunity's scheduled/daily hours.** The PDF
+  flagged manually-entered or corrected attendance hours as accepting more than a
+  day's scheduled duration. Checked the code: both
+  `POST /api/volunteer-attendance/manual/` and
+  `PATCH /api/volunteer-attendance/{id}/hours/` already reject an entry above the
+  opportunity's scheduled hours for that day (computed per time-slot when one
+  exists). The QR self-scan flow is intentionally uncapped, since it's meant to
+  record *real* elapsed time, not the scheduled figure — that's by design, not a gap.
+
+## Open questions — not built, needs an answer first
+
+### أسئلة معلّقة لمطور الواجهة الأمامية
+
+**١. حقل "آخر موعد" (`due_date`):** ملف الـ PDF يطلب أن يكون اختيارياً، بينما طلبكم
+السابق في **BE-66** كان يطلبه إلزامياً — وهو الوضع الحالي المطبّق فعلياً على الـ API
+(`POST/PATCH /api/volunteer-opportunities/` يرفض القيمة الفارغة). **المطور واقف
+بانتظار قراركم: أي الرأيين نعتمد؟** لم يتم تغيير أي كود على هذه النقطة لحد ما يوصلنا
+رد.
+
+**٢. نافذة صلاحية الحضور (3 أيام أم 7 أيام):** تُركت معلّقة لحين التأكد من القيمة
+الحقيقية المضبوطة في إعدادات السيرفر (`preparation_validity_hours` /
+`preparation_validity_days` في جدول `config`) بدل ما نبني على تخمين من نص الـ PDF.
+لسه محتاجين نقرأ القيمة الفعلية على الإنتاج قبل ما نقرر لو فيه حاجة تتغيّر.
+
+---
+
+- **Due date optionality contradicts BE-66.** The PDF says the volunteer
+  opportunity's due-date field should become **non-required**; `FURSA_BACKEND_ISSUES
+  (3).md`'s BE-66 says the opposite — due_date was made required again, and that's
+  what's currently live. These two documents disagree; nothing was changed on this
+  point pending a decision on which one is current.
+- **Preparation/attendance window: 3 days vs 7 days.** The PDF's note on this is
+  ambiguous about which number is "current" and which is "should be" — it may
+  simply be flagging that production has drifted to 7 days when it should be 3 (the
+  code's default, and what `FURSA_BACKEND_ISSUES (3).md` also expects). Worth a
+  direct read of the production `config` row for `preparation_validity_hours` /
+  `preparation_validity_days` rather than acting on the PDF text alone.
+
+---
+
 ## Quick reference — routes touched this round
 
 | Method | Route | Status |
@@ -218,3 +328,6 @@ assumed to exist.
 | GET | `/api/volunteer-opportunity-registrations/?search=` | matches civil_id/passport_number |
 | GET | `/api/scan-permission/?search=` | matches civil_id/passport_number |
 | PATCH | `/api/volunteer-opportunity-registrations/` | role capacity now enforced |
+| POST | `/api/volunteer-opportunities/` / update | `volunteer_category` accepts `administrative` |
+| GET | `/api/learn-serve-opportunities/{opportunity_id}/registrations/?download=true` | export Name column fixed |
+| GET | `/api/learn-serve-opportunities/{id}/` | `opportunity_sponsor_images` empty when `price` is not null |

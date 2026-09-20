@@ -200,6 +200,16 @@ class User extends Authenticatable
     }
 
     /**
+     * `first_name`/`last_name` joined, for exports the organizer already sees
+     * real names in (e.g. RegistrationExport) — not for public-facing output,
+     * where BE-52 requires the nickname instead.
+     */
+    public function getFullNameAttribute(): string
+    {
+        return trim(($this->first_name ?? '').' '.($this->last_name ?? ''));
+    }
+
+    /**
      * Admin/UI account bucket: volunteer | organization | volunteer_team | admin
      */
     public function accountTypeKey(): string

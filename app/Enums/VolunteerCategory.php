@@ -8,6 +8,7 @@ enum VolunteerCategory: string
     case CHARITY = 'charity';
     case ORGANIZATIONAL = 'organizational';
     case EDUCATIONAL = 'educational';
+    case ADMINISTRATIVE = 'administrative';
 
     public static function values(): array
     {
@@ -21,6 +22,7 @@ enum VolunteerCategory: string
             self::CHARITY => 'Charity',
             self::ORGANIZATIONAL => 'Organizational',
             self::EDUCATIONAL => 'Educational',
+            self::ADMINISTRATIVE => 'Administrative',
         };
     }
 
@@ -31,6 +33,7 @@ enum VolunteerCategory: string
             self::CHARITY => 'خيري',
             self::ORGANIZATIONAL => 'تنظيمي',
             self::EDUCATIONAL => 'تعليمي',
+            self::ADMINISTRATIVE => 'إداري',
         };
     }
 

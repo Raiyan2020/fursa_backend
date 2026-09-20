@@ -68,7 +68,12 @@ class LearnServeOpportunityResource extends JsonResource
             'interests' => $this->effectiveInterests($this->resource)->map(fn ($i) => $this->tagPayload($i))->values(),
             'gender_display' => $this->masterChoicePayload($this->gender),
             'opportunity_images' => $this->opportunityImagesPayload($images),
-            'opportunity_sponsor_images' => $this->opportunitySponsorImagesPayload($this->sponsorImages ?? collect()),
+            // PDF review: a sponsor funds a free opportunity; a paid one is
+            // already self-funded by participants, so the sponsor name is
+            // withheld here rather than left attached to something it didn't pay for.
+            'opportunity_sponsor_images' => $this->price === null
+                ? $this->opportunitySponsorImagesPayload($this->sponsorImages ?? collect())
+                : [],
             'after_completed_images_count' => $this->afterCompletedImagesCount($images),
             'opportunity_type' => 'learn_serve_opportunity',
             'is_registered' => $this->isLearnServeOpportunityRegistered($this->resource, $request),
