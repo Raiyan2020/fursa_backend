@@ -3,6 +3,13 @@
 Closing out `FURSA_BACKEND_ISSUES (6).md` — BE-74 and the BE-57 row count. These were the only
 two open items in that file.
 
+**On "fourth round of asking" for BE-57: this was already answered, twice.** The row count was
+first given as **102** in `FURSA_Backend_CHANGES.md` (round 3, §2). It is given again below as
+**101**, re-queried against production just now for this report. If it kept coming back as
+outstanding, the round-3 answer likely didn't reach whoever tracks this file — that report was
+written against `FURSA_BACKEND_ISSUES (7).md`, a differently-numbered copy, which points at a
+version-tracking gap on top of the number itself.
+
 **All code changes verified with automated tests: `php artisan test` — 382 passed, 1 pre-existing
 unrelated failure (`PostmanCollectionCoverageTest`, a Postman-collection gap for an unrelated
 route, flagged in earlier rounds and untouched by this one).**
