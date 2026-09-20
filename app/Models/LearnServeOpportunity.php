@@ -85,7 +85,7 @@ class LearnServeOpportunity extends Model
      */
     public function platformFeePercentage(): float
     {
-        return (float) (Config::query()->value('platform_fee_percentage') ?? 7);
+        return Config::platformFeePercentage();
     }
 
     public function requiresCheckIn(): bool

@@ -151,6 +151,17 @@ class PaidOpportunityPayoutTest extends TestCase
         ]))->assertSuccessful();
     }
 
+    public function test_organization_profile_exposes_platform_fee_percentage_before_an_opportunity_exists(): void
+    {
+        Config::query()->update(['platform_fee_percentage' => 10]);
+        [, $token] = $this->createOrganizationActor();
+
+        $response = $this->api($token)->getJson('/api/organization-profile/');
+
+        $response->assertSuccessful();
+        $this->assertSame(10.0, (float) $response->json('data.platform_fee_percentage'));
+    }
+
     public function test_organization_profile_can_update_bank_details(): void
     {
         [, $token] = $this->createOrganizationActor();

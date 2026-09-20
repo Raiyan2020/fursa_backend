@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Organization;
 
 use App\Http\Resources\Concerns\ResolvesApiPayloads;
+use App\Models\Config;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -50,6 +51,10 @@ class OrganizationProfileResource extends JsonResource
             'bank_account_holder_name' => $this->bank_account_holder_name,
             'bank_account_number' => $this->bank_account_number,
             'requires_bank_details_for_paid_opportunities' => $this->resource->isIndividualOrAssociationPublisher(),
+            // BE-74 — the publish form has no LearnServeOpportunity yet when a
+            // publisher is setting the price, so it reads the fee here instead
+            // of the opportunity resource (BE-71). Same Config value, same method.
+            'platform_fee_percentage' => Config::platformFeePercentage(),
             'nationality' => $user?->nationality?->value ?? $user?->nationality,
             'interest_display' => $this->masterChoiceCollection($user?->masterInterests),
             'is_volunteer_team' => ($this->organizerType?->value_en === 'Volunteer Team'),

@@ -28,4 +28,14 @@ class Config extends Model
         'is_deleted',
         'deleted_at',
     ];
+
+    /**
+     * BE-74 — the single source of truth for the platform fee, shared by
+     * LearnServeOpportunity::platformFeePercentage() (BE-71) and any payload
+     * a publisher reads before an opportunity exists yet.
+     */
+    public static function platformFeePercentage(): float
+    {
+        return (float) (static::query()->value('platform_fee_percentage') ?? 7);
+    }
 }
