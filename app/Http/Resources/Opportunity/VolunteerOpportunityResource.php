@@ -137,6 +137,9 @@ class VolunteerOpportunityResource extends JsonResource
             // BE-61 Part A: which of the two printed codes the registered
             // viewer's button should offer next. Null when not registered.
             'self_attendance' => $this->selfAttendanceState($this->resource, $request),
+            // BE-69 — lets a volunteer holding the «إذن تحضير» permission see
+            // the same manage-attendance screen the organizer does.
+            'can_manage_attendance' => $this->canManageAttendanceState($this->resource, $request),
         ];
     }
 }

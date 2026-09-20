@@ -6,6 +6,7 @@ use App\Http\Resources\Auth\CustomUserResource;
 use App\Models\Config;
 use App\Models\LearnServeOpportunity;
 use App\Models\LearnServeOpportunityRegistration;
+use App\Models\AttendancePermission;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAttendance;
@@ -162,6 +163,26 @@ trait ResolvesOpportunitySerializerFields
                 default => 'in',
             },
         ];
+    }
+
+    /**
+     * BE-69 — whether the current viewer holds the «إذن تحضير» attendance
+     * permission for this opportunity, so a volunteer who has been granted it
+     * sees the same manage-attendance screen as the organizer. True for the
+     * organizer too, since they always have the ability.
+     */
+    protected function canManageAttendanceState(VolunteerOpportunity $opportunity, Request $request): bool
+    {
+        $user = $request->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($opportunity->created_by === $user->id) {
+            return true;
+        }
+
+        return AttendancePermission::grants($opportunity->id, $user->id);
     }
 
     protected function isSavedToVolunteerCalendar(VolunteerOpportunity $opportunity, Request $request): bool

@@ -128,6 +128,7 @@ class AdminOpportunityNotificationTest extends TestCase
             'description_en' => 'Desc', 'description_ar' => 'وصف',
             'start_date' => now()->addDays(6)->toDateString(),
             'end_date' => now()->addDays(7)->toDateString(),
+            'due_date' => now()->addDays(5)->toDateString(),
             'participants_needed' => 10,
             'learning_type_id' => $learningType,
             'format_id' => $format,

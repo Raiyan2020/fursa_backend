@@ -4557,6 +4557,100 @@
                                 "description": "## List Scan Permissions\nLists users currently allowed to scan attendance for an opportunity or event.\n\n**Auth required:** Bearer `{{token}}` — caller must be the creator.\n\n### Query params\n| Param | Required | Description |\n|-------|----------|-------------|\n| opportunity_id | One of | `volunteer_opportunities.id` |\n| event_id | One of | `events.id` |\n| search | No | Search by user email/first/last name |"
                             },
                             "response": []
+                        },
+                        {
+                            "name": "Bulk Update Attendance Permissions",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}attendance-permissions/bulk-update/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "attendance-permissions",
+                                        "bulk-update"
+                                    ]
+                                },
+                                "description": "## Bulk Update Attendance Permissions (BE-69)\nGrants/revokes the «إذن تحضير» permission for a list of users on a volunteer opportunity. A holder may directly register volunteers and record/edit their attendance hours (not QR scanning). Only the creator may call this.\n\n**Auth required:** Bearer `{{token}}`.\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| opportunity_id | Yes | `volunteer_opportunities.id` |\n| permissions[0][user_id] | Yes | User to grant/revoke |\n| permissions[0][is_allowed] | Yes | `true`/`false` |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "opportunity_id",
+                                            "type": "text",
+                                            "description": "volunteer_opportunities.id.",
+                                            "value": "{{opportunity_id}}"
+                                        },
+                                        {
+                                            "key": "permissions[0][user_id]",
+                                            "type": "text",
+                                            "description": "User id to grant/revoke attendance permission for.",
+                                            "value": "{{user_id}}"
+                                        },
+                                        {
+                                            "key": "permissions[0][is_allowed]",
+                                            "type": "text",
+                                            "description": "true to grant, false to revoke.",
+                                            "value": "1"
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        },
+                        {
+                            "name": "List Attendance Permissions",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}attendance-permissions/list/?opportunity_id=%7B%7Bopportunity_id%7D%7D",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "attendance-permissions",
+                                        "list"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "opportunity_id",
+                                            "value": "{{opportunity_id}}",
+                                            "description": "volunteer_opportunities.id."
+                                        },
+                                        {
+                                            "key": "search",
+                                            "value": "",
+                                            "description": "Search by user email/first/last name/civil id/passport number.",
+                                            "disabled": true
+                                        }
+                                    ]
+                                },
+                                "description": "## List Attendance Permissions (BE-69)\nLists users currently holding the «إذن تحضير» attendance-management permission for a volunteer opportunity.\n\n**Auth required:** Bearer `{{token}}` — caller must be the creator.\n\n### Query params\n| Param | Required | Description |\n|-------|----------|-------------|\n| opportunity_id | Yes | `volunteer_opportunities.id` |\n| search | No | Search by user email/first/last name/civil id/passport number |"
+                            },
+                            "response": []
                         }
                     ]
                 },

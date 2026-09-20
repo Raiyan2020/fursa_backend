@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\VolunteerOpportunityRegistrationResource;
+use App\Models\AttendancePermission;
 use App\Models\User;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAssignment;
@@ -37,7 +38,7 @@ class VolunteerOpportunityRegistrationController extends Controller
     {
         $query = VolunteerOpportunityRegistration::query()
             ->notDeleted()
-            ->with(['user', 'assignment.role', 'assignment.team']);
+            ->with(['user.emergencyContactRelationship', 'assignment.role', 'assignment.team']);
 
         if ($opportunityId = $request->query('opportunity_id')) {
             $query->where('opportunity_id', $opportunityId);
@@ -172,6 +173,10 @@ class VolunteerOpportunityRegistrationController extends Controller
                 optional($registration->registration_date)?->toIso8601String(),
                 $attendanceDate,
                 $attendanceDate ? ($attended ? 'Yes' : 'No') : '',
+                $user?->emergency_contact_name,
+                $user?->emergency_contact_phone,
+                $user?->emergency_contact_civil_id,
+                $user?->emergencyContactRelationship?->value_ar,
             ];
         });
 
@@ -180,6 +185,7 @@ class VolunteerOpportunityRegistrationController extends Controller
         $downloadUrl = XlsxExport::store($path, [
             'Registration ID', 'Full Name', 'Email', 'Phone', 'Status', 'Role', 'Team',
             'Civil ID', 'Passport Number', 'Registration Date', 'Attendance Date', 'Attended',
+            'Guardian Name', 'Guardian Phone', 'Guardian Civil ID', 'Guardian Relationship',
         ], $rows, 'Registered Volunteers');
 
         return ApiResponse::success([
@@ -517,7 +523,8 @@ class VolunteerOpportunityRegistrationController extends Controller
         ]);
 
         $opportunity = VolunteerOpportunity::query()->notDeleted()->find($data['opportunity_id']);
-        if (! $opportunity || $opportunity->created_by !== $request->user()->id) {
+        $isOwner = $opportunity && $opportunity->created_by === $request->user()->id;
+        if (! $opportunity || (! $isOwner && ! AttendancePermission::grants($opportunity->id, $request->user()->id))) {
             return ApiResponse::error(
                 'You do not have permission to directly register volunteers for this opportunity.',
                 'ليس لديك إذن لتسجيل المتطوعين مباشرة لهذه الفرصة.',

@@ -199,8 +199,8 @@
         @error('participants_needed') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
     <div class="col-md-3 mb-1">
-        <label>{{ __('due date') }}</label>
-        <input type="date" name="due_date" class="form-control{{ $invalid('due_date') }}" value="{{ $opportunityValue('due_date') }}">
+        <label>{{ __('due date') }} <span class="text-danger">*</span></label>
+        <input type="date" name="due_date" class="form-control{{ $invalid('due_date') }}" value="{{ $opportunityValue('due_date') }}" required>
         @error('due_date') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 

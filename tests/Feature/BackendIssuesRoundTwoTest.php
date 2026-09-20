@@ -97,6 +97,7 @@ class BackendIssuesRoundTwoTest extends TestCase
             'description_ar' => 'و',
             'start_date' => now()->addDays(3)->toDateString(),
             'end_date' => now()->addDays(4)->toDateString(),
+            'due_date' => now()->addDays(2)->toDateString(),
             'participants_needed' => 4,
             'interest_ids' => $lsIds,
         ]);

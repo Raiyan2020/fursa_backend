@@ -391,7 +391,7 @@ class LearnServeOpportunityController extends Controller
 
         $data = $request->validate([
             'created_by' => ['required', 'integer', Rule::exists('users', 'id')],
-            ...OpportunityValidationRules::core(),
+            ...OpportunityValidationRules::core(dueDateRequired: true),
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'gender_id' => $choiceRule('opportunity_gender'),

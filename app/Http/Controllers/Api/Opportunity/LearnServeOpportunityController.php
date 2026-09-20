@@ -468,7 +468,7 @@ class LearnServeOpportunityController extends Controller
 
         $rules = [
             ...RepublishMedia::rules(),
-            ...OpportunityValidationRules::core($partial),
+            ...OpportunityValidationRules::core($partial, dueDateRequired: true),
             ...$this->mapLocationRules($partial),
             'link' => ['nullable', 'url'],
             'whatsapp_link' => ['nullable', 'url'],

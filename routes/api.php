@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Event\EventRegistrationController;
 use App\Http\Controllers\Api\Event\EventTimeSlotController;
 use App\Http\Controllers\Api\Faq\FaqController;
 use App\Http\Controllers\Api\Notification\NotificationController;
+use App\Http\Controllers\Api\Opportunity\AttendancePermissionController;
 use App\Http\Controllers\Api\Opportunity\CertificateController;
 use App\Http\Controllers\Api\Opportunity\LearnServeOpportunityController;
 use App\Http\Controllers\Api\Opportunity\LearnServeRegistrationController;
@@ -191,6 +192,9 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('scan-permissions/bulk-update/', [ScanPermissionController::class, 'bulkUpdate']);
     Route::get('scan-permissions/list/', [ScanPermissionController::class, 'list']);
+
+    Route::post('attendance-permissions/bulk-update/', [AttendancePermissionController::class, 'bulkUpdate']);
+    Route::get('attendance-permissions/list/', [AttendancePermissionController::class, 'list']);
 
     Route::post('opportunities/{opportunity_id}/request-deletion/', [OpportunityDeletionController::class, 'requestDeletion']);
     Route::post('admin/opportunity-deletion-action/', [OpportunityDeletionController::class, 'adminAction']);

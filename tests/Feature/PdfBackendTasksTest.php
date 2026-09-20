@@ -255,6 +255,7 @@ class PdfBackendTasksTest extends TestCase
             'title_en' => 'Workshop', 'title_ar' => 'ورشة',
             'description_en' => 'Description', 'description_ar' => 'وصف',
             'start_date' => now()->addDays(3)->toDateString(), 'end_date' => now()->addDays(4)->toDateString(),
+            'due_date' => now()->addDays(2)->toDateString(),
             'participants_needed' => 5,
             'learning_type_id' => $this->choice('learning_type', 'Class/Workshop'),
             'format_id' => $this->choice('learn_serve_format'),

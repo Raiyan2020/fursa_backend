@@ -98,6 +98,7 @@ class OwnerReportBackendTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->toDateString(),
             'end_date' => now()->addDays(2)->toDateString(),
+            'due_date' => now()->toDateString(),
             'participants_needed' => 5,
         ]);
         $opportunityId = (int) $create->json('data.id');
@@ -137,6 +138,7 @@ class OwnerReportBackendTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->toDateString(),
             'end_date' => now()->addDays(2)->toDateString(),
+            'due_date' => now()->toDateString(),
             'participants_needed' => 5,
         ]);
         $opportunityId = (int) $create->json('data.id');
@@ -190,7 +192,6 @@ class OwnerReportBackendTest extends TestCase
         // rejects unknown keys instead of dropping them (BE-22 ask 4).
         $lsPayload = $this->opportunityPayload([
             'title_en' => 'Open Development',
-            'due_date' => null,
         ]);
         unset($lsPayload['volunteer_category'], $lsPayload['is_public']);
 

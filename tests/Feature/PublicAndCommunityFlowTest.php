@@ -259,6 +259,7 @@ class PublicAndCommunityFlowTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->addDays(3)->toDateString(),
             'end_date' => now()->addDays(4)->toDateString(),
+            'due_date' => now()->addDays(2)->toDateString(),
             'participants_needed' => 8,
         ]);
         $this->assertSuccessEnvelope($learnOpportunity, 201);
@@ -338,6 +339,7 @@ class PublicAndCommunityFlowTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->addDays(3)->toDateString(),
             'end_date' => now()->addDays(4)->toDateString(),
+            'due_date' => now()->addDays(2)->toDateString(),
             'participants_needed' => 8,
         ]);
         $this->assertSuccessEnvelope($learnOpportunity, 201);

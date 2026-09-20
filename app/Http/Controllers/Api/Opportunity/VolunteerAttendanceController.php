@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Opportunity\Concerns\GatesOrganizerScanFlow;
 use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\VolunteerAttendanceResource;
+use App\Models\AttendancePermission;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAttendance;
@@ -584,13 +585,18 @@ class VolunteerAttendanceController extends Controller
 
     /**
      * BE-61 Part C — delegated scanning is retiring with the rest of the
-     * organizer-scans-volunteer flow, so once the flag flips off only the
-     * creator can manage attendance. Manual attendance and hours correction
-     * stay creator-only from that point; they never relied on a delegate.
+     * organizer-scans-volunteer flow, so once the flag flips off a
+     * ScanPermission delegate no longer qualifies. BE-69's
+     * AttendancePermission is a separate, independent grant — explicitly not
+     * QR scanning — so it keeps working regardless of that flag.
      */
     protected function canManageAttendance(VolunteerOpportunity $opportunity, int $userId): bool
     {
         if ($opportunity->created_by === $userId) {
+            return true;
+        }
+
+        if (AttendancePermission::grants($opportunity->id, $userId)) {
             return true;
         }
 

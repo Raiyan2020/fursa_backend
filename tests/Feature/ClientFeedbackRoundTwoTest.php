@@ -540,6 +540,7 @@ class ClientFeedbackRoundTwoTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->addDays(2)->toDateString(),
             'end_date' => now()->addDays(5)->toDateString(),
+            'due_date' => now()->addDays(1)->toDateString(),
             'participants_needed' => 8,
         ]);
         $opportunityId = (int) $create->json('data.id');

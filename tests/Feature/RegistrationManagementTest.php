@@ -257,6 +257,58 @@ class RegistrationManagementTest extends TestCase
             ->assertJsonPath('data.attendance_already_marked_count', 1);
     }
 
+    public function test_download_export_includes_guardian_columns(): void
+    {
+        Storage::fake('public');
+        [$owner, $token] = $this->createOrganizationActor();
+        [$approved] = $this->createVolunteerActor();
+
+        $relationship = \App\Models\MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'emergency_contact_relationship'))
+            ->where('value_en', 'Mother')
+            ->firstOrFail();
+
+        $approved->update([
+            'emergency_contact_name' => 'Jane Guardian',
+            'emergency_contact_phone' => '99887766',
+            'emergency_contact_country_code' => '+965',
+            'emergency_contact_civil_id' => '281234567890',
+            'emergency_contact_relationship_id' => $relationship->id,
+        ]);
+
+        $opportunity = $this->volunteerOpportunity($owner);
+        VolunteerOpportunityRegistration::query()->create([
+            'opportunity_id' => $opportunity->id, 'user_id' => $approved->id, 'status' => ApprovalStatus::APPROVED,
+        ]);
+
+        $response = $this->api($token)->getJson('/api/volunteer-opportunity-registrations/?'.http_build_query([
+            'opportunity_id' => $opportunity->id,
+            'download' => 'true',
+        ]));
+
+        $response->assertOk()->assertJsonPath('data.registrations_count', 1);
+
+        $files = Storage::disk('public')->allFiles('exports');
+        $this->assertCount(1, $files);
+        $temporary = tempnam(sys_get_temp_dir(), 'verify_xlsx_');
+        file_put_contents($temporary, Storage::disk('public')->get($files[0]));
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($temporary) === true);
+        $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        @unlink($temporary);
+
+        $this->assertNotFalse($sheet);
+        $this->assertStringContainsString('Guardian Name', $sheet);
+        $this->assertStringContainsString('Guardian Phone', $sheet);
+        $this->assertStringContainsString('Guardian Civil ID', $sheet);
+        $this->assertStringContainsString('Guardian Relationship', $sheet);
+        $this->assertStringContainsString('Jane Guardian', $sheet);
+        $this->assertStringContainsString('99887766', $sheet);
+        $this->assertStringContainsString('281234567890', $sheet);
+        $this->assertStringContainsString($relationship->value_ar, $sheet);
+    }
+
     protected function volunteerOpportunity(User $owner, array $overrides = []): VolunteerOpportunity
     {
         return VolunteerOpportunity::query()->create(array_merge([

@@ -42,6 +42,7 @@ class PaidOpportunityPayoutTest extends TestCase
             'description_en' => 'Description', 'description_ar' => 'وصف',
             'start_date' => now()->addDays(2)->toDateString(),
             'end_date' => now()->addDays(2)->toDateString(),
+            'due_date' => now()->addDay()->toDateString(),
             'participants_needed' => 10,
             'format_id' => $format->id,
             'learning_type_id' => $learningType->id,
