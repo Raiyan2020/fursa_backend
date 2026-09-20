@@ -17,6 +17,7 @@ class VolunteerOpportunityRegistrationResource extends JsonResource
     {
         $this->resource->loadMissing([
             'user.volunteerProfile',
+            'user.emergencyContactRelationship',
             'opportunity',
             'assignment.role',
             'assignment.team',
@@ -31,11 +32,30 @@ class VolunteerOpportunityRegistrationResource extends JsonResource
             $contact = ($user->country_code ?? '').$user->phone_number;
         }
 
-        $attendedDates = VolunteerOpportunityAttendance::query()
+        $attendanceRecords = VolunteerOpportunityAttendance::query()
             ->where('registration_id', $this->id)
             ->where('is_attended', true)
+            ->orderBy('attended_date')
+            ->get();
+
+        $attendedDates = $attendanceRecords
             ->pluck('attended_date')
             ->map(fn ($d) => optional($d)->format('Y-m-d'))
+            ->values()
+            ->all();
+
+        // BE-67.2 — the attendance id was never returned, so the organizer's
+        // edit-hours / undo actions only worked for check-ins made in the
+        // current browser session (remembered client-side) and vanished on
+        // refresh. This is what those actions actually key on.
+        $attendances = $attendanceRecords
+            ->map(fn ($attendance) => [
+                'id' => $attendance->id,
+                'attended_date' => optional($attendance->attended_date)->format('Y-m-d'),
+                'total_hours' => $attendance->total_hours,
+                'checked_in_at' => optional($attendance->checked_in_at)?->toIso8601String(),
+                'checked_out_at' => optional($attendance->checked_out_at)?->toIso8601String(),
+            ])
             ->values()
             ->all();
 
@@ -53,7 +73,17 @@ class VolunteerOpportunityRegistrationResource extends JsonResource
         return [
             'id' => $this->id,
             'opportunity' => $this->opportunity_id,
-            'user' => $this->user_id,
+            // BE-67.1 — was a bare id, which orphaned every `user.*` read on
+            // both frontends (guardian fields, the Excel export). `user_id`
+            // stays available too since the unregister call depends on it.
+            'user' => $user ? [
+                'id' => $user->id,
+                'emergency_contact_name' => $user->emergency_contact_name,
+                'emergency_contact_phone' => $user->emergency_contact_phone,
+                'emergency_contact_civil_id' => $user->emergency_contact_civil_id,
+                'emergency_contact_relationship_display' => $this->masterChoicePayload($user->emergencyContactRelationship),
+            ] : null,
+            'user_id' => $this->user_id,
             'registration_date' => optional($this->registration_date)?->toIso8601String(),
             'status' => $this->status?->value ?? $this->status,
             'full_name' => $this->fullName($user),
@@ -73,6 +103,7 @@ class VolunteerOpportunityRegistrationResource extends JsonResource
             'volunteer_uuid' => $volunteerProfile?->uuid ? (string) $volunteerProfile->uuid : null,
             'is_attended' => $isAttendedToday,
             'date_wise_attended' => $attendedDates,
+            'attendances' => $attendances,
             'created_at' => optional($this->created_at)?->toIso8601String(),
             'phone_number' => $user?->phone_number,
             'civil_id' => $user?->civil_id,

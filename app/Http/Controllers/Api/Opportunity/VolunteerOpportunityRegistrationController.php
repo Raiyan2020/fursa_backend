@@ -55,10 +55,14 @@ class VolunteerOpportunityRegistrationController extends Controller
         }
 
         if ($search = $request->query('search')) {
+            // BE-67.4 — the row already carries civil_id/passport_number;
+            // search only matched name/email.
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
                     ->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%");
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('civil_id', 'like', "%{$search}%")
+                    ->orWhere('passport_number', 'like', "%{$search}%");
             });
         }
 
@@ -470,6 +474,19 @@ class VolunteerOpportunityRegistrationController extends Controller
             if (! $role || $role->opportunity_id !== $registration->opportunity_id) {
                 return ApiResponse::error('Role does not belong to opportunity.', 'الدور لا ينتمي إلى الفرصة.', 400);
             }
+
+            // BE-67.5 — assigning past `participants_needed` was silently
+            // accepted. A volunteer already on this role can be re-saved
+            // without tripping it.
+            if ($role->id !== $assignment->role_id && $role->isFull()) {
+                return ApiResponse::error(
+                    'This role has no remaining slots.',
+                    'لا توجد مقاعد متبقية لهذا الدور.',
+                    422,
+                    ['role' => ['This role has no remaining slots.']]
+                );
+            }
+
             $assignment->role_id = $role->id;
         }
 
@@ -537,6 +554,10 @@ class VolunteerOpportunityRegistrationController extends Controller
             ]);
             $assignment = VolunteerOpportunityAssignment::create(['registration_id' => $registration->id]);
             $registration->load(['user', 'assignment']);
+
+            // BE-67.3 — a manually added volunteer was never told they'd been
+            // registered. Same confirmation a self-registration sends.
+            $this->sendRegistrationConfirmation($opportunity, $registration);
 
             $successful[] = [
                 'user_id' => $userId,

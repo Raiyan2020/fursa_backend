@@ -175,11 +175,15 @@ class ScanPermissionController extends Controller
         $query->where('opportunity_id', $data['opportunity_id']);
 
         if (! empty($data['search'])) {
+            // BE-67.4 — the client asked to be able to find a person by name,
+            // civil id, or passport number when granting scan permission.
             $search = $data['search'];
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")
                     ->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%");
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('civil_id', 'like', "%{$search}%")
+                    ->orWhere('passport_number', 'like', "%{$search}%");
             });
         }
 
