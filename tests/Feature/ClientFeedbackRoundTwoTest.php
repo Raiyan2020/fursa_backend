@@ -984,6 +984,7 @@ class ClientFeedbackRoundTwoTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->addDays(2)->toDateString(),
             'end_date' => now()->addDays(5)->toDateString(),
+            'due_date' => now()->addDay()->toDateString(),
             'participants_needed' => 8,
             'from_age' => 16,
         ], $overrides);

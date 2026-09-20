@@ -69,6 +69,7 @@ class BackendMissingItemsTest extends TestCase
         return [
             'title_en' => 'Reposted', 'title_ar' => 'جديد', 'description_en' => 'Description', 'description_ar' => 'وصف',
             'start_date' => now()->addDays(6)->toDateString(), 'end_date' => now()->addDays(7)->toDateString(),
+            'due_date' => now()->addDays(5)->toDateString(),
             'participants_needed' => 10,
             ...match ($class) {
                 Event::class => ['event_type_id' => $this->choice('event_type')],

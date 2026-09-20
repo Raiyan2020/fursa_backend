@@ -79,6 +79,7 @@ class AdminOpportunityNotificationTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->addDays(2)->toDateString(),
             'end_date' => now()->addDays(2)->toDateString(),
+            'due_date' => now()->addDay()->toDateString(),
             'participants_needed' => 10,
             'volunteer_category' => \App\Enums\VolunteerCategory::ENVIRONMENTAL->value,
         ])->assertCreated();

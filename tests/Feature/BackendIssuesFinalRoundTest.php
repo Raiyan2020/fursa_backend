@@ -341,6 +341,7 @@ class BackendIssuesFinalRoundTest extends TestCase
             'description_ar' => 'وصف',
             'start_date' => now()->addDay()->toDateString(),
             'end_date' => now()->addDays(5)->toDateString(),
+            'due_date' => now()->addDay()->toDateString(),
             'start_time' => '09:00',
             'end_time' => '12:00',
             'participants_needed' => 5,

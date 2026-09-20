@@ -17,11 +17,16 @@ class OpportunityValidationRules
     public static function core(
         bool $partial = false,
         bool $participantsRequired = true,
-        bool $secondaryContentRequired = true
+        bool $secondaryContentRequired = true,
+        bool $dueDateRequired = false
     ): array {
         $required = $partial ? 'sometimes' : 'required';
         $participantsPresence = $participantsRequired ? $required : 'nullable';
         $secondaryPresence = $secondaryContentRequired ? $required : 'nullable';
+        // BE-66 — required again on volunteer opportunities only. The column
+        // itself stays nullable: legacy rows created while it was optional
+        // rely on falling back to `end_date`, so this is validation-only.
+        $dueDatePresence = $dueDateRequired ? $required : 'nullable';
 
         return [
             'title_en' => [$required, 'string', 'max:255'],
@@ -34,7 +39,7 @@ class OpportunityValidationRules
                 'date',
                 $partial ? null : 'after_or_equal:start_date',
             ])),
-            'due_date' => ['nullable', 'date'],
+            'due_date' => [$dueDatePresence, 'date'],
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
             'location_en' => ['nullable', 'string', 'max:255'],

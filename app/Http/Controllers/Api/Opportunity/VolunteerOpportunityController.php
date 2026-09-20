@@ -681,7 +681,7 @@ class VolunteerOpportunityController extends Controller
 
         $rules = [
             ...RepublishMedia::rules(),
-            ...OpportunityValidationRules::core($partial),
+            ...OpportunityValidationRules::core($partial, dueDateRequired: true),
             ...$this->mapLocationRules($partial),
             'link' => ['nullable', 'url'],
             'location_url' => ['nullable', 'url'],
