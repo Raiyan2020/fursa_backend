@@ -123,6 +123,22 @@ class PaidOpportunityPayoutTest extends TestCase
         $response->assertSuccessful();
 
         $this->assertSame(90.0, (float) $response->json('data.payout_after_fee'));
+        $this->assertSame(10.0, (float) $response->json('data.platform_fee_percentage'));
+    }
+
+    public function test_platform_fee_percentage_defaults_to_seven_when_unconfigured(): void
+    {
+        [$team, $token] = $this->createVolunteerTeamActor();
+        $team->organizationProfile->update([
+            'bank_name' => 'Test Bank',
+            'bank_account_holder_name' => 'Team Lead',
+            'bank_account_number' => 'KW00TEST0000000000000000',
+        ]);
+
+        $response = $this->api($token)->postJson('/api/learn-serve-opportunities/', $this->payload(['price' => 100]));
+        $response->assertSuccessful();
+
+        $this->assertSame(7.0, (float) $response->json('data.platform_fee_percentage'));
     }
 
     public function test_free_opportunity_needs_neither_price_nor_bank_details(): void

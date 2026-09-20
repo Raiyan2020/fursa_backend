@@ -75,9 +75,17 @@ class LearnServeOpportunity extends Model
             return null;
         }
 
-        $feePercentage = (float) (Config::query()->value('platform_fee_percentage') ?? 7);
+        return round((float) $this->price * (1 - $this->platformFeePercentage() / 100), 2);
+    }
 
-        return round((float) $this->price * (1 - $feePercentage / 100), 2);
+    /**
+     * BE-71 — admin-editable (Admin/ConfigController), but was previously
+     * unreadable anywhere a publisher could see it, so the frontend hardcoded
+     * a matching constant. Exposed so the two can never disagree.
+     */
+    public function platformFeePercentage(): float
+    {
+        return (float) (Config::query()->value('platform_fee_percentage') ?? 7);
     }
 
     public function requiresCheckIn(): bool

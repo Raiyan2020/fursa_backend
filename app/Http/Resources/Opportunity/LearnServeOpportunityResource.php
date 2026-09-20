@@ -94,6 +94,9 @@ class LearnServeOpportunityResource extends JsonResource
             'is_paid' => (bool) $this->is_paid,
             'price' => $this->price !== null ? (float) $this->price : null,
             'payout_after_fee' => $this->resource->payoutAfterFee(),
+            // BE-71 — travels with payout_after_fee so a publisher's copy of
+            // the fee can never disagree with the number actually used.
+            'platform_fee_percentage' => $this->resource->platformFeePercentage(),
             // BE-61 Part B: type-derived now that Internship is excluded from
             // the single expiring-code check-in (workshops/consultations get
             // it despite currently running with no check-in step at all).

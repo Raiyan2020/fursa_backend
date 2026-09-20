@@ -99,6 +99,63 @@ class BackendIssuesFromPdfReviewTest extends TestCase
         $this->assertStringContainsString($volunteer->email, $sheet);
     }
 
+    public function test_learn_serve_participants_export_includes_contact_and_guardian_columns_but_not_scan_allowed(): void
+    {
+        Storage::fake('public');
+        [$organization, $orgToken] = $this->createOrganizationActor();
+        [$volunteer] = $this->createVolunteerActor();
+        $volunteer->update([
+            'phone_number' => '55512345',
+            'country_code' => '+965',
+            'emergency_contact_name' => 'Guardian Export Name',
+            'emergency_contact_phone' => '99887766',
+            'emergency_contact_civil_id' => '281234567890',
+        ]);
+        $relationship = \App\Models\MasterChoice::query()
+            ->whereHas('choiceType', fn ($q) => $q->where('name', 'emergency_contact_relationship'))
+            ->where('value_en', 'Mother')
+            ->firstOrFail();
+        $volunteer->update(['emergency_contact_relationship_id' => $relationship->id]);
+
+        $opportunity = LearnServeOpportunity::query()->create([
+            'created_by' => $organization->id,
+            'title_en' => 'Export test course 2',
+            'title_ar' => 'دورة اختبار التصدير 2',
+            'description_en' => 'Description',
+            'description_ar' => 'وصف',
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+            'participants_needed' => 5,
+            'approval_status' => ApprovalStatus::APPROVED,
+            'opportunity_status' => OpportunityStatus::UPCOMING,
+        ]);
+        LearnServeOpportunityRegistration::query()->create([
+            'opportunity_id' => $opportunity->id,
+            'user_id' => $volunteer->id,
+            'registration_date' => now(),
+            'status' => ApprovalStatus::APPROVED,
+        ]);
+
+        $response = $this->api($orgToken)
+            ->getJson('/api/learn-serve-opportunities/'.$opportunity->id.'/registrations/?download=true')
+            ->assertOk();
+
+        $relativePath = $this->storageRelativePath($response->json('data.downloadUrl'));
+        $absolutePath = Storage::disk('public')->path($relativePath);
+
+        $zip = new ZipArchive();
+        $zip->open($absolutePath);
+        $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+
+        $this->assertStringContainsString('Guardian Export Name', $sheet);
+        $this->assertStringContainsString('99887766', $sheet);
+        $this->assertStringContainsString('281234567890', $sheet);
+        $this->assertStringContainsString($relationship->value_ar, $sheet);
+        $this->assertStringContainsString('96555512345', $sheet);
+        $this->assertStringNotContainsString('Scan allowed', $sheet);
+    }
+
     public function test_sponsor_name_is_hidden_on_a_paid_learn_serve_opportunity(): void
     {
         [$organization, $token] = $this->createOrganizationActor();

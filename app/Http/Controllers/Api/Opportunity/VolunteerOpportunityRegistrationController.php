@@ -167,7 +167,6 @@ class VolunteerOpportunityRegistrationController extends Controller
                 trim(($user?->country_code ?? '').($user?->phone_number ?? '')),
                 $registration->status?->value ?? (string) $registration->status,
                 $assignment?->role?->role_name_en,
-                $assignment?->team?->team_name_en,
                 $user?->civil_id,
                 $user?->passport_number,
                 optional($registration->registration_date)?->toIso8601String(),
@@ -183,7 +182,7 @@ class VolunteerOpportunityRegistrationController extends Controller
         $path = 'exports/volunteer-opportunity-'.$opportunity->id.'-registrations-'
             .now()->format('Ymd-His').'-'.Str::lower(Str::random(6)).'.xlsx';
         $downloadUrl = XlsxExport::store($path, [
-            'Registration ID', 'Full Name', 'Email', 'Phone', 'Status', 'Role', 'Team',
+            'Registration ID', 'Full Name', 'Email', 'Phone', 'Status', 'Role',
             'Civil ID', 'Passport Number', 'Registration Date', 'Attendance Date', 'Attended',
             'Guardian Name', 'Guardian Phone', 'Guardian Civil ID', 'Guardian Relationship',
         ], $rows, 'Registered Volunteers');

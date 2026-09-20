@@ -1,165 +1,102 @@
-# Backend changes for the mobile app — 2026-09-20
+# Backend completion report — 2026-09-20 (round 3)
 
-This covers every backend change made while closing out the open items in
-`FURSA_BACKEND_ISSUES (6).md` (BE-68, BE-69, BE-70). It is written for whoever is
-building/maintaining the mobile app, since the mobile client hits the same API as
-`fursa-next` / `fursa_react` and needs to match the same contract.
+Closing out `FURSA_BACKEND_ISSUES (7).md` — BE-72, BE-73, BE-71, and the BE-57 row count.
 
-**All items below are done, and verified with automated backend tests
-(`php artisan test`): 378 passed, 1 pre-existing unrelated failure in
-`PostmanCollectionCoverageTest`** (a Postman-collection gap for an unrelated route,
-flagged before this round and untouched by it). Nothing here was verified by hand in
-Postman — every claim below is backed by a test that hits the real endpoint.
+**All code changes verified with automated tests: `php artisan test` — 381 passed, 1 pre-existing
+unrelated failure (`PostmanCollectionCoverageTest`, a Postman-collection gap for an unrelated route,
+flagged in earlier rounds and untouched by this one).**
 
 ---
 
-## 1. New «إذن تحضير» attendance-management permission (BE-69)
+## 1. Status lines
 
-A brand-new, opportunity-scoped permission for **volunteer opportunities only**
-(not learn-&-serve, not events). A volunteer holding it can:
-
-1. Directly register other volunteers for the opportunity.
-2. Record and edit their attendance hours.
-
-It is **not** QR scanning and is **not** the existing `/scan-permission` screen —
-that flow is being retired (BE-61 Part C) and this permission does not depend on it
-or on its feature flag.
-
-### Grant / revoke
-
-```
-POST /api/attendance-permissions/bulk-update/
-```
-
-Organizer/creator-only. Two accepted shapes, same as `/scan-permissions/`:
-
-```json
-{
-  "opportunity_id": 123,
-  "permissions": [
-    { "user_id": 42, "is_allowed": true },
-    { "user_id": 43, "is_allowed": false }
-  ]
-}
-```
-
-or the flat form:
-
-```json
-{ "opportunity_id": 123, "user_ids": [42, 43], "is_allowed": true }
-```
-
-(`is_allowed` defaults to `true` if omitted in the flat form — i.e. this is the
-"Add Permission" shape.)
-
-Response:
-
-```json
-{
-  "data": [
-    { "user_id": 42, "is_allowed": true, "attendance_permission_id": 501 }
-  ]
-}
-```
-
-### List current holders
-
-```
-GET /api/attendance-permissions/list/?opportunity_id=123&search=<optional>
-```
-
-Organizer/creator-only. Same people-picker search as the scan-permission screen
-(name, email, civil id, passport number). Each row is the same shape as a
-scan-permission list row: a full user object plus `is_allowed` and
-`attendance_permission_id`.
-
-### Where this unlocks access
-
-A holder (not just the organizer) can now call:
-
-- `POST /api/volunteer-opportunity-registrations/direct-register/`
-- `POST /api/volunteer-attendance/manual/`
-- `PATCH /api/volunteer-attendance/{id}/hours/`
-
-Anyone else calling these for an opportunity they don't own and don't hold the
-permission for still gets a 403, unchanged.
-
-### New flag on the opportunity payload
-
-```json
-"can_manage_attendance": true
-```
-
-Added to the volunteer opportunity resource (`GET /api/volunteer-opportunities/{id}/`
-and `GET /api/opportunities/{id}/details/`). `true` for the organizer and for anyone
-holding the permission; `false` otherwise.
-
-**Mobile action:** if there's a manage-attendance / add-volunteers screen for
-organizers, gate it on `can_manage_attendance` instead of "is this the organizer"
-so a granted volunteer sees the same screen. If there's an "add permission" flow on
-that screen (organizer side only), wire it to
-`POST /api/attendance-permissions/bulk-update/` and
-`GET /api/attendance-permissions/list/` — a new, separate feature from
-scan-permission, not a rename of it.
+| Item | Status |
+|---|---|
+| **BE-72** — development participants export missing columns | **Done** |
+| **BE-73** — drop `Team` column from the volunteers export | **Done** |
+| **BE-71** — expose `platform_fee_percentage` | **Done** |
+| **BE-57** — production row count | **Answered — see below. Not a code fix; see note.** |
 
 ---
 
-## 2. `due_date` is now required when creating a development (learn & serve) opportunity (BE-70)
+## 2. BE-57 row count
 
-Matches the rule already in place for volunteer opportunities.
+```php
+\App\Models\User::where('nationality', 'other')->whereNull('residency_status')->count();
+// = 102
+```
 
-- `POST /api/learn-serve-opportunities/` rejects a missing/empty `due_date` with a
-  422 (`response_status.validation_errors.due_date`).
-- A `PATCH` that simply doesn't mention `due_date` still passes — only a create, or
-  an explicit empty value, is rejected.
-- The database column is still nullable — legacy rows with `due_date = NULL` are
-  untouched and keep falling back to `end_date` for their registration window.
-- **Events are unaffected** — `due_date` stays optional there.
-
-**Mobile action:** if there's a "create development opportunity" screen (organizer
-side), make the due-date field required client-side, same as the volunteer-opportunity
-create screen already does.
+**Not zero — 102 real rows.** This is not a "won't fix." We do not have the original BE-57 ticket
+text (only this file's one-line restatement has ever reached us — the full description lives in
+`FURSA_BACKEND_ISSUES_ARCHIVE_2026-09-20.md` / `...20b.md`, which we don't have a copy of). Please
+resend the original BE-57 description, or a copy of the relevant archive entry, so this can be
+scoped and built against the real 102-row population instead of just its count.
 
 ---
 
-## 3. Volunteer registrations Excel export now includes guardian columns (BE-68)
+## 3. What changed and how it was verified
 
-Four new columns on the exported sheet (`GET
-/api/volunteer-opportunity-registrations/?download=true&opportunity_id=...`):
-Guardian Name, Guardian Phone, Guardian Civil ID, Guardian Relationship.
+### BE-72 — Learn & serve participants export now has the columns the screen shows
 
-This is a web/admin-dashboard feature (file download), not something the mobile app
-renders — listed here only for completeness. No API contract changed for any screen
-the mobile app reads from; the JSON registration payload (`user.emergency_contact_*`)
-was already correct from the previous round.
+`app/Support/RegistrationExport.php` (shared by the events, learn-serve, and scan-permission
+exports) now takes a `learn-serve`-specific branch:
 
-**Mobile action:** none.
+- Adds four columns: Phone, Guardian Name, Guardian Phone, Guardian Civil ID, Guardian Relationship
+  — the same four guardian fields BE-68 added to the volunteers export, plus contact number.
+- Drops `Scan allowed` for this export type only — it read a column
+  (`LearnServeOpportunityRegistration::is_allowed`) that doesn't exist on that model and always
+  showed `0`. Still present, unchanged, on the scan-permission export it's real for.
+- Eager-loads `user.emergencyContactRelationship` so the relationship column doesn't cost a query
+  per row.
+- The `events` export path is untouched — no guardian columns, `Scan allowed` still present there.
+
+**Verified:** new test
+`BackendIssuesFromPdfReviewTest::test_learn_serve_participants_export_includes_contact_and_guardian_columns_but_not_scan_allowed`
+downloads the real `.xlsx`, unzips it, and asserts the guardian values and contact number are
+present in the sheet and `"Scan allowed"` is not. Existing tests for the `events` and
+`scan-permission` export paths (`BackendMissingItemsTest`) still pass unchanged, confirming the
+shared helper's refactor didn't affect them.
+
+### BE-73 — `Team` column removed from the volunteers export
+
+`VolunteerOpportunityRegistrationController`'s `download` branch no longer emits the `Team` header
+or `$assignment?->team?->team_name_en` value. Nothing else touched — the `team` key on
+`VolunteerOpportunityRegistrationResource`, the `team` parameter on `PATCH
+/volunteer-opportunity-registrations/`, and the teams endpoints are all still there, per your
+explicit ask to leave them for the mobile app / admin dashboard.
+
+**Verified:** new test `RegistrationManagementTest::test_download_export_no_longer_has_a_team_column`
+creates a registration with a real team assignment (a distinctive team name), downloads the export,
+and asserts neither the `Team` header nor the team name appear anywhere in the sheet.
+
+### BE-71 — `platform_fee_percentage` now readable by a publisher
+
+- New `LearnServeOpportunity::platformFeePercentage()`, reused internally by the existing
+  `payoutAfterFee()` so the two numbers can never disagree.
+- Exposed as `platform_fee_percentage` on `LearnServeOpportunityResource`, right beside
+  `payout_after_fee` (option 1 from the ticket).
+- Defaults to `7` when the `platform_fee_percentage` config row is unset, matching the existing
+  `payoutAfterFee()` default.
+
+**Verified:** two new tests in `PaidOpportunityPayoutTest` — one sets the admin config to `10` and
+confirms the create response returns `platform_fee_percentage: 10` alongside the correctly-computed
+`payout_after_fee`; the other confirms it defaults to `7` when unconfigured.
+
+**Frontend action once you pull this:** `LearnServeForm.tsx`'s hardcoded `PLATFORM_FEE_PERCENT = 7`
+constant can now read `data.platform_fee_percentage` from the create/detail response instead, so the
+copy under the price field can never drift from the real config value.
 
 ---
 
-## How this was verified
+## 4. Anything changed that isn't a line item above
 
-- **BE-69:** `tests/Feature/AttendancePermissionTest.php` — 8 tests covering grant/
-  revoke via both request shapes, a non-owner being refused the ability to grant,
-  list + search, a holder successfully calling direct-register/manual-attendance/
-  hours-update while a plain volunteer is refused (403) on the same calls, and the
-  `can_manage_attendance` flag being `true` for the owner and the holder and `false`
-  for a stranger.
-- **BE-70:** `tests/Feature/LearnServeDueDateRequiredTest.php` — 5 tests covering the
-  API rejecting a create without `due_date`, accepting one with it, a partial update
-  omitting it still passing, the admin form session-erroring without it, and events
-  staying unaffected.
-- **BE-68:** `tests/Feature/RegistrationManagementTest.php::test_download_export_includes_guardian_columns`
-  — unzips the generated `.xlsx` and asserts the guardian columns and values are
-  actually present in the sheet, not just that the file exists.
-- Full regression pass: `php artisan test` — 378 passed, 1 pre-existing unrelated
-  failure (see above).
+Nothing schema-level this round. All three changes are additive fields/columns on existing resources
+and exports — no renamed fields, no new required parameters, no migration.
 
-## Not verified here (needs production access, unchanged from the last report)
+---
 
-- **BE-57 row count** (`nationality = 'other'` with `residency_status` NULL) — still
-  needs to be read from production; this workspace has no production database
-  access.
+## 5. Still outstanding, unchanged from last round
+
 - The production `EXPOSE_OTP_IN_RESPONSE` value.
-- Whether `fursa:backfill-sanitize-rich-text` and `fursa:backfill-generated-link`
-  have been run against production.
+- Whether `fursa:backfill-sanitize-rich-text` and `fursa:backfill-generated-link` have been run
+  against production.

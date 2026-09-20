@@ -309,6 +309,45 @@ class RegistrationManagementTest extends TestCase
         $this->assertStringContainsString($relationship->value_ar, $sheet);
     }
 
+    public function test_download_export_no_longer_has_a_team_column(): void
+    {
+        Storage::fake('public');
+        [$owner, $token] = $this->createOrganizationActor();
+        [$approved] = $this->createVolunteerActor();
+        $opportunity = $this->volunteerOpportunity($owner);
+
+        $team = \App\Models\VolunteerOpportunityTeam::query()->create([
+            'opportunity_id' => $opportunity->id,
+            'team_name_en' => 'Distinctive Team Name',
+            'team_name_ar' => 'فريق مميز',
+        ]);
+        $registration = VolunteerOpportunityRegistration::query()->create([
+            'opportunity_id' => $opportunity->id, 'user_id' => $approved->id, 'status' => ApprovalStatus::APPROVED,
+        ]);
+        \App\Models\VolunteerOpportunityAssignment::query()->create([
+            'registration_id' => $registration->id, 'team_id' => $team->id,
+        ]);
+
+        $response = $this->api($token)->getJson('/api/volunteer-opportunity-registrations/?'.http_build_query([
+            'opportunity_id' => $opportunity->id,
+            'download' => 'true',
+        ]));
+        $response->assertOk();
+
+        $files = Storage::disk('public')->allFiles('exports');
+        $temporary = tempnam(sys_get_temp_dir(), 'verify_xlsx_');
+        file_put_contents($temporary, Storage::disk('public')->get($files[0]));
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($temporary) === true);
+        $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        @unlink($temporary);
+
+        $this->assertNotFalse($sheet);
+        $this->assertStringNotContainsString('Team', $sheet);
+        $this->assertStringNotContainsString('Distinctive Team Name', $sheet);
+    }
+
     protected function volunteerOpportunity(User $owner, array $overrides = []): VolunteerOpportunity
     {
         return VolunteerOpportunity::query()->create(array_merge([
