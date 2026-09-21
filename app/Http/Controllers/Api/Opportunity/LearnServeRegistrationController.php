@@ -59,6 +59,10 @@ class LearnServeRegistrationController extends Controller
             return ApiResponse::error('You are already registered for this opportunity.', 'أنت مسجل بالفعل في هذه الفرصة.', 400);
         }
 
+        if ($mismatch = $this->rejectIfNationalityMismatch($opportunity, $user)) {
+            return $mismatch;
+        }
+
         $totalRegistrations = LearnServeOpportunityRegistration::query()
             ->notDeleted()
             ->where('opportunity_id', $opportunity->id)

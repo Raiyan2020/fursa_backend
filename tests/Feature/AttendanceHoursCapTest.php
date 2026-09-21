@@ -13,9 +13,14 @@ use Tests\TestCase;
 
 /**
  * PDF review bug: manual attendance hours accepted anything up to a flat 24,
- * regardless of the opportunity's actual scheduled hours for that day. Both
- * the manual check-in endpoint and the hours-correction endpoint must cap at
- * the opportunity's real per-day duration instead.
+ * regardless of the opportunity's actual scheduled hours for that day. The
+ * manual check-in endpoint caps at the opportunity's real per-day duration.
+ *
+ * The hours-correction endpoint (`PATCH …/hours/`) no longer caps: BE-75
+ * part C explicitly requires the organizer's manual override to stay above
+ * the self-scan cap ("organizer PATCH …/hours/ with 6 | 6 is kept — the cap
+ * is on self-scan only"), since it's the only way to record a genuinely
+ * extended shift.
  */
 class AttendanceHoursCapTest extends TestCase
 {
@@ -79,10 +84,11 @@ class AttendanceHoursCapTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_update_hours_rejects_a_correction_above_the_opportunitys_scheduled_hours(): void
+    public function test_update_hours_allows_a_correction_above_the_opportunitys_scheduled_hours(): void
     {
         [$owner, $ownerToken] = $this->createOrganizationActor();
         [$volunteer] = $this->createVolunteerActor();
+        // 08:00-12:00 is a 4-hour opportunity; the organizer records 6h of legitimate overtime.
         $opportunity = $this->opportunity($owner);
         $registration = VolunteerOpportunityRegistration::create([
             'opportunity_id' => $opportunity->id,
@@ -97,12 +103,14 @@ class AttendanceHoursCapTest extends TestCase
             'recorded_via' => 'manual',
         ]);
 
-        $this->api($ownerToken)->patchJson("/api/volunteer-attendance/{$attendance->id}/hours/", [
-            'total_hours' => 15,
-        ])->assertStatus(422);
+        $response = $this->api($ownerToken)->patchJson("/api/volunteer-attendance/{$attendance->id}/hours/", [
+            'total_hours' => 6,
+        ]);
 
-        $this->assertSame(4.0, (float) $attendance->fresh()->total_hours);
+        $response->assertOk()->assertJsonPath('data.total_hours', 6);
+        $this->assertSame(6.0, (float) $attendance->fresh()->total_hours);
 
+        // A normal in-range correction still works as before.
         $this->api($ownerToken)->patchJson("/api/volunteer-attendance/{$attendance->id}/hours/", [
             'total_hours' => 3.5,
         ])->assertOk();

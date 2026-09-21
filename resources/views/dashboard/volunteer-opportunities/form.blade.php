@@ -229,7 +229,7 @@
                 <label>{{ __('opportunity nationality') }}</label>
                 <select name="opportunity_nationality" class="form-control{{ $invalid('opportunity_nationality') }}">
                     <option value="">{{ __('select') }}</option>
-                    @foreach (\App\Enums\Nationality::cases() as $nat)
+                    @foreach (\App\Enums\OpportunityNationality::cases() as $nat)
                         <option value="{{ $nat->value }}" {{ $selected('opportunity_nationality') === $nat->value ? 'selected' : '' }}>
                             {{ __($nat->value) }}
                         </option>

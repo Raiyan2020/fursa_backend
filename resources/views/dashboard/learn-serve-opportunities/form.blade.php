@@ -137,7 +137,14 @@
     </div>
     <div class="col-md-8 mb-1">
         <label>{{ __('opportunity nationality') }}</label>
-        <input type="text" name="opportunity_nationality" class="form-control{{ $invalid('opportunity_nationality') }}" value="{{ $opportunityValue('opportunity_nationality') }}">
+        <select name="opportunity_nationality" class="form-control{{ $invalid('opportunity_nationality') }}">
+            <option value="">{{ __('select') }}</option>
+            @foreach (\App\Enums\OpportunityNationality::cases() as $nat)
+                <option value="{{ $nat->value }}" {{ $opportunityValue('opportunity_nationality') === $nat->value ? 'selected' : '' }}>
+                    {{ __($nat->value) }}
+                </option>
+            @endforeach
+        </select>
         @error('opportunity_nationality') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
     </div>
 

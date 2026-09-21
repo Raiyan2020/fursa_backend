@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Opportunity\Concerns\HandlesOpportunities;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\VolunteerAttendanceResource;
 use App\Models\AttendancePermission;
+use App\Models\Config;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAttendance;
@@ -219,6 +220,29 @@ class VolunteerAttendanceController extends Controller
 
         $attendanceDate = now()->toDateString();
 
+        $attendance = VolunteerOpportunityAttendance::query()
+            ->where('registration_id', $registration->id)
+            ->whereDate('attended_date', $attendanceDate)
+            ->first();
+
+        // BE-75 Part D — a session ending inside its grace window of midnight
+        // files its check-in under yesterday's date, so today's-date matching
+        // above finds nothing on the OUT scan. Fall back to the volunteer's
+        // most recent still-open check-in.
+        if ($direction === 'out' && (! $attendance || ! $attendance->checked_in_at || $attendance->checked_out_at)) {
+            $openAttendance = VolunteerOpportunityAttendance::query()
+                ->where('registration_id', $registration->id)
+                ->whereNotNull('checked_in_at')
+                ->whereNull('checked_out_at')
+                ->orderByDesc('checked_in_at')
+                ->first();
+
+            if ($openAttendance) {
+                $attendance = $openAttendance;
+                $attendanceDate = $attendance->attended_date->toDateString();
+            }
+        }
+
         if (! $opportunity->isWithinPreparationWindow($attendanceDate)) {
             return ApiResponse::error(
                 'Check-in is not available for this opportunity today.',
@@ -226,11 +250,6 @@ class VolunteerAttendanceController extends Controller
                 400
             );
         }
-
-        $attendance = VolunteerOpportunityAttendance::query()
-            ->where('registration_id', $registration->id)
-            ->whereDate('attended_date', $attendanceDate)
-            ->first();
 
         if ($direction === 'in') {
             if ($attendance && $attendance->checked_in_at) {
@@ -257,6 +276,20 @@ class VolunteerAttendanceController extends Controller
                     'لقد سجّلت الانصراف بالفعل اليوم.',
                     409
                 );
+            }
+
+            // BE-75 Part A — refuse the departure scan once the session's
+            // scheduled end plus the configured grace period has passed.
+            $window = $opportunity->sessionWindowForDate($attendanceDate);
+            if ($window) {
+                $deadline = $window['end']->copy()->addHours(Config::selfCheckOutGraceHours());
+                if (now()->gt($deadline)) {
+                    return ApiResponse::error(
+                        "The departure window closed at {$deadline->format('g:i A')}. Ask the organizer to record your departure.",
+                        'انتهت نافذة تسجيل الانصراف في '.$deadline->format('g:i A').'. يرجى مطالبة المنظم بتسجيل انصرافك.',
+                        400
+                    );
+                }
             }
 
             $attendance = AttendanceService::selfCheckOut($attendance);
@@ -449,15 +482,6 @@ class VolunteerAttendanceController extends Controller
         }
 
         $hours = round((float) $data['total_hours'], 2);
-        $maxHoursForDay = $this->computeAttendanceHours($opportunity, $attendance->attended_date->toDateString());
-
-        if ($maxHoursForDay > 0 && $hours > $maxHoursForDay) {
-            return ApiResponse::error(
-                "Hours cannot exceed the opportunity's scheduled hours for this day ({$maxHoursForDay}h).",
-                "لا يمكن أن تتجاوز الساعات المدخلة الساعات المجدولة لهذا اليوم ({$maxHoursForDay} ساعة).",
-                422
-            );
-        }
 
         $attendance = AttendanceService::updateHours($attendance, $hours);
 

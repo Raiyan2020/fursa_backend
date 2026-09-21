@@ -25,6 +25,7 @@ class Config extends Model
         'preparation_validity_days',
         'preparation_validity_hours',
         'preparation_reminder_hours_before',
+        'self_check_out_grace_hours',
         'is_deleted',
         'deleted_at',
     ];
@@ -37,5 +38,14 @@ class Config extends Model
     public static function platformFeePercentage(): float
     {
         return (float) (static::query()->value('platform_fee_percentage') ?? 7);
+    }
+
+    /**
+     * BE-75 — how long after a session's scheduled end a self-scan departure
+     * is still accepted.
+     */
+    public static function selfCheckOutGraceHours(): float
+    {
+        return (float) (static::query()->value('self_check_out_grace_hours') ?? 2);
     }
 }

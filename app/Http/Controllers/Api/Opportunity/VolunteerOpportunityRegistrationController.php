@@ -239,6 +239,10 @@ class VolunteerOpportunityRegistrationController extends Controller
             );
         }
 
+        if ($mismatch = $this->rejectIfNationalityMismatch($opportunity, $user)) {
+            return $mismatch;
+        }
+
         // effectiveBirthYear() falls back to `dob`, so an account that has a
         // birth date but no birth_year is no longer rejected.
         $userAge = $this->calculateAge($user->effectiveBirthYear());

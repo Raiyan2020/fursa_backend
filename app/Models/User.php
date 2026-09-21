@@ -68,6 +68,7 @@ class User extends Authenticatable
         'banned_time',
         'manually_banned',
         'badge_id',
+        'speaks_arabic',
         'is_deleted',
         'deleted_at',
     ];
@@ -94,6 +95,7 @@ class User extends Authenticatable
         'social_media_provider' => SocialMediaProvider::class,
         'preferred_language' => Language::class,
         'receive_reminder_emails' => 'boolean',
+        'speaks_arabic' => 'boolean',
         'password' => 'hashed',
     ];
 

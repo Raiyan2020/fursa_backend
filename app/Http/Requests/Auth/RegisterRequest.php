@@ -46,6 +46,9 @@ class RegisterRequest extends BaseRequest
             'longitude' => ['nullable', 'numeric'],
             'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
             'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
+            // BE-77 part B — whether the individual speaks Arabic, used to
+            // match the non_kuwaiti_arabic/non_arabic opportunity audiences.
+            'speaks_arabic' => ['nullable', 'boolean'],
             'birth_year' => ['nullable', 'integer'],
             'dob' => ['nullable', 'date'],
             'preferred_language' => ['nullable', 'in:en,ar'],

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
 use App\Enums\Language;
-use App\Enums\Nationality;
+use App\Enums\OpportunityNationality;
 use App\Enums\OpportunityStatus;
 use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\SyncsOpportunityInterests;
@@ -90,6 +90,7 @@ class VolunteerOpportunityController extends Controller
         unset($data['interest_ids'], $data['images'], $data['after_images'], $data['license_image'], $data['time_slots']);
 
         $data = $this->applyBooleans($request, $data);
+        $data = OpportunityNationality::normalizeFields($data);
         $data['approval_status'] = $data['approval_status'] ?? ApprovalStatus::APPROVED->value;
         $data['deletion_status'] = DeletionStatus::NOT_REQUESTED->value;
         $data['opportunity_status'] = $data['opportunity_status'] ?? OpportunityStatus::UPCOMING->value;
@@ -141,6 +142,7 @@ class VolunteerOpportunityController extends Controller
         unset($data['interest_ids'], $data['images'], $data['after_images'], $data['license_image'], $data['time_slots']);
 
         $data = $this->applyBooleans($request, $data);
+        $data = OpportunityNationality::normalizeFields($data);
 
         if ($request->hasFile('license_image')) {
             if ($opportunity->license_image) {
@@ -433,7 +435,7 @@ class VolunteerOpportunityController extends Controller
             'map_desc' => ['nullable', 'string', 'max:500'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
-            'opportunity_nationality' => ['nullable', Rule::in(Nationality::values())],
+            'opportunity_nationality' => ['nullable', Rule::in(OpportunityNationality::values())],
             'primary_language' => ['nullable', Rule::in(Language::values())],
             'approval_status' => ['required', Rule::in(ApprovalStatus::values())],
             'opportunity_status' => ['required', Rule::in(OpportunityStatus::values())],

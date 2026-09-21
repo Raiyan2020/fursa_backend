@@ -432,12 +432,16 @@ class EventController extends Controller
         }
 
         if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                EventImage::create([
-                    'event_id' => $event->id,
-                    'image' => uploader($file, 'events'),
-                ]);
-            }
+            // BE-76 — one announcement image per event; a new upload replaces
+            // whatever was there rather than accumulating. If a request
+            // somehow carries more than one, the last wins.
+            $event->images()->notDeleted()->update(['is_deleted' => true, 'deleted_at' => now()]);
+
+            $file = last($request->file('images'));
+            EventImage::create([
+                'event_id' => $event->id,
+                'image' => uploader($file, 'events'),
+            ]);
         }
 
         if ($request->hasFile('sponsor_images')) {

@@ -416,6 +416,8 @@ class AuthController extends Controller
             'birth_year' => ['nullable', 'integer'],
             'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
             'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
+            // BE-77 part B — editable from the profile screen, per the doc.
+            'speaks_arabic' => ['nullable', 'boolean'],
             'preferred_language' => ['nullable', 'in:en,ar'],
             'receive_reminder_emails' => ['nullable', 'boolean'],
             'civil_id' => ['nullable', 'string', 'max:12', Rule::unique('users', 'civil_id')->ignore($user->id)],

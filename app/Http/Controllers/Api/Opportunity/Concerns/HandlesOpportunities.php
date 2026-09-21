@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Opportunity\Concerns;
 
 use App\Enums\ApprovalStatus;
+use App\Enums\OpportunityNationality;
 use App\Enums\OpportunityStatus;
 use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\AppliesAudienceFilters;
@@ -101,12 +102,7 @@ trait HandlesOpportunities
         $this->applyGenderAudienceFilter($query, $request);
         $this->applyAgeAudienceFilter($query, $request);
 
-        $nationality = $request->query('opportunity_nationality');
-        if ($nationality === 'kuwaitis') {
-            $query->where('is_kuwaitis', true);
-        } elseif ($nationality === 'non-kuwaitis') {
-            $query->where('is_kuwaitis', false);
-        }
+        $this->applyNationalityFilter($query, $request);
 
         foreach (['is_relief', 'is_urgent', 'is_supports_disabled'] as $boolField) {
             if ($request->has($boolField)) {
@@ -282,6 +278,11 @@ trait HandlesOpportunities
 
     /**
      * Attach announcement images on create/update (is_after_completed=false), matching Django serializers.
+     *
+     * BE-76 — only one announcement image at a time (the after-completion
+     * gallery is unaffected and stays uncapped). A new announcement image
+     * replaces whatever was there rather than accumulating; if a single
+     * request somehow carries more than one, the last one processed wins.
      */
     protected function storeAnnouncementImagesFromRequest(Request $request, object $opportunity, string $foreignKey): void
     {
@@ -302,6 +303,13 @@ trait HandlesOpportunities
                 );
             } else {
                 continue;
+            }
+
+            if (! $isAfterCompleted) {
+                $opportunity->images()
+                    ->notDeleted()
+                    ->where('is_after_completed', false)
+                    ->update(['is_deleted' => true, 'deleted_at' => now()]);
             }
 
             OpportunityImage::query()->create([
@@ -397,6 +405,22 @@ trait HandlesOpportunities
         )));
     }
 
+    /**
+     * BE-77 Part D — accepts all four audience values, plus the legacy
+     * `non-kuwaitis` alias (kept working: "not Kuwaitis-only"). Anything
+     * else is ignored, same as before.
+     */
+    protected function applyNationalityFilter(Builder $query, Request $request): void
+    {
+        $nationality = $request->query('opportunity_nationality');
+
+        if ($nationality === 'non-kuwaitis') {
+            $query->where('opportunity_nationality', '!=', OpportunityNationality::KUWAITIS->value);
+        } elseif (in_array($nationality, OpportunityNationality::values(), true)) {
+            $query->where('opportunity_nationality', $nationality);
+        }
+    }
+
     protected function rejectIfRegistrationClosed(object $opportunity): ?JsonResponse
     {
         if ($rejection = RegistrationEligibility::reject($opportunity)) {
@@ -411,6 +435,36 @@ trait HandlesOpportunities
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function normalizeOpportunityNationalityFields(array $data): array
+    {
+        return OpportunityNationality::normalizeFields($data);
+    }
+
+    /**
+     * BE-77 Part C — refuse registration when the opportunity is targeted at
+     * an audience the user doesn't match. Same envelope shape as the age
+     * guard (`ApiResponse::error`, HTTP 400, `key: "fail"`).
+     */
+    protected function rejectIfNationalityMismatch(object $opportunity, User $user): ?JsonResponse
+    {
+        $audience = OpportunityNationality::tryFrom($opportunity->opportunity_nationality ?? '')
+            ?? OpportunityNationality::ALL;
+
+        if ($audience->matches($user->nationality, $user->speaks_arabic)) {
+            return null;
+        }
+
+        return ApiResponse::error(
+            "This opportunity is open to {$audience->labelEn()} only.",
+            "هذه الفرصة مخصصة لـ {$audience->labelAr()} فقط.",
+            400
+        );
     }
 
     /**

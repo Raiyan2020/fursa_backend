@@ -53,6 +53,7 @@ class VolunteerProfileResource extends JsonResource
             'user' => $this->userPayload(),
             'interests' => ($user?->interests ?? collect())->map(fn ($i) => $this->interestPayload($i))->values()->all(),
             'nationality' => $user?->nationality?->value ?? $user?->nationality,
+            'speaks_arabic' => $user?->speaks_arabic,
             'total_volunteer_hours' => (float) ($this->total_volunteer_hours ?? 0),
             'total_opportunities' => $this->total_opportunities ?? 0,
             'total_certificates' => $this->total_certificates ?? 0,

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Opportunity;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
-use App\Enums\Nationality;
+use App\Enums\OpportunityNationality;
 use App\Enums\OpportunityStatus;
 use App\Enums\VolunteerCategory;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
@@ -94,6 +94,8 @@ class VolunteerOpportunityController extends Controller
             unset($data['license_image'], $data['after_images']);
 
             $data = array_merge($data, $this->mapLocationAttributes($data));
+            $data = $this->normalizeOpportunityNationalityFields($data);
+            $data['opportunity_nationality'] ??= OpportunityNationality::ALL->value;
 
             $opportunity = VolunteerOpportunity::create(array_merge($data, [
                 'created_by' => $request->user()->id,
@@ -167,6 +169,7 @@ class VolunteerOpportunityController extends Controller
         unset($data['license_image'], $data['after_images']);
         $before = $this->opportunitySnapshot($opportunity);
         $data = array_merge($data, $this->mapLocationAttributes($data));
+        $data = $this->normalizeOpportunityNationalityFields($data);
         $opportunity->update($data);
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
 
@@ -708,7 +711,7 @@ class VolunteerOpportunityController extends Controller
             'volunteer_hours_per_day' => ['nullable', 'numeric'],
             'gender_id' => ['nullable', 'integer', 'exists:master_choices,id'],
             'primary_language' => ['nullable', Rule::in(['en', 'ar'])],
-            'opportunity_nationality' => ['nullable', Rule::in(Nationality::values())],
+            'opportunity_nationality' => ['nullable', Rule::in(OpportunityNationality::values())],
             'after_images' => ['nullable', 'array'],
             'after_images.*' => ['image', 'max:10240'],
             'interest_ids' => ['nullable', 'array'],

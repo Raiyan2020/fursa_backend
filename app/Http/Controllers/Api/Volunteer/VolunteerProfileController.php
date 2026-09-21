@@ -107,6 +107,7 @@ class VolunteerProfileController extends Controller
             'receive_reminder_emails' => array_key_exists('receive_reminder_emails', $data)
                 ? $data['receive_reminder_emails']
                 : $user->receive_reminder_emails,
+            'speaks_arabic' => array_key_exists('speaks_arabic', $data) ? $data['speaks_arabic'] : $user->speaks_arabic,
         ]);
         $user->save();
 

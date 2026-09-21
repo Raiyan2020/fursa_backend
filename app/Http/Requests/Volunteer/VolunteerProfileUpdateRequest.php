@@ -46,6 +46,9 @@ class VolunteerProfileUpdateRequest extends BaseRequest
             'email' => ['nullable', 'email', Rule::unique('users', 'email')->ignore($this->user()->id)],
             'nationality' => ['nullable', 'string', Rule::in(Nationality::personValues())],
             'residency_status' => ['nullable', 'string', Rule::in(ResidencyStatus::values())],
+            // BE-77 part B — whether the volunteer speaks Arabic, used to
+            // match the non_kuwaiti_arabic/non_arabic opportunity audiences.
+            'speaks_arabic' => ['nullable', 'boolean'],
             'dob' => ['nullable', 'date'],
             'birth_year' => ['nullable', 'integer'],
             'instagram_link' => ['nullable', 'url'],

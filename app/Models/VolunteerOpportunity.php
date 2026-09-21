@@ -235,6 +235,35 @@ class VolunteerOpportunity extends Model
     }
 
     /**
+     * The actual start/end instants this opportunity runs on the given date.
+     *
+     * Uses the day's own time slot when one is scheduled, else falls back to
+     * the opportunity-wide start_time/end_time — the same resolution order as
+     * computeAttendanceHours() — and rolls the end over to the next day when
+     * it's not after the start (an overnight shift). Used by the self-scan
+     * departure deadline and hour-crediting (BE-75).
+     */
+    public function sessionWindowForDate(string $date): ?array
+    {
+        $slot = $this->slotForDate($date);
+        $startTime = $slot->start_time ?? $this->start_time;
+        $endTime = $slot->end_time ?? $this->end_time;
+
+        if (! $startTime || ! $endTime) {
+            return null;
+        }
+
+        $start = \Carbon\Carbon::parse($date)->setTimeFromTimeString((string) $startTime);
+        $end = \Carbon\Carbon::parse($date)->setTimeFromTimeString((string) $endTime);
+
+        if ($end->lte($start)) {
+            $end->addDay();
+        }
+
+        return ['start' => $start, 'end' => $end];
+    }
+
+    /**
      * The two printed IN/OUT codes for self check-in (BE-61 Part A).
      *
      * Generated once and stable across calls, so a printed sheet never stops

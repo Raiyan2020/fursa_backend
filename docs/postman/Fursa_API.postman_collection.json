@@ -3563,6 +3563,49 @@
                             "response": []
                         },
                         {
+                            "name": "Update Certificate Name (Learn & Serve)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PATCH",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}learn-serve-opportunities/{{opportunity_id}}/registrations/{{registration_id}}/certificate-name/",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "learn-serve-opportunities",
+                                        "{{opportunity_id}}",
+                                        "registrations",
+                                        "{{registration_id}}",
+                                        "certificate-name"
+                                    ]
+                                },
+                                "description": "## Update Certificate Name (Learn & Serve)\nSets (or clears) the name printed on a registration's certificate, and resets its certification/generation state so it re-renders with the new name. `PUT` is also accepted.\n\n**Auth required:** Bearer `{{token}}` with the owning organization account.\n\n### Path params\n| Param | Description |\n|-------|-------------|\n| opportunity_id | `learn_serve_opportunities.id` (collection var `{{opportunity_id}}`) |\n| registration_id | `learn_serve_opportunity_registrations.id` (collection var `{{registration_id}}`) |\n\n### Form-data fields\n| Field | Required | Description |\n|-------|----------|-------------|\n| certificate_name | No | Name to print on the certificate; omit or send empty to clear it |",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "certificate_name",
+                                            "type": "text",
+                                            "description": "Name to print on the certificate.",
+                                            "value": "Ahmad Al-Fulan"
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": []
+                        },
+                        {
                             "name": "Unregister From Learn & Serve",
                             "request": {
                                 "auth": {

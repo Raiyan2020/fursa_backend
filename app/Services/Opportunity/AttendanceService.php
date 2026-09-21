@@ -122,15 +122,29 @@ class AttendanceService
     /**
      * BE-61 Part A — the volunteer scans the printed OUT code.
      *
-     * Hours are the real elapsed time since the IN scan, not the scheduled
-     * duration. Reuses updateHours() so the profile total, the monthly
-     * statistic row and a stale certificate all stay in sync the same way a
-     * manual correction keeps them.
+     * BE-75 Part C — hours are capped to the overlap between actual presence
+     * (check-in..check-out) and the scheduled session for the day, not the
+     * raw scan-to-scan difference: a volunteer who arrives early or lingers
+     * after the grace period doesn't get credited for that extra time.
+     * Reuses updateHours() so the profile total, the monthly statistic row
+     * and a stale certificate all stay in sync the same way a manual
+     * correction keeps them.
      */
     public static function selfCheckOut(VolunteerOpportunityAttendance $attendance): VolunteerOpportunityAttendance
     {
         $checkedOutAt = now();
-        $hours = round($attendance->checked_in_at->floatDiffInHours($checkedOutAt), 2);
+        $checkedInAt = $attendance->checked_in_at;
+        $hours = round($checkedInAt->floatDiffInHours($checkedOutAt), 2);
+
+        $opportunity = $attendance->registration?->opportunity;
+        if ($opportunity) {
+            $window = $opportunity->sessionWindowForDate($attendance->attended_date->toDateString());
+            if ($window) {
+                $overlapStart = $checkedInAt->max($window['start']);
+                $overlapEnd = $checkedOutAt->min($window['end']);
+                $hours = max(0, round($overlapStart->floatDiffInHours($overlapEnd, false), 2));
+            }
+        }
 
         $attendance->checked_out_at = $checkedOutAt;
         $attendance->recorded_via = self::VIA_QR_SELF;

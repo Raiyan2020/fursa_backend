@@ -34,6 +34,7 @@ class AccountResource extends JsonResource
             'password_length' => $this->password_length,
             'nationality' => $this->nationality?->value ?? $this->nationality,
             'residency_status' => $this->residency_status?->value ?? $this->residency_status,
+            'speaks_arabic' => $this->speaks_arabic,
             'gender_display' => $this->masterChoicePayload($this->volunteerProfile?->gender),
             'preferred_language' => $this->preferred_language?->value ?? $this->preferred_language,
             'receive_reminder_emails' => (bool) $this->receive_reminder_emails,

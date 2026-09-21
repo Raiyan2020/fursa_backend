@@ -37,6 +37,7 @@ class AuthService
         $user->receive_reminder_emails = $data['receive_reminder_emails'] ?? true;
         $user->nationality = $data['nationality'] ?? null;
         $user->residency_status = $data['residency_status'] ?? null;
+        $user->speaks_arabic = $data['speaks_arabic'] ?? null;
         $user->birth_year = $data['birth_year'] ?? null;
         $user->dob = $data['dob'] ?? null;
         $user->civil_id = $data['civil_id'] ?? null;

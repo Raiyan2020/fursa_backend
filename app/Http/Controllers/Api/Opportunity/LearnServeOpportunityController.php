@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Opportunity;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\DeletionStatus;
-use App\Enums\Nationality;
+use App\Enums\OpportunityNationality;
 use App\Enums\OpportunityStatus;
 use App\Http\Controllers\Api\Concerns\HandlesMapLocation;
 use App\Http\Controllers\Api\Concerns\RejectsUnknownWriteKeys;
@@ -87,6 +87,8 @@ class LearnServeOpportunityController extends Controller
             unset($data['license_image'], $data['after_images']);
 
             $data = array_merge($data, $this->mapLocationAttributes($data));
+            $data = $this->normalizeOpportunityNationalityFields($data);
+            $data['opportunity_nationality'] ??= OpportunityNationality::ALL->value;
 
             $opportunity = LearnServeOpportunity::create(array_merge($data, [
                 'created_by' => $request->user()->id,
@@ -147,6 +149,7 @@ class LearnServeOpportunityController extends Controller
         unset($data['license_image'], $data['after_images']);
         $before = $this->opportunitySnapshot($opportunity);
         $data = array_merge($data, $this->mapLocationAttributes($data));
+        $data = $this->normalizeOpportunityNationalityFields($data);
         $opportunity->update($data);
         OpportunityChangeNotifier::notify($opportunity, $before, $this->opportunitySnapshot($opportunity->fresh()));
 
@@ -445,12 +448,7 @@ class LearnServeOpportunityController extends Controller
         $this->applyGenderAudienceFilter($query, $request);
         $this->applyAgeAudienceFilter($query, $request);
 
-        $nationality = $request->query('opportunity_nationality');
-        if ($nationality === 'kuwaitis') {
-            $query->where('is_kuwaitis', true);
-        } elseif ($nationality === 'non-kuwaitis') {
-            $query->where('is_kuwaitis', false);
-        }
+        $this->applyNationalityFilter($query, $request);
 
         if ($status = $request->query('status')) {
             $this->applyOpportunityStatusFilter($query, $status);
@@ -485,7 +483,7 @@ class LearnServeOpportunityController extends Controller
             'format_id' => [$partial ? 'sometimes' : 'required', 'integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->where('name', 'learn_serve_format'))->pluck('id')->all())],
             'certificate_type_id' => ['nullable', 'integer', Rule::in(MasterChoice::query()->notDeleted()->whereHas('choiceType', fn ($q) => $q->where('name', 'learn_serve_certificate_type'))->pluck('id')->all())],
             'primary_language' => ['nullable', Rule::in(['en', 'ar'])],
-            'opportunity_nationality' => ['nullable', Rule::in(Nationality::values())],
+            'opportunity_nationality' => ['nullable', Rule::in(OpportunityNationality::values())],
             'after_images' => ['nullable', 'array'],
             'after_images.*' => ['image', 'max:10240'],
             'interest_ids' => ['nullable', 'array'],
