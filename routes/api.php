@@ -182,6 +182,7 @@ Route::middleware('auth:api')->group(function () {
 
     Route::get('volunteer-opportunities/{id}/attendance-qr/', [VolunteerOpportunityController::class, 'attendanceQr']);
     Route::post('volunteer-attendance/self-scan/', [VolunteerAttendanceController::class, 'selfScan']);
+    Route::get('my-attendance-scans/', [VolunteerAttendanceController::class, 'myAttendanceScans']);
 
     Route::post('volunteer-attendance/scan/', [VolunteerAttendanceController::class, 'scan']);
     Route::post('volunteer-attendance/manual/', [VolunteerAttendanceController::class, 'manual']);

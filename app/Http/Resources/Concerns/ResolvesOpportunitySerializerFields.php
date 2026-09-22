@@ -126,7 +126,11 @@ trait ResolvesOpportunitySerializerFields
      * now, so a page refresh doesn't leave the frontend guessing between the
      * two scans. Null for anyone not registered (including the organizer).
      *
-     * @return array{checked_in_at: ?string, checked_out_at: ?string, next_action: string}|null
+     * BE-75 Part B — also carries the departure deadline, since the detail
+     * page has to decide whether to draw the check-out button and what time
+     * to print next to it before either attendance resource exists.
+     *
+     * @return array{checked_in_at: ?string, checked_out_at: ?string, next_action: string, self_check_out_closes_at: ?string}|null
      */
     protected function selfAttendanceState(VolunteerOpportunity $opportunity, Request $request): ?array
     {
@@ -151,6 +155,24 @@ trait ResolvesOpportunitySerializerFields
             ->whereDate('attended_date', now()->toDateString())
             ->first();
 
+        // BE-75 Part B/D — a session ending inside its grace window of
+        // midnight files its check-in under yesterday's date, so today's-date
+        // matching above finds nothing while a check-out is still pending.
+        // Fall back to the volunteer's most recent still-open check-in.
+        if (! $attendance || ! $attendance->checked_in_at || $attendance->checked_out_at) {
+            $openAttendance = VolunteerOpportunityAttendance::query()
+                ->notDeleted()
+                ->where('registration_id', $registration->id)
+                ->whereNotNull('checked_in_at')
+                ->whereNull('checked_out_at')
+                ->orderByDesc('checked_in_at')
+                ->first();
+
+            if ($openAttendance) {
+                $attendance = $openAttendance;
+            }
+        }
+
         $checkedInAt = $attendance?->checked_in_at;
         $checkedOutAt = $attendance?->checked_out_at;
 
@@ -162,7 +184,32 @@ trait ResolvesOpportunitySerializerFields
                 (bool) $checkedInAt => 'out',
                 default => 'in',
             },
+            'self_check_out_closes_at' => $this->selfCheckOutClosesAtFor($opportunity, $attendance),
         ];
+    }
+
+    /**
+     * BE-75 Part B — session end + grace, shared with
+     * VolunteerAttendanceResource::selfCheckOutClosesAt(). Only meaningful
+     * while a check-out is pending.
+     */
+    protected function selfCheckOutClosesAtFor(VolunteerOpportunity $opportunity, ?VolunteerOpportunityAttendance $attendance): ?string
+    {
+        if (! $attendance || ! $attendance->checked_in_at || $attendance->checked_out_at) {
+            return null;
+        }
+
+        $attendedDate = optional($attendance->attended_date)?->toDateString();
+        if (! $attendedDate) {
+            return null;
+        }
+
+        $window = $opportunity->sessionWindowForDate($attendedDate);
+        if (! $window) {
+            return null;
+        }
+
+        return $window['end']->copy()->addHours(Config::selfCheckOutGraceHours())->toIso8601String();
     }
 
     /**

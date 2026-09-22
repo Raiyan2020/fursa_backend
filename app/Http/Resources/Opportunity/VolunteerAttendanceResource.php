@@ -3,13 +3,14 @@
 namespace App\Http\Resources\Opportunity;
 
 use App\Http\Resources\Concerns\ResolvesApiPayloads;
-use App\Models\Config;
+use App\Http\Resources\Concerns\ResolvesOpportunitySerializerFields;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class VolunteerAttendanceResource extends JsonResource
 {
     use ResolvesApiPayloads;
+    use ResolvesOpportunitySerializerFields;
 
     public function toArray(Request $request): array
     {
@@ -35,25 +36,15 @@ class VolunteerAttendanceResource extends JsonResource
     /**
      * BE-75 Part B — the departure deadline (session end + grace), so the
      * frontend no longer has to derive it client-side. Only meaningful while
-     * a check-out is pending.
+     * a check-out is pending. Shared with selfAttendanceState().
      */
     protected function selfCheckOutClosesAt(): ?string
     {
-        if (! $this->checked_in_at || $this->checked_out_at) {
-            return null;
-        }
-
         $opportunity = $this->registration?->opportunity;
-        $attendedDate = optional($this->attended_date)?->toDateString();
-        if (! $opportunity || ! $attendedDate) {
+        if (! $opportunity) {
             return null;
         }
 
-        $window = $opportunity->sessionWindowForDate($attendedDate);
-        if (! $window) {
-            return null;
-        }
-
-        return $window['end']->copy()->addHours(Config::selfCheckOutGraceHours())->toIso8601String();
+        return $this->selfCheckOutClosesAtFor($opportunity, $this->resource);
     }
 }

@@ -9095,7 +9095,7 @@
                                 "self-scan"
                             ]
                         },
-                        "description": "BE-61 Part A. The volunteer scans one of the two printed codes themselves. total_hours is computed from the real elapsed time between IN and OUT; a missing OUT credits zero.",
+                        "description": "## Self Check-in/Check-out Scan\nBE-61 Part A. The volunteer scans one of the two printed codes themselves. total_hours is computed from the real elapsed time between IN and OUT; a missing OUT credits zero.\n\nBE-78 Part B. `direction` is optional — when omitted, the code is looked up against both the IN and OUT columns and the direction is inferred from whichever matched.",
                         "body": {
                             "mode": "formdata",
                             "formdata": [
@@ -9108,11 +9108,40 @@
                                 {
                                     "key": "direction",
                                     "type": "text",
-                                    "description": "'in' or 'out'.",
-                                    "value": "in"
+                                    "description": "Optional. 'in' or 'out' — inferred from the code when omitted.",
+                                    "value": "in",
+                                    "disabled": true
                                 }
                             ]
                         }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "My Attendance Scans",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}my-attendance-scans/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "my-attendance-scans"
+                            ]
+                        },
+                        "description": "## My Attendance Scans\nBE-78 Part A. The navbar scanner's \"do I have a session to scan into right now?\" query — only the volunteer/learn & serve sessions the signed-in user may scan right now. Empty array is the common case.\n\n**Auth required:** Bearer `{{token}}`."
                     },
                     "response": []
                 },

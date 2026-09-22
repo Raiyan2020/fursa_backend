@@ -2567,10 +2567,17 @@ $additionalRoutes = [
             "## Get Self Check-in Attendance QR Codes\nBE-61 Part A. Returns the two permanent IN/OUT codes for an owned volunteer opportunity as raw payload strings, generating them on first call. Stable across calls so a printed sheet never stops working.\n\n**Auth required:** Bearer `{{token}}` — caller must be the opportunity creator.",
             true
         ),
-        req('Self Check-in/Check-out Scan', 'POST', 'volunteer-attendance/self-scan/', 'BE-61 Part A. The volunteer scans one of the two printed codes themselves. total_hours is computed from the real elapsed time between IN and OUT; a missing OUT credits zero.', true, [
+        req('Self Check-in/Check-out Scan', 'POST', 'volunteer-attendance/self-scan/', "## Self Check-in/Check-out Scan\nBE-61 Part A. The volunteer scans one of the two printed codes themselves. total_hours is computed from the real elapsed time between IN and OUT; a missing OUT credits zero.\n\nBE-78 Part B. `direction` is optional — when omitted, the code is looked up against both the IN and OUT columns and the direction is inferred from whichever matched.", true, [
             ['key' => 'code', 'value' => '', 'description' => 'The scanned payload string (attendance_code_in or attendance_code_out).'],
-            ['key' => 'direction', 'value' => 'in', 'description' => "'in' or 'out'."],
+            ['key' => 'direction', 'value' => 'in', 'description' => "Optional. 'in' or 'out' — inferred from the code when omitted.", 'disabled' => true],
         ]),
+        req(
+            'My Attendance Scans',
+            'GET',
+            'my-attendance-scans/',
+            "## My Attendance Scans\nBE-78 Part A. The navbar scanner's \"do I have a session to scan into right now?\" query — only the volunteer/learn & serve sessions the signed-in user may scan right now. Empty array is the common case.\n\n**Auth required:** Bearer `{{token}}`.",
+            true
+        ),
         req('Record Manual Volunteer Attendance', 'POST', 'volunteer-attendance/manual/', 'Record manual attendance for a volunteer registration.', true, [
             ['key' => 'opportunity_id', 'value' => '{{opportunity_id}}', 'description' => 'Owned volunteer opportunity id.'],
             ['key' => 'registration_id', 'value' => '{{registration_id}}', 'description' => 'Volunteer registration id.'],

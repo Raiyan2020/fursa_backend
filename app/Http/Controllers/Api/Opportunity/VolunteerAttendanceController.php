@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Opportunity\VolunteerAttendanceResource;
 use App\Models\AttendancePermission;
 use App\Models\Config;
+use App\Models\LearnServeOpportunityRegistration;
 use App\Models\ScanPermission;
 use App\Models\VolunteerOpportunity;
 use App\Models\VolunteerOpportunityAttendance;
@@ -188,17 +189,29 @@ class VolunteerAttendanceController extends Controller
     {
         $data = $request->validate([
             'code' => ['required', 'string'],
-            'direction' => ['required', Rule::in(['in', 'out'])],
+            'direction' => ['nullable', Rule::in(['in', 'out'])],
         ]);
 
         $code = trim($data['code'], " \t\n\r\0\x0B\"'");
-        $direction = $data['direction'];
-        $column = $direction === 'in' ? 'attendance_code_in' : 'attendance_code_out';
+        $direction = $data['direction'] ?? null;
 
-        $opportunity = VolunteerOpportunity::query()
-            ->notDeleted()
-            ->where($column, $code)
-            ->first();
+        if ($direction) {
+            $column = $direction === 'in' ? 'attendance_code_in' : 'attendance_code_out';
+            $opportunity = VolunteerOpportunity::query()->notDeleted()->where($column, $code)->first();
+        } else {
+            // BE-78 Part B — the scanned string already identifies its own
+            // direction, so a caller that hasn't first looked up
+            // next_action (e.g. the navbar scanner) doesn't have to.
+            $opportunity = VolunteerOpportunity::query()->notDeleted()->where('attendance_code_in', $code)->first();
+            if ($opportunity) {
+                $direction = 'in';
+            } else {
+                $opportunity = VolunteerOpportunity::query()->notDeleted()->where('attendance_code_out', $code)->first();
+                if ($opportunity) {
+                    $direction = 'out';
+                }
+            }
+        }
 
         if (! $opportunity) {
             return ApiResponse::error('Scanned QR code is not valid.', 'رمز QR الممسوح غير صالح.', 400);
@@ -300,6 +313,107 @@ class VolunteerAttendanceController extends Controller
             'Attendance recorded successfully.',
             'تم تسجيل الحضور بنجاح.'
         );
+    }
+
+    /**
+     * BE-78 Part A — the navbar scanner's "do I have a session to scan into
+     * right now?" query. Purpose-built and cheap: an empty array is the
+     * common case. Covers both content types that take QR attendance;
+     * events take none and are out of scope.
+     */
+    public function myAttendanceScans(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $now = now();
+        $results = [];
+
+        $volunteerRegistrations = VolunteerOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('user_id', $user->id)
+            ->whereHas('opportunity', fn ($q) => $q->notDeleted())
+            ->with('opportunity')
+            ->get();
+
+        foreach ($volunteerRegistrations as $registration) {
+            $opportunity = $registration->opportunity;
+            if (! $opportunity || ! $opportunity->isWithinPreparationWindow($now->toDateString())) {
+                continue;
+            }
+
+            $window = $opportunity->sessionWindowForDate($now->toDateString());
+            if (! $window) {
+                continue;
+            }
+
+            $scanOpensAt = $window['start']->copy()->subHour();
+            $scanClosesAt = $window['end']->copy()->addHours(Config::selfCheckOutGraceHours());
+
+            if ($now->lt($scanOpensAt) || $now->gt($scanClosesAt)) {
+                continue;
+            }
+
+            $openAttendance = VolunteerOpportunityAttendance::query()
+                ->notDeleted()
+                ->where('registration_id', $registration->id)
+                ->whereNotNull('checked_in_at')
+                ->whereNull('checked_out_at')
+                ->orderByDesc('checked_in_at')
+                ->first();
+
+            $results[] = [
+                'opportunity_id' => $opportunity->id,
+                'opportunity_type' => 'volunteer_opportunity',
+                'title_en' => $opportunity->title_en,
+                'title_ar' => $opportunity->title_ar,
+                'next_action' => $openAttendance ? 'out' : 'in',
+                'scan_opens_at' => $scanOpensAt->toIso8601String(),
+                'scan_closes_at' => $scanClosesAt->toIso8601String(),
+            ];
+        }
+
+        $learnServeRegistrations = LearnServeOpportunityRegistration::query()
+            ->notDeleted()
+            ->where('user_id', $user->id)
+            ->where('is_attended', false)
+            ->whereHas('opportunity', fn ($q) => $q->notDeleted())
+            ->with('opportunity')
+            ->get();
+
+        foreach ($learnServeRegistrations as $registration) {
+            $opportunity = $registration->opportunity;
+            if (! $opportunity
+                || ! $opportunity->qrAttendanceEligible()
+                || ! $opportunity->attendance_code
+                || ! $opportunity->attendance_code_expires_at
+                || $now->gt($opportunity->attendance_code_expires_at)
+            ) {
+                continue;
+            }
+
+            $results[] = [
+                'opportunity_id' => $opportunity->id,
+                'opportunity_type' => 'learn_serve_opportunity',
+                'title_en' => $opportunity->title_en,
+                'title_ar' => $opportunity->title_ar,
+                'next_action' => null,
+                'scan_opens_at' => $opportunity->attendance_code_expires_at->copy()->subHours(2)->toIso8601String(),
+                'scan_closes_at' => $opportunity->attendance_code_expires_at->toIso8601String(),
+            ];
+        }
+
+        // ApiResponse::success() collapses an empty array to null via
+        // empty($data); the common case here is genuinely an empty list, so
+        // the envelope is built directly to keep it as [].
+        return response()->json([
+            'key' => 'success',
+            'msg' => app()->getLocale() === 'en' ? 'Live attendance scans retrieved successfully.' : 'تم استرداد جلسات المسح المتاحة بنجاح.',
+            'code' => 200,
+            'response_status' => [
+                'error' => false,
+                'validation_errors' => [],
+            ],
+            'data' => array_values($results),
+        ], 200);
     }
 
     public function history(Request $request): JsonResponse
